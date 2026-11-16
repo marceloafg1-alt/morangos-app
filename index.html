@@ -2651,7 +2651,7 @@ const rowcard = (icon, title, sub, act, v, green, badge) => `<button class="rowc
 
 /* ===== GESTÃO ===== */
 function gestao() {
-  return ({ inicio: gInicio, vendas: gVendas, entregas: gEntregas, compras: gCompras, caixa: gCaixa, estoque: gEstoque, noticias: gNoticias, relatorios: gRelatorios, atividade: gAtividade, clientes: gClientes, conversas: gConversas, config: gConfig, notificacoes: gNotificacoes, pendencias: gPendencias }[ui.g] || gInicio)();
+  return ({ inicio: gInicio, vendas: gVendas, entregas: gEntregas, compras: gCompras, caixa: gCaixa, estoque: gEstoque, noticias: gNoticias, relatorios: gRelatorios, atividade: gAtividade, clientes: gClientes, fornecedores: gFornecedores, conversas: gConversas, config: gConfig, notificacoes: gNotificacoes, pendencias: gPendencias }[ui.g] || gInicio)();
 }
 function pendencias() {
   const p = []; // [grupo, icone, titulo, detalhe, quantidade, ação, v, tom]
@@ -2751,8 +2751,8 @@ function gConfig() {
   <div class="sec-h"><h2>Loja e cadastros</h2></div>
   <nav class="card menu-list cfg-list" aria-label="Loja e cadastros">
     ${cfgRow('box', 'Estoque', pl(S.produtos.length, 'produto', 'produtos') + (baixo ? ` · ${baixo} acabando` : ''), 'go-cfg', 'estoque')}
-    ${cfgRow('user', 'Clientes', pl(S.clientes.length, 'cliente', 'clientes'), 'go-cfg', 'clientes', 'data-k="clientes"')}
-    ${cfgRow('basket', 'Fornecedores', pl(S.fornecedores.length, 'fornecedor', 'fornecedores'), 'go-cfg', 'clientes', 'data-k="fornecedores"')}
+    ${cfgRow('user', 'Clientes', pl(S.clientes.length, 'cliente', 'clientes'), 'go-cfg', 'clientes')}
+    ${cfgRow('basket', 'Fornecedores', pl(S.fornecedores.length, 'fornecedor', 'fornecedores'), 'go-cfg', 'fornecedores')}
     ${cfgRow('megaphone', 'Notícias', `${newsNoAr().length} no ar`, 'go-cfg', 'noticias')}
   </nav>
   <div class="sec-h"><h2>App</h2></div>
@@ -3710,9 +3710,9 @@ function nav() {
     const maisOn = !naBarra.includes(cur) && MENU_ITENS.some(i => i.k === cur);
     const fabOn = ui.sheet?.type === 'novo' || ui.sheet?.type === 'conv-mais';
     const convCli = !fabOn && ui.g === 'conversas' && ui.conv ? ui.conv : '';
-    const fabPag = { estoque: ['novo-produto', 'Novo produto'], compras: ['nova-compra', 'Nova compra na roça'], noticias: ['nova-noticia', 'Nova notícia'] }[ui.g];
+    const fabPag = { estoque: ['novo-produto', 'Novo produto'], compras: ['nova-compra', 'Nova compra na roça'], noticias: ['nova-noticia', 'Nova notícia'], clientes: ['novo-cliente', 'Novo cliente'], fornecedores: ['novo-fornecedor', 'Novo fornecedor'] }[ui.g];
     const fabAct = fabOn ? 'close-sheet' : convCli ? 'sheet' : ui.g === 'conversas' ? 'nova-conversa' : ui.g === 'vendas' ? 'nova-venda' : fabPag ? fabPag[0] : 'sheet';
-    const fabLbl = fabOn ? 'Fechar' : ui.g === 'clientes' ? 'Adicionar cliente ou fornecedor' : convCli ? 'Nova venda ou novo chat' : ui.g === 'conversas' ? 'Novo chat' : ui.g === 'vendas' ? 'Nova venda avulsa' : fabPag ? fabPag[1] : 'Lançar';
+    const fabLbl = fabOn ? 'Fechar' : convCli ? 'Nova venda ou novo chat' : ui.g === 'conversas' ? 'Novo chat' : ui.g === 'vendas' ? 'Nova venda avulsa' : fabPag ? fabPag[1] : 'Lançar';
     return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', 'Mais', '', 'sheet', maisOn)}</nav>`;
   }
   return `${bar}<nav class="lt-tabbar" aria-label="Loja">${t('inicio', 'home', 'Loja')}${t('pedidos', 'truck', 'Pedidos', activeOrder() ? cnt(1) : '')}<button class="lt-fab" data-act="go" data-v="sacola" aria-label="Sacola${n ? ', ' + n + ' itens' : ''}">${ic('bag')}${cnt(n)}</button>${t('novidades', 'news', 'Novidades')}${t('perfil', 'user', 'Perfil')}</nav>`;
@@ -3721,7 +3721,7 @@ function sheetHTML() {
   const s = ui.sheet;
   const wrap = (title, inner) => `<div class="sheet bs-scrim" data-act="close-sheet"><div class="bs${/^Período/.test(title) ? ' bs-per' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="bs-h"><h2>${title}</h2><button class="bs-x" data-act="close-sheet" aria-label="Fechar">${ic('x')}</button></div>${inner}</div></div>`;
   const fabWrap = (title, inner) => `<div class="sheet fab-scrim" data-act="close-sheet"><div class="fab-pop" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="fab-k">${title}</div>${inner}</div></div>`;
-  const FAB_K = { inicio: 'Início', vendas: 'Vendas', entregas: 'Entregas', caixa: 'Caixa', relatorios: 'Relatórios', conversas: 'Chat', estoque: 'Estoque', compras: 'Compras na roça', noticias: 'Notícias', clientes: 'Clientes e fornecedores', config: 'Configurações', notificacoes: 'Notificações' };
+  const FAB_K = { inicio: 'Início', vendas: 'Vendas', entregas: 'Entregas', caixa: 'Caixa', relatorios: 'Relatórios', conversas: 'Chat', estoque: 'Estoque', compras: 'Compras na roça', noticias: 'Notícias', clientes: 'Clientes', fornecedores: 'Fornecedores', config: 'Configurações', notificacoes: 'Notificações' };
   const ft = (icon, label, act, v = '', w = true) => `<button class="fab-tile" data-act="${act}" ${v ? `data-v="${v}"` : ''} ${w ? W() : ''}>${ic(icon)}<span>${label}</span></button>`;
   if (s.type === 'rexp') { const eb = (ico, tt, sub, k, rec) => `<button class="bs-row" data-act="rel-exp" data-v="${k}"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}${rec ? ' <span class="pill p-ok">recomendado</span>' : ''}</b><small>${sub}</small></span></button>`;
     return wrap('Exportar relatório', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período: <b>${rPerLabel()}</b></p><div class="bs-list">${eb('receipt', 'PDF', 'Relatório pronto para imprimir ou enviar. Na tela que abrir, escolha “Salvar como PDF”.', 'pdf')}${eb('chart', 'Excel (.xls)', 'Planilha com abas: resumo, balanço, vendas, compras, despesas e produtos.', 'xls')}${eb('wallet', 'CSV (.csv)', 'Movimentações do caixa. Abre no Excel, Google Planilhas e no contador.', 'csv', true)}${eb('chat', 'Resumo no WhatsApp', 'Texto curto com os números principais.', 'whats')}</div>`); }
@@ -3740,9 +3740,6 @@ function sheetHTML() {
   }
   if (s.type === 'conv-mais') return fabWrap('Chat', `<div class="fab-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${ft('receipt', 'Nova venda', 'venda-cliente', '')}${ft('chat', 'Novo chat', 'nova-conversa', '', false)}</div>`.replace('data-act="venda-cliente"', `data-act="venda-cliente" data-id="${esc(ui.conv || '')}"`));
   if (s.type === 'foto') { const m = S.mensagens.find(x => x.id === s.id); const u = urlOk(m?.anexo?.url); return wrap('Foto', u ? `<img class="bs-foto" src="${u}" alt="Foto enviada no chat">` : '<p class="muted">Foto indisponível.</p>'); }
-  if (s.type === 'novo' && ui.g === 'clientes') {
-    return fabWrap('Clientes e fornecedores', `<div class="fab-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${ft('user', 'Adicionar cliente', 'novo-cliente')}${ft('basket', 'Adicionar fornecedor', 'novo-fornecedor')}</div>`);
-  }
   if (s.type === 'novo' && ui.g === 'caixa') {
     return fabWrap('Caixa', `<div class="fab-grid">${ft('cash', 'Nova despesa', 'nova-despesa')}${ft('receipt', 'Nova venda', 'nova-venda')}${ft('basket', 'Nova compra', 'nova-compra')}${ft('undo', 'Estornar venda', 'escolher-estorno')}${ft('wallet', 'A receber', 'cx-ver', 'receber', false)}${ft('chart', 'Relatório', 'go', 'relatorios', false)}</div>`);
   }
@@ -4216,8 +4213,8 @@ function modalFornecedor(id) {
     return safe(() => put('fornecedores', uid(), { ...body, ts: Date.now() }), 'Fornecedor cadastrado.'); },
   wireCep);
 }
-function gClientes() {
-  const f = ui.pf || 'todos';
+const gClientes = () => gCadastros('c'), gFornecedores = () => gCadastros('f');
+function gCadastros(k) {
   const cs = sortedClientes(), fs = sortedFornecedores();
   const vsH = c => S.vendas.filter(v => v.clienteId === c.id || (v.cliente?.nome || '').trim().toLowerCase() === (c.nome || '').trim().toLowerCase()).sort((a, b) => b.ts - a.ts);
   const cardCli = c => { const vs = cliVendas(c); const tot = vs.reduce((s, v) => s + (v.total || 0), 0); const dev = vs.filter(v => !v.pago).reduce((s, v) => s + (v.total || 0), 0); const ult = vs.reduce((m, v) => Math.max(m, v.ts), 0);
@@ -4230,21 +4227,17 @@ function gClientes() {
     <small class="c-hist-tg">${aberto ? 'Toque para recolher' : 'Toque para ver o histórico de compras'}</small>${hist}
     <div class="acts" data-act="noop"><button class="btn small" data-act="venda-cliente" data-id="${c.id}" ${W()}>Nova venda</button><button class="btn small" data-act="abrir-conversa" data-id="${c.id}">Mensagem${naoLidasG(c.id) ? ' (' + naoLidasG(c.id) + ')' : ''}</button><button class="btn small ghost" data-act="editar-cliente" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
   const cardForn = c => { const cps = fornCompras(c); const tot = cps.reduce((s, x) => s + (x.total || 0), 0); const ap = cps.filter(x => !x.pago).reduce((s, x) => s + (x.total || 0), 0); const ult = cps.reduce((m, x) => Math.max(m, x.ts), 0);
-    return `<article class="item"><div style="display:flex;gap:12px;align-items:center"><span class="chipico g">${ic('basket')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
+    return `<article class="item c-forn"><div style="display:flex;gap:12px;align-items:center"><span class="chipico g">${ic('basket')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
     <div class="pills"><span class="pill p-gray">Fornecedor</span><span class="pill p-gray">${c.tipo === 'empresa' ? 'Empresa' : 'Produtor'}</span>${ap > 0 ? `<span class="pill p-no">A pagar ${money(ap)}</span>` : cps.length ? '<span class="pill p-ok">Em dia</span>' : ''}</div>
     <div class="kv"><span>Compras</span><b class="num">${cps.length}</b><span>Total comprado</span><span class="num">${money(tot)}</span><span>Última compra</span><span>${ult ? fmtDT(ult) : '—'}</span>${c.pix ? `<span>Chave Pix</span><span style="overflow-wrap:anywhere">${esc(c.pix)}</span>` : ''}${c.banco || c.agencia || c.conta ? `<span>Banco</span><span style="overflow-wrap:anywhere">${esc([c.banco, c.agencia && 'Ag. ' + c.agencia, c.conta && (c.tipoConta === 'poupanca' ? 'Poup. ' : 'C/C ') + c.conta].filter(Boolean).join(' · '))}</span>` : ''}${c.titular || c.docTitular ? `<span>Titular</span><span style="overflow-wrap:anywhere">${esc([c.titular, c.docTitular].filter(Boolean).join(' · '))}</span>` : ''}</div>
     ${c.produtos || c.referencia || c.obs ? `<small>${esc([c.produtos, c.referencia, c.obs].filter(Boolean).join(' · '))}</small>` : ''}
     <div class="acts"><button class="btn small" data-act="compra-fornecedor" data-id="${c.id}" ${W()}>Nova compra</button><button class="btn small ghost" data-act="editar-fornecedor" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
-  const todos = [...cs.map(c => ({ c, k: 'c' })), ...fs.map(c => ({ c, k: 'f' }))].sort((a, b) => (a.c.nome || '').localeCompare(b.c.nome || '', 'pt-BR'));
-  const list = f === 'clientes' ? todos.filter(x => x.k === 'c') : f === 'fornecedores' ? todos.filter(x => x.k === 'f') : todos;
-  const chip = (k, l, n) => `<button class="wa-chip ${f === k ? 'on' : ''}" data-act="filter" data-k="pf" data-v="${k}" aria-pressed="${f === k}">${l} <small>${n}</small></button>`;
-  const vazio = f === 'fornecedores' ? emptyBox('Nenhum fornecedor ainda. Cadastre os produtores de quem você compra para registrar as compras mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-fornecedor">Novo fornecedor</button>' : '')
-    : f === 'clientes' ? emptyBox('Nenhum cliente ainda. Cadastre quem compra de você para lançar vendas mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-cliente">Novo cliente</button>' : '')
-    : emptyBox('Ninguém cadastrado ainda. Toque no + para adicionar um cliente ou um fornecedor.', '');
-  return pageHeader('Clientes e fornecedores') +
-  `<div class="wa-chips" role="group" aria-label="Filtrar cadastros">${chip('todos', 'Todos', todos.length)}${chip('clientes', 'Clientes', cs.length)}${chip('fornecedores', 'Fornecedores', fs.length)}</div>
-  <p class="sub" style="margin:0">${f === 'fornecedores' ? 'De quem você compra. Ao registrar uma compra na roça, escolha o fornecedor na lista.' : f === 'clientes' ? 'Quem compra de você. Ao lançar uma venda, escolha o cliente e o telefone e o endereço vêm sozinhos.' : 'Quem compra de você e de quem você compra, numa lista só.'}</p>
-  <div class="stack">${list.map(x => x.k === 'c' ? cardCli(x.c) : cardForn(x.c)).join('') || vazio}</div>`;
+  const ehC = k === 'c';
+  const vazio = ehC ? emptyBox('Nenhum cliente ainda. Cadastre quem compra de você para lançar vendas mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-cliente">Novo cliente</button>' : '')
+    : emptyBox('Nenhum fornecedor ainda. Cadastre os produtores de quem você compra para registrar as compras mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-fornecedor">Novo fornecedor</button>' : '');
+  return pageHeader(ehC ? 'Clientes' : 'Fornecedores') +
+  `<p class="sub" style="margin:0">${ehC ? 'Quem compra de você. Ao lançar uma venda, escolha o cliente e o telefone e o endereço vêm sozinhos.' : 'De quem você compra. Ao registrar uma compra na roça, escolha o fornecedor na lista.'}</p>
+  <div class="stack">${(ehC ? cs.map(cardCli) : fs.map(cardForn)).join('') || vazio}</div>`;
 }
 
 function modalConfirm(msg, btn, fn) {
@@ -4367,7 +4360,7 @@ document.addEventListener('click', async e => {
   if (OPEN[a]) { if (ui.sheet) { ui.sheet = null; render(); } if (!canWrite) { toast('Modo leitura: não dá para lançar.'); return; } OPEN[a](); return; }
   switch (a) {
     case 'go': ui.voltaCfg = false; go(v); break;
-    case 'go-cfg': ui.voltaCfg = true; if (t.dataset.k) ui.pf = t.dataset.k; go(v); break;
+    case 'go-cfg': ui.voltaCfg = true; go(v); break;
     case 'voltar': go(ui.voltaCfg && ui.g !== 'config' ? 'config' : 'inicio'); if (ui.g === 'config' || ui.g === 'inicio') ui.voltaCfg = false; break;
     case 'notif-abrir': { const x = notificacoes(true).find(n => n.id === id); if (!x) break; notifLidas.add(x.id); salvarLidas(); notifIr(x); break; }
     case 'notif-todas-lidas': notificacoes(true).forEach(x => notifLidas.add(x.id)); salvarLidas(); render(); toast('Todas marcadas como lidas.'); break;
