@@ -1934,6 +1934,11 @@ span.news-cta { padding-right: 13px; }
 .lt[data-visual="bento"] .bs .menu button[aria-pressed="true"]{background:none;color:var(--ink)}
 .lt[data-visual="bento"] .bs .menu button[aria-pressed="true"] b::after{content:" ✓";color:var(--accent)}
 .lt[data-visual="bento"] .bs .menu button .chev{color:var(--muted)}
+
+/* ---- Modo escuro (Clássico e demais): menu em folha em cartão arredondado, sem caixas quadradas por item ---- */
+.lt[data-escuro="1"] .bs .menu{gap:0;background:var(--card);border:1px solid var(--edge);border-radius:20px;padding:2px 14px;overflow:hidden}
+.lt[data-escuro="1"] .bs .menu button{border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0;background:none;padding:12px 0}
+.lt[data-escuro="1"] .bs .menu button:last-child{border-bottom:0!important}
 </style>
 <div id="toast-root"></div>
 
