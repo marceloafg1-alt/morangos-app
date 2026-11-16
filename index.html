@@ -1655,6 +1655,10 @@ span.news-cta { cursor: default; padding-right: 16px; }
 .nw-sw .uva { background: linear-gradient(155deg, #A77BF3, #4B2696); }
 .nw-sw .dourado { background: linear-gradient(155deg, #E0A21B, #8A5604); }
 .nw-sw .preto { background: linear-gradient(155deg, #4B4B50, #000); }
+.nw-sw .lima { background: linear-gradient(155deg, #DCF26F, #A8C92E); }
+.nw-sw .creme { background: linear-gradient(155deg, #FBFAF6, #DCD8CA); }
+.nw-sw .carvao { background: linear-gradient(155deg, #3A3A41, #141416); }
+.nw-sw .vinho { background: linear-gradient(155deg, #B8325A, #5E1028); }
 .nw-em span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); font-size: 22px; line-height: 1; }
 .nw-em span img { width: 26px; height: 26px; }
 .nw-em input:checked + span { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--card)); }
@@ -1869,6 +1873,20 @@ span.news-cta { padding-right: 13px; }
 .lt[data-visual="bento"][data-escuro="1"] .btn.small.green{background:#9FDDB9;color:#0E2A1B}
 .lt[data-visual="bento"][data-escuro="1"] .btn.primary,.lt[data-visual="bento"][data-escuro="1"] .btn.small.primary{background:var(--lime);color:#141416;border-color:var(--lime)}
 .lt[data-visual="bento"][data-escuro="1"] .news-cta{background:#fff;color:#141416}
+/* Cores do cartão: valem em todos os temas (Clássico, Bento claro e escuro, Aurora) */
+.lt[data-visual] .news.vermelho, .lt[data-visual][data-escuro="1"] .news.vermelho { background: linear-gradient(155deg, #F2463B, #E3170A 55%, #B80F08); }
+.lt[data-visual] .news.rosa, .lt[data-visual][data-escuro="1"] .news.rosa { background: linear-gradient(155deg, #FF6FA0, #E23C7E 55%, #A81F57); }
+.lt[data-visual] .news.laranja, .lt[data-visual][data-escuro="1"] .news.laranja { background: linear-gradient(155deg, #FF9440, #F0602A 55%, #C23A17); }
+.lt[data-visual] .news.ceu, .lt[data-visual][data-escuro="1"] .news.ceu { background: linear-gradient(155deg, #3BA7E0, #1F7CC4 55%, #155A97); }
+.lt[data-visual] .news.uva, .lt[data-visual][data-escuro="1"] .news.uva { background: linear-gradient(155deg, #A77BF3, #7444D6 55%, #4B2696); }
+.lt[data-visual] .news.dourado, .lt[data-visual][data-escuro="1"] .news.dourado { background: linear-gradient(155deg, #E0A21B, #B97A08 55%, #8A5604); }
+.lt[data-visual] .news.folha, .lt[data-visual][data-escuro="1"] .news.folha { background: linear-gradient(155deg, #4DAF39, #2E8B22 55%, #1C5F13); }
+.lt[data-visual] .news.preto, .lt[data-visual][data-escuro="1"] .news.preto { background: linear-gradient(155deg, #2A292F, #0B0B0C); border: 1px solid rgb(255 255 255 / .1); }
+.lt[data-visual] .news.lima, .lt[data-visual][data-escuro="1"] .news.lima { background: linear-gradient(155deg, #DCF26F, #C2DE44 55%, #A8C92E); border: 0; color: #141416; }
+.lt[data-visual] .news.creme, .lt[data-visual][data-escuro="1"] .news.creme { background: linear-gradient(155deg, #FBFAF6, #ECE9DF 55%, #DCD8CA); border: 1px solid rgb(0 0 0 / .08); color: #141416; }
+.lt[data-visual] .news.carvao, .lt[data-visual][data-escuro="1"] .news.carvao { background: linear-gradient(155deg, #3A3A41, #1C1C20 55%, #141416); border: 1px solid rgb(255 255 255 / .1); color: #F4F3EF; }
+.lt[data-visual] .news.vinho, .lt[data-visual][data-escuro="1"] .news.vinho { background: linear-gradient(155deg, #B8325A, #8E1B3A 55%, #5E1028); border: 0; color: #fff; }
+.lt[data-visual] .news.lima .news-tag, .lt[data-visual] .news.creme .news-tag, .lt[data-visual][data-escuro="1"] .news.lima .news-tag, .lt[data-visual][data-escuro="1"] .news.creme .news-tag { background: rgb(0 0 0 / .12); color: #141416; }
 .lt[data-visual="bento"][data-escuro="1"] .now:not(.item) .now-ic{background:#141416;color:#C9E655}
 .lt[data-visual="bento"][data-escuro="1"] .now:not(.item) .now-ic *{color:#C9E655}
 
@@ -3134,7 +3152,7 @@ function gEstoque() {
     acts: `<button class="btn small" data-act="ajuste" data-id="${p.id}" ${W()}>Ajustar estoque</button>` })).join('') || emptyBox('Nenhum produto ainda. Cadastre o que você vende, por exemplo "Caixa 1 kg".', canWrite ? '<button class="btn primary" data-act="novo-produto">Novo produto</button>' : '')}</div>`;
 }
 /* ===== NOTÍCIAS v2: modelos, cores, ícone, foto, botão, público, agenda, visualizações ===== */
-const NEWS_CORES = [['morango', 'Cor do app'], ['vermelho', 'Morango'], ['folha', 'Folha'], ['rosa', 'Rosa'], ['laranja', 'Pôr do sol'], ['ceu', 'Céu'], ['uva', 'Uva'], ['dourado', 'Mel'], ['preto', 'Noite']];
+const NEWS_CORES = [['morango', 'Cor do app'], ['vermelho', 'Morango'], ['folha', 'Folha'], ['rosa', 'Rosa'], ['laranja', 'Pôr do sol'], ['ceu', 'Céu'], ['uva', 'Uva'], ['dourado', 'Mel'], ['preto', 'Noite'], ['lima', 'Lima'], ['creme', 'Creme'], ['carvao', 'Carvão'], ['vinho', 'Vinho']];
 const NEWS_EMOS = ['', '🍓', '🍒', '🍇', '🍉', '🍋', '🍌', '🥝', '🍑', '🍍', '🥭', '🍫', '🍯', '🍰', '🧁', '🍨', '🥛', '🥤', '🧺', '🌱', '🌿', '🍀', '🌸', '🌻', '☀️', '🌧️', '❄️', '🔥', '✨', '⭐', '💥', '🎉', '🎊', '🎁', '🎂', '❤️', '💝', '😋', '🤩', '👏', '🙏', '📣', '📢', '🆕', '💯', '🏷️', '💸', '🛒', '📦', '🚚', '🛵', '⏰', '📅', '⚠️', '🚫', '✅'];
 const NEWS_ACAO = { '': 'Sem botão', comprar: 'Comprar um produto', loja: 'Ver os morangos da loja', chat: 'Falar com a gente (chat)', pedido: 'Acompanhar meu pedido' };
 const NEWS_ACAO_TXT = { comprar: 'Comprar agora', loja: 'Ver morangos', chat: 'Falar com a gente', pedido: 'Ver meu pedido' };
