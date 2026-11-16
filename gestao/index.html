@@ -1933,6 +1933,13 @@ span.news-cta { padding-right: 13px; }
 .lt[data-visual="bento"][data-escuro="1"] .news-cta{background:#fff;color:#141416}
 .lt[data-visual="bento"][data-escuro="1"] .now:not(.item) .now-ic{background:#141416;color:#C9E655}
 .lt[data-visual="bento"][data-escuro="1"] .now:not(.item) .now-ic *{color:#C9E655}
+
+/* ---- Bento: card "now" vermelho (pedidos novos etc.) vira pastel com texto escuro ---- */
+.lt[data-visual="bento"] .now.red{box-shadow:none;color:#141416}
+.lt[data-visual="bento"] .now.red :is(.now-s,.now-l,.now-big,.now-btn,.now-btn *,span){color:#141416!important;opacity:1}
+.lt[data-visual="bento"] .now.red .now-s{color:#2A2A2F!important}
+.lt[data-visual="bento"] .now.red .now-ic{background:#141416!important}
+.lt[data-visual="bento"] .now.red .now-ic,.lt[data-visual="bento"] .now.red .now-ic *{color:var(--tc,#C9E655)!important}
 .lt[data-visual="bento"][data-escuro="1"] .item.now .pill.p-gray{background:#141416;color:#F4F3EF}
 .lt[data-visual="bento"][data-escuro="1"] .item.now :is(.steps-l span,.steps-l span.on){color:#141416;font-weight:700}
 .lt[data-visual="bento"][data-escuro="1"] .item.now :is(span,small,b,p):not(.pill):not(.tc-n):not(.lt-dot){color:#141416}
