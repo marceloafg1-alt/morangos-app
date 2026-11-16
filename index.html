@@ -3472,7 +3472,7 @@ function cNovidades() {
   const news = newsCliente();
   return pageHeader('Novidades') + `<div class="stack">${news.map(n => `<div style="display:grid;gap:4px">${newsCard(n, { solo: true })}<small class="c-news-dt">${fmtDT(n.ts)}</small></div>`).join('') || emptyBox('Nenhuma novidade agora.')}</div>`;
 }
-const pfAb = k => (ui.pfFechado || {})[k] ? '' : ' open';
+const pfAb = k => (ui.pfFechado || {})[k] === false ? ' open' : '';  // retraído por padrão
 function cPerfil() {
   const d = { ...(cliData().clienteId === TESTE_ID ? { cep: TESTE.cep, rua: TESTE.endereco, numero: TESTE.numero, bairro: TESTE.bairro, cidade: TESTE.cidade, referencia: TESTE.referencia } : {}), ...cliData() };
   const nl = naoLidasC();
