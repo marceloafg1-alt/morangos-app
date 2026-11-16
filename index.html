@@ -4190,16 +4190,28 @@ async function buscaCEP(cep) {
   }
 }
 const cliVendas = c => S.vendas.filter(v => v.status !== 'cancelado' && (v.clienteId === c.id || (v.cliente?.nome || '').trim().toLowerCase() === (c.nome || '').trim().toLowerCase()));
+const soDigCli = x => String(x || '').replace(/\D/g, '');
+// Mesma pessoa: mesmo e-mail, mesmo WhatsApp (últimos 8 dígitos) ou mesmo nome
+const mesmaPessoa = (a, b) => { const e1 = String(a.email || '').trim().toLowerCase(), e2 = String(b.email || '').trim().toLowerCase(); if (e1 && e1 === e2) return true; const t1 = soDigCli(a.telefone), t2 = soDigCli(b.telefone); if (t1.length >= 8 && t2.length >= 8 && t1.slice(-8) === t2.slice(-8)) return true; return !!(a.nome && b.nome && String(a.nome).trim().toLowerCase() === String(b.nome).trim().toLowerCase()); };
+const achaCadastro = c => S.clientes.find(x => mesmaPessoa(x, c));
+// Vendas sem cliente que são da mesma pessoa passam a ser deste cadastro
+async function vincularVendas(cid, c) {
+  const ps = S.vendas.filter(v => !v.clienteId && v.status !== 'cancelado' && mesmaPessoa({ nome: v.cliente?.nome, telefone: v.cliente?.telefone }, c));
+  await Promise.all(ps.map(v => patch('vendas', v.id, { clienteId: cid })));
+  return ps.length;
+}
 function modalCliente(id) {
-  const c = id ? S.clientes.find(x => x.id === id) : { nome: '', telefone: '', cep: '', endereco: '', numero: '', bairro: '', cidade: '', referencia: '', tipo: 'pessoa', obs: '' };
+  const c = id ? S.clientes.find(x => x.id === id) : { nome: '', telefone: '', email: '', cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', referencia: '', tipo: 'pessoa', obs: '' };
   if (!c) return;
   openModal(id ? 'Editar cliente' : 'Novo cliente', `<div class="fgrid">
     <div class="f full"><label for="k-nome">Nome</label><input type="text" id="k-nome" name="nome" required value="${esc(c.nome)}" placeholder="Ex.: Ana Souza ou Mercadinho Bom Preço"></div>
     <div class="f full"><span class="lbl">Tipo</span><div class="opts">${[['pessoa', 'Pessoa'], ['comercio', 'Comércio']].map(([k, l]) => `<label class="opt"><input type="radio" name="tipo" value="${k}" id="k-tipo-${k}" ${(c.tipo || 'pessoa') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
     <div class="f full"><label for="k-tel">Telefone / WhatsApp</label><input type="tel" id="k-tel" name="telefone" value="${esc(c.telefone)}" placeholder="(00) 00000-0000" inputmode="tel"></div>
+    <div class="f full"><label for="k-email">E-mail</label><input type="email" id="k-email" name="email" value="${esc(c.email)}" placeholder="cliente@email.com" autocomplete="email"></div>
     <div class="f full"><label for="k-cep">CEP</label><div class="cep-row"><input type="text" id="k-cep" name="cep" value="${esc(cepFmt(c.cep))}" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" maxlength="9"><button type="button" class="btn cep-btn" id="k-cep-btn">${ic('pin')}Buscar CEP</button></div><small class="cep-msg" id="k-cep-msg" aria-live="polite">Digite o CEP e o endereço é preenchido sozinho.</small></div>
     <div class="f full"><label for="k-end">Rua</label><input type="text" id="k-end" name="endereco" value="${esc(c.endereco)}" placeholder="Rua, avenida…"></div>
     <div class="f"><label for="k-num">Número</label><input type="text" id="k-num" name="numero" value="${esc(c.numero)}" placeholder="Ex.: 120, apto 3"></div>
+    <div class="f"><label for="k-compl">Complemento</label><input type="text" id="k-compl" name="complemento" value="${esc(c.complemento)}" placeholder="Apto, bloco, casa dos fundos"></div>
     <div class="f"><label for="k-bairro">Bairro</label><input type="text" id="k-bairro" name="bairro" value="${esc(c.bairro)}"></div>
     <div class="f full"><label for="k-cid">Cidade / UF</label><input type="text" id="k-cid" name="cidade" value="${esc(c.cidade)}"></div>
     <div class="f full"><label for="k-ref">Ponto de referência</label><input type="text" id="k-ref" name="referencia" value="${esc(c.referencia)}" placeholder="Ex.: portão verde, ao lado da padaria"></div>
@@ -4207,10 +4219,10 @@ function modalCliente(id) {
   </div><div class="form-acts">${id ? `<button type="button" class="btn ghost" data-act="apagar-cliente" data-id="${id}" style="margin-right:auto">Apagar cliente</button>` : ''}<button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar cliente</button></div>`,
   async f => { const fd = new FormData(f); const nome = String(fd.get('nome') || '').trim(); if (!nome) { toast('Escreva o nome do cliente.'); return false; }
     const g = k => String(fd.get(k) || '').trim();
-    const body = { nome, tipo: fd.get('tipo') || 'pessoa', telefone: g('telefone'), cep: g('cep').replace(/\D/g, ''), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs') };
-    if (id) return safe(() => patch('clientes', id, body), 'Cliente salvo.');
+    const body = { nome, tipo: fd.get('tipo') || 'pessoa', telefone: g('telefone'), cep: g('cep').replace(/\D/g, ''), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs'), email: g('email').toLowerCase(), complemento: g('complemento') };
+    if (id) return safe(async () => { await patch('clientes', id, body); await vincularVendas(id, body); }, 'Cliente salvo.');
     if (S.clientes.some(x => (x.nome || '').trim().toLowerCase() === nome.toLowerCase())) { toast('Já existe um cliente com esse nome.'); return false; }
-    return safe(() => put('clientes', uid(), { ...body, ts: Date.now() }), 'Cliente cadastrado.'); },
+    const nid = uid(); return safe(async () => { await put('clientes', nid, { ...body, ts: Date.now() }); await vincularVendas(nid, body); }, 'Cliente cadastrado.'); },
   wireCep);
 }
 function wireCep(f) {
@@ -4405,7 +4417,12 @@ document.addEventListener('submit', e => {
   if (k === 'chat-id') { e.preventDefault(); const fd = new FormData(e.target); const nome = String(fd.get('nome') || '').trim(); if (!nome) { toast('Escreva seu nome.'); return; } ls.set('mmr-cliente', { ...cliData(), nome, telefone: String(fd.get('telefone') || '').trim() }); render(); }
   if (k === 'perfil') { e.preventDefault(); const fd = new FormData(e.target); const g = x => String(fd.get(x) || '').trim(); const rua = g('rua'), numero = g('numero'), compl = g('complemento'), bairro = g('bairro'), cidade = g('cidade'), cep = g('cep');
     const endereco = [rua ? rua + (numero ? ', ' + numero : '') + (compl ? ' - ' + compl : '') : '', bairro, cidade, cep ? 'CEP ' + cep : ''].filter(Boolean).join(' · ');
-    ls.set('mmr-cliente', { ...cliData(), nome: g('nome'), telefone: g('telefone'), email: g('email'), login: g('login'), cep, rua, numero, complemento: compl, bairro, cidade, referencia: g('referencia'), endereco }); toast('Dados salvos neste aparelho.'); }
+    const nome = g('nome'), telefone = g('telefone'), email = g('email').toLowerCase(), referencia = g('referencia');
+    // Mesmo cadastro da Gestão: campos iguais nos dois apps; se já existe (mesmo e-mail, WhatsApp ou nome), atualiza o existente
+    const cad = { nome, telefone, email, cep: cep.replace(/\D/g, ''), endereco: rua, numero, complemento: compl, bairro, cidade, referencia };
+    const achado = achaCadastro(cad); const cid = achado ? achado.id : uid();
+    safe(async () => { if (achado) await patch('clientes', cid, cad); else await put('clientes', cid, { ...cad, tipo: 'pessoa', obs: '', ts: Date.now() }); await vincularVendas(cid, cad);
+      ls.set('mmr-cliente', { ...cliData(), nome, telefone, email, login: g('login'), cep, rua, numero, complemento: compl, bairro, cidade, referencia, endereco, clienteId: cid }); }, 'Dados salvos.'); }
 });
 document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.item.tc, .li.tc-li')) { e.preventDefault(); e.target.click(); } });
 const OPEN = { 'nova-venda': () => modalVenda(), 'nova-compra': () => modalCompra(), 'nova-despesa': () => modalDespesa(), 'novo-produto': () => modalProduto(), 'nova-noticia': () => modalNoticia(), 'novo-cliente': () => modalCliente(), 'novo-fornecedor': () => modalFornecedor() };
