@@ -3,6 +3,7 @@ pages:
   script:
     - mkdir -p public
     - cp index.html manifest.webmanifest manifest-v2.webmanifest sw.js icon-192.png icon-512.png public/
+    - cp -r gestao public/gestao
   artifacts:
     paths:
       - public
