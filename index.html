@@ -4790,6 +4790,8 @@ document.addEventListener('touchend', () => {
 }, { passive: true });
 document.addEventListener('touchcancel', swipeEnd, { passive: true });
 
+// ao recarregar, o navegador não restaura a rolagem: senão o topo aparece com a sombra (risco) por um instante
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 applyTheme();
 render();
 boot();
