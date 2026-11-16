@@ -560,6 +560,47 @@
   .lt-tabbar{left:50%;right:auto;width:min(760px,calc(100% - 28px));transform:translateX(-50%)}
 }
 
+/* ===== Tela grande (notebook/computador): menu lateral + conteúdo em colunas ===== */
+@media (min-width:1000px){
+  .lt-tabbar.lt-side{left:0;right:auto;top:0;bottom:0;width:264px;transform:none;flex-direction:column;align-items:stretch;gap:4px;
+    padding:20px 14px;border-radius:0;overflow-y:auto;box-shadow:none;border-right:1px solid var(--line)}
+  .lt-side .side-brand{display:flex;align-items:center;gap:10px;padding:0 6px 14px;color:var(--ink)}
+  .lt-side .side-brand b{display:block;font-size:17px}
+  .lt-side .side-brand small{display:block;font-size:11.5px;color:var(--muted);font-weight:600}
+  .lt-side .side-brand .mr-badge{flex:none}
+  .lt-side .lt-fab{order:0;width:100%;height:46px;margin:0 0 10px!important;border-radius:14px;gap:8px;font-size:14px;font-weight:700;border:0}
+  .lt-side .lt-fab::after{content:attr(aria-label);font-size:14px;font-weight:700}
+  .lt-side .lt-tab{flex:none;width:100%!important;height:46px;justify-content:flex-start;gap:12px;padding:0 14px!important;font-size:14px!important;font-weight:600;border-radius:14px;color:var(--ink)}
+  .lt-side .lt-tab.on{background:var(--tint);color:var(--accent);font-weight:800}
+  .lt-side .lt-tab .lt-dot{position:static;margin-left:auto;left:auto!important;top:auto}
+  .lt-side .side-sp{flex:1;min-height:12px}
+  .lt-side .lt-tab[data-v="estoque"]{border-top:1px solid var(--line);border-radius:0 0 14px 14px;margin-top:4px}
+  .app{max-width:none!important;margin:0!important;padding-left:calc(264px + 36px)!important;padding-right:36px!important;padding-bottom:40px!important}
+  .lt-page{max-width:none!important}
+  .cart-bar{display:none}
+}
+@media (min-width:1000px) and (max-width:1399px){ .app{padding-left:calc(264px + 24px)!important;padding-right:24px!important} }
+
+@media (min-width:1000px){
+  .app{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 28px;align-content:start}
+  .app>*{grid-column:1/-1;min-width:0;margin-top:0!important;margin-bottom:0!important}
+  /* Início */
+  .app:has(>.lt-hero+.pend-btn)>.lt-hero{grid-column:1;grid-row:2}
+  .app:has(>.lt-hero+.pend-btn)>.pend-btn{grid-column:2;grid-row:2;align-self:start}
+  .app:has(>.lt-hero+.pend-btn)>:nth-child(4){grid-row:3}
+  .app:has(>.lt-hero+.pend-btn)>:nth-child(5){grid-row:4}
+  .app:has(>.lt-hero+.pend-btn)>:nth-child(6){grid-column:1;grid-row:5}
+  .app:has(>.lt-hero+.pend-btn)>:nth-child(7){grid-column:1;grid-row:6;align-self:start}
+  .app:has(>.lt-hero+.pend-btn)>:nth-child(8){grid-column:2;grid-row:5}
+  .app:has(>.lt-hero+.pend-btn)>:nth-child(9){grid-column:2;grid-row:6;align-self:start}
+  .now-row{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));overflow:visible!important;gap:12px}
+  .now-row>.now{width:auto!important;min-width:0}
+  /* Listas e cartões em colunas */
+  .app>.stack{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:12px 20px;align-items:start}
+  .app>.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))!important}
+}
+@media (min-width:1700px){ .app{padding-left:calc(264px + 56px)!important;padding-right:56px!important} }
+
 /* ---------- Cor sólida: o que fica direto sobre o fundo colorido ---------- */
 .lt[data-visual="classico"][data-solido="1"]:not([data-escuro="1"]) .lt-chip.on,
 .lt[data-visual="classico"][data-solido="1"]:not([data-escuro="1"]) .lt-chattab.on{background:var(--onG);border-color:var(--onG);color:var(--ground)}
@@ -3481,6 +3522,8 @@ const MENU_ITENS = [
 ];
 const MENU_PADRAO = ['inicio', 'vendas', 'entregas', 'caixa', 'conversas'];
 const MENU_MAX = 5;
+const WIDE = window.matchMedia('(min-width:1000px)');
+WIDE.addEventListener?.('change', () => { try { render(); } catch (e) {} });
 const menuNaBarra = () => { const v = ls.get('mmr-menu', null); const ok = Array.isArray(v) ? v.filter(k => MENU_ITENS.some(i => i.k === k)) : MENU_PADRAO; return MENU_ITENS.filter(i => ok.includes(i.k)).slice(0, MENU_MAX).map(i => i.k); };
 function nav() {
   const cur = ui.mode === 'gestao' ? ui.g : ui.c;
@@ -3499,6 +3542,11 @@ function nav() {
     const fabPag = { estoque: ['novo-produto', 'Novo produto'], compras: ['nova-compra', 'Nova compra na roça'], noticias: ['nova-noticia', 'Nova notícia'] }[ui.g];
     const fabAct = fabOn ? 'close-sheet' : convCli ? 'sheet' : ui.g === 'conversas' ? 'nova-conversa' : ui.g === 'vendas' ? 'nova-venda' : fabPag ? fabPag[0] : 'sheet';
     const fabLbl = fabOn ? 'Fechar' : ui.g === 'clientes' ? 'Adicionar cliente ou fornecedor' : convCli ? 'Nova venda ou novo chat' : ui.g === 'conversas' ? 'Novo chat' : ui.g === 'vendas' ? 'Nova venda avulsa' : fabPag ? fabPag[1] : 'Lançar';
+    if (WIDE.matches) { /* tela grande: menu lateral à esquerda */
+      const side = MENU_ITENS.map(i => t(i.k, i.ic, i.l, extras[i.k] || '', i.act));
+      const cfgOn = ['config', 'estoque', 'clientes', 'noticias', 'atividade', 'pendencias', 'notificacoes'].includes(cur);
+      return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''}" aria-label="Gestão"><div class="side-brand"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça · Gestão</small></span></div><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}<span class="side-sp"></span>${t('estoque', 'box', 'Estoque')}${t('clientes', 'user', 'Clientes')}${t('noticias', 'megaphone', 'Notícias')}${t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'noticias'].includes(cur))}</nav>`;
+    }
     return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', 'Mais', '', 'sheet', maisOn)}</nav>`;
   }
   return `${bar}<nav class="lt-tabbar" aria-label="Loja">${t('inicio', 'home', 'Loja')}${t('pedidos', 'truck', 'Pedidos', activeOrder() ? cnt(1) : '')}<button class="lt-fab" data-act="go" data-v="sacola" aria-label="Sacola${n ? ', ' + n + ' itens' : ''}">${ic('bag')}${cnt(n)}</button>${t('novidades', 'news', 'Novidades')}${t('perfil', 'user', 'Perfil')}</nav>`;
