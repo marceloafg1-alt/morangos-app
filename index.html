@@ -4611,8 +4611,8 @@ document.addEventListener('click', async e => {
     case 'sheet': ui.sheet = { type: v }; render(); break;
     case 'ex-qtd': { const k = t.dataset.k, tot = contaPorCat(montarExemplos()); ui.exQtd[k] = Math.max(0, Math.min(tot[k], (ui.exQtd[k] || 0) + Number(v))); render(); break; }
     case 'ex-todos': ui.exQtd = exQtdInicial(contaPorCat(montarExemplos())); render(); break;
-    case 'wa-salvar': { const d = (document.getElementById('wa-num')?.value || '').replace(/\D/g, ''); if (d && d.length < 10) { toast('Número incompleto. Use DDD e número.'); break; } const num = d && d.length <= 11 ? '55' + d : d; ls.set('mmr-wa-numero', num); render(); toast(num ? 'Número salvo.' : 'Número apagado.'); break; }
-    case 'wa-apagar': ls.set('mmr-wa-numero', ''); render(); toast('Número apagado.'); break;
+    case 'wa-salvar': { const d = (document.getElementById('wa-num')?.value || '').replace(/\D/g, ''); if (d && d.length < 10) { toast('Número incompleto. Use DDD e número.'); break; } const num = d && d.length <= 11 ? '55' + d : d; ls.set('mmr-wa-numero', num); ui.sheet = null; render(); toast(num ? 'Número salvo.' : 'Número apagado.'); break; }
+    case 'wa-apagar': ls.set('mmr-wa-numero', ''); ui.sheet = null; render(); toast('Número apagado.'); break;
     case 'ex-zerar': ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
     case 'ex-carregar': carregarExemplos(); break;
     case 'ex-remover': modalConfirm('Remover todos os dados de exemplo? Seus lançamentos reais não são apagados.', 'Remover exemplos', () => { removerExemplos(); }); break;
