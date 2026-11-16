@@ -1925,21 +1925,35 @@ span.news-cta { padding-right: 13px; }
 .lt[data-visual="bento"][data-escuro="1"] .btn.small.green{color:#0E2A1B}
 
 /* ---- Bento: cards de Vendas, Compras, Entregas, Relatórios etc. usam os mesmos pastéis da tela inicial ---- */
-.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli,.card.calm){border:0;color:#141416;--ink:#141416;--muted:#2A2A2F;--muted2:#2A2A2F;--line:rgba(20,20,22,.22);box-shadow:none}
-.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+1){background:var(--lime)}
-.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+2){background:var(--lilac)}
-.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+3){background:var(--peach)}
-.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+4){background:var(--sky)}
-.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+5){background:var(--mint)}
-.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+6){background:var(--butter)}
-.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli) :is(b,span,small,.s,.val,.tc-t,.tc-1,.tc-ed,.muted,small.muted){color:#141416}
-.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli) :is(small,.s,.tc-1,.tc-ed,.muted){color:#2A2A2F}
+.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli,.item.c-forn,.card.calm){border:0;color:#141416;--ink:#141416;--muted:#2A2A2F;--muted2:#2A2A2F;--line:rgba(20,20,22,.22);box-shadow:none}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli,.item.c-forn):nth-child(6n+1){background:var(--lime)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli,.item.c-forn):nth-child(6n+2){background:var(--lilac)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli,.item.c-forn):nth-child(6n+3){background:var(--peach)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli,.item.c-forn):nth-child(6n+4){background:var(--sky)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli,.item.c-forn):nth-child(6n+5){background:var(--mint)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli,.item.c-forn):nth-child(6n+6){background:var(--butter)}
+.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli,.item.c-forn) :is(b,span,small,.s,.val,.tc-t,.tc-1,.tc-ed,.muted,small.muted){color:#141416}
+.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli,.item.c-forn) :is(small,.s,.tc-1,.tc-ed,.muted){color:#2A2A2F}
 .lt[data-visual="bento"] .kpi:is(.good,.bad,.alert) b{color:#141416}
 .lt[data-visual="bento"] .item.tc .pill{background:rgba(255,255,255,.7);color:#141416}
 .lt[data-visual="bento"] .item.tc .btn.ghost,.lt[data-visual="bento"] .item.tc .btn.small:not(.green):not(.primary){background:#141416;color:#F4F3EF;border:0}
 .lt[data-visual="bento"] .item.tc .btn.small.green{background:#141416;color:#C9E655}
 .lt[data-visual="bento"] .item.tc .btn.small.ghost:last-child:not(.primary){background:transparent;color:#141416;font-weight:800}
 .lt[data-visual="bento"] .item.tc .tc-n{background:#141416;color:#C9E655}
+.lt[data-visual="bento"] :is(.item.c-cli,.item.c-forn) :is(.kv span,.kv b,.c-hist-tg,.c-hist-h b,.c-hist-r *){color:#141416!important}
+.lt[data-visual="bento"] :is(.item.c-cli,.item.c-forn) .c-hist{border-top-color:rgba(20,20,22,.25)}
+.lt[data-visual="bento"] :is(.item.c-cli,.item.c-forn) .c-hist-r{background:rgba(255,255,255,.55)}
+.lt[data-visual="bento"] :is(.item.c-cli,.item.c-forn) :is(.chipico,.chipico.g){background:#141416;color:#C9E655}
+.lt[data-visual="bento"] :is(.item.tc,.item.c-cli,.item.c-forn,.kpi) .pill{background:rgba(255,255,255,.7);color:#141416}
+.lt[data-visual="bento"] :is(.item.c-cli,.item.c-forn) .btn:not(.ghost):not(.primary){background:#141416;color:#F4F3EF;border:0}
+.lt[data-visual="bento"] :is(.item.c-cli,.item.c-forn) .btn.ghost{background:transparent;color:#141416;border:0;font-weight:800}
+.lt[data-visual="bento"] :is(.item.tc,.item.c-cli,.item.c-forn) .btn.small:not(.ghost):not(.primary):not(.green){background:#141416;color:#F4F3EF;border:0}
+.lt[data-visual="bento"] :is(.item.tc,.item.c-cli,.item.c-forn,.kpi) :is(.btn.small:not(.ghost):not(.primary):not(.green)) *{color:inherit}
+.lt[data-visual="bento"] :is(.kpi,.item.tc,.item.c-cli,.item.c-forn) :is(b,span,small,.s,.num,svg){color:#141416!important}
+.lt[data-visual="bento"] :is(.kpi,.item.tc,.item.c-cli,.item.c-forn) :is(small,.s,.tc-1 span){color:#2A2A2F!important}
+.lt[data-visual="bento"] :is(.kpi,.item.tc,.item.c-cli,.item.c-forn) .pill{color:#141416!important}
+.lt[data-visual="bento"] :is(.item.tc,.item.c-cli,.item.c-forn) .btn.small:not(.ghost):not(.primary):not(.green),.lt[data-visual="bento"] :is(.item.c-cli,.item.c-forn) .btn:not(.ghost):not(.primary){color:#F4F3EF!important}
+.lt[data-visual="bento"] .item.tc .btn.small.green{color:#C9E655!important}
 </style>
 <div id="toast-root"></div>
 
@@ -4314,7 +4328,7 @@ function gClientes() {
     <small class="c-hist-tg">${aberto ? 'Toque para recolher' : 'Toque para ver o histórico de compras'}</small>${hist}
     <div class="acts" data-act="noop"><button class="btn small" data-act="venda-cliente" data-id="${c.id}" ${W()}>Nova venda</button><button class="btn small" data-act="abrir-conversa" data-id="${c.id}">Mensagem${naoLidasG(c.id) ? ' (' + naoLidasG(c.id) + ')' : ''}</button><button class="btn small ghost" data-act="editar-cliente" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
   const cardForn = c => { const cps = fornCompras(c); const tot = cps.reduce((s, x) => s + (x.total || 0), 0); const ap = cps.filter(x => !x.pago).reduce((s, x) => s + (x.total || 0), 0); const ult = cps.reduce((m, x) => Math.max(m, x.ts), 0);
-    return `<article class="item"><div style="display:flex;gap:12px;align-items:center"><span class="chipico g">${ic('basket')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
+    return `<article class="item c-forn"><div style="display:flex;gap:12px;align-items:center"><span class="chipico g">${ic('basket')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
     <div class="pills"><span class="pill p-gray">Fornecedor</span><span class="pill p-gray">${c.tipo === 'empresa' ? 'Empresa' : 'Produtor'}</span>${ap > 0 ? `<span class="pill p-no">A pagar ${money(ap)}</span>` : cps.length ? '<span class="pill p-ok">Em dia</span>' : ''}</div>
     <div class="kv"><span>Compras</span><b class="num">${cps.length}</b><span>Total comprado</span><span class="num">${money(tot)}</span><span>Última compra</span><span>${ult ? fmtDT(ult) : '—'}</span>${c.pix ? `<span>Chave Pix</span><span style="overflow-wrap:anywhere">${esc(c.pix)}</span>` : ''}${c.banco || c.agencia || c.conta ? `<span>Banco</span><span style="overflow-wrap:anywhere">${esc([c.banco, c.agencia && 'Ag. ' + c.agencia, c.conta && (c.tipoConta === 'poupanca' ? 'Poup. ' : 'C/C ') + c.conta].filter(Boolean).join(' · '))}</span>` : ''}${c.titular || c.docTitular ? `<span>Titular</span><span style="overflow-wrap:anywhere">${esc([c.titular, c.docTitular].filter(Boolean).join(' · '))}</span>` : ''}</div>
     ${c.produtos || c.referencia || c.obs ? `<small>${esc([c.produtos, c.referencia, c.obs].filter(Boolean).join(' · '))}</small>` : ''}
