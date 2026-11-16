@@ -2570,7 +2570,7 @@ function notifIr(x) {
 
 /* ---------------- estado da interface ---------------- */
 const ui = {
-  mode: 'gestao', g: 'inicio', c: 'inicio',
+  mode: 'gestao', g: ls.get('mmr-tela-g', 'inicio'), c: 'inicio',
   vt: 'todas', vf: 'todas', vp: 'hoje', vDe: '', vAte: '', cp: 'hoje', cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', ep: 'hoje', eDe: '', eAte: '', kp: 'hoje', kDe: '', kAte: '', rp: 'hoje', rDe: '', rAte: '', cart: {}, banner: 0, track: null, sheet: null,
 };
 let myOrders = ls.get('mmr-meus-pedidos', []);
@@ -2716,6 +2716,7 @@ function render() {
   chatAfterRender();
   newsAfterRender();
   navSync();
+  ls.set('mmr-tela-g', ui.g); ls.set('mmr-tela-c', ui.c); // lembra a tela aberta para voltar nela ao recarregar
   cabecalhoFixo();
 }
 /* cabeçalho fixo: sombra ao rolar e espaço para rolagens automáticas não pararem atrás dele */
