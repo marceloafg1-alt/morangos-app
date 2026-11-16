@@ -1768,6 +1768,77 @@ span.news-cta { padding-right: 13px; }
 <div id="nav-root"></div>
 <div id="sheet-root"></div>
 <div id="modal-root"></div>
+<style id="contraste">
+.lt[data-tema="verde"]{--ha1:#2D7D66;--ha2:#1E5E4E;--ha3:#123F34}
+.lt[data-tema="verde-claro"]{--ha1:#6ED3A1;--ha2:#4CC38A;--ha3:#5CB088}
+.lt[data-tema="azul-claro"]{--ha1:#28789A;--ha2:#1779A6;--ha3:#0B78AE}
+.lt[data-tema="azul-escuro"]{--ha1:#2D50AC;--ha2:#1D3E8F;--ha3:#0F2459}
+.lt[data-tema="roxo"]{--ha1:#8244D2;--ha2:#6A2CBF;--ha3:#47188A}
+.lt[data-tema="lilas"]{--ha1:#7E669C;--ha2:#8163AB;--ha3:#7C59B8}
+.lt[data-tema="rosa"]{--ha1:#C24462;--ha2:#D13459;--ha3:#D41F4D}
+.lt[data-tema="vinho"]{--ha1:#8D2F4A;--ha2:#74213B;--ha3:#4A1024}
+.lt[data-tema="vermelho"]{--ha1:#D13834;--ha2:#D62828;--ha3:#9B1515}
+.lt[data-tema="vermelho-claro"]{--ha1:#A95853;--ha2:#B84E46;--ha3:#CC4037}
+.lt[data-tema="laranja"]{--ha1:#AE5B25;--ha2:#B85116;--ha3:#BE4C0C}
+.lt[data-tema="laranja-claro"]{--ha1:#FFB27A;--ha2:#FF9F5A;--ha3:#E57A30}
+.lt[data-tema="amarelo"]{--ha1:#FAC82E;--ha2:#F5B800;--ha3:#D18F00}
+.lt[data-tema="amarelo-escuro"]{--ha1:#916900;--ha2:#976800;--ha3:#6E4A00}
+.lt[data-tema="nude"]{--ha1:#EED6C5;--ha2:#E7C8B4;--ha3:#C9A089}
+.lt[data-tema="marrom"]{--ha1:#85583D;--ha2:#6E4530;--ha3:#45291B}
+.lt[data-tema="cinza-claro"]{--ha1:#BEC4CA;--ha2:#A7AEB6;--ha3:#899099}
+.lt[data-tema="cinza-escuro"]{--ha1:#5A5F66;--ha2:#454A51;--ha3:#25282D}
+.lt[data-tema="preto"]{--ha1:#2A2A2C;--ha2:#1A1A1C;--ha3:#000000}
+/* ===== Contraste: modos escuros e Aurora (WCAG: texto 4,5:1 · bordas 3:1) ===== */
+/* Contorno forte dos cartões e controles (as linhas finas internas continuam suaves) */
+.lt[data-escuro="1"]{--edge:#727A83;--outline:var(--edge);--bd:1px solid var(--edge);--muted2:#A3AAB2}
+.lt[data-visual="bento"][data-escuro="1"]{--edge:#7A7A84;--outline:var(--edge);--bd:1px solid var(--edge);--muted2:#A5A39D}
+.lt[data-visual="aurora"]{--muted:#4F5D73;--muted2:#5B6A80;--edge:#8A96AB;--outline:var(--edge)}
+.lt[data-escuro="1"] :is(input,select,textarea),.lt[data-visual="aurora"] :is(input[type=text],input[type=number],input[type=tel],input[type=date],select,textarea){border:1.5px solid var(--edge)}
+.lt[data-escuro="1"] ::placeholder{color:#A3AAB2;opacity:1}
+.lt[data-visual="aurora"] ::placeholder{color:#5B6A80;opacity:1}
+.lt[data-escuro="1"] :is(.card,.kpi,.item,.rowcard,.lt-card,.lt-tile,.lt-row.lt-solo,.mp,.order-strip,.quick,.now,.ap-opt,.menu button,.lt-search,.chip:not([aria-pressed="true"]),.lt-chip:not(.on),.wa-chip:not(.on),.btn:not(.primary):not(.ghost):not(.green),.lt-btn2){border:1px solid var(--edge)}
+.lt[data-visual="bento"][data-escuro="1"] .lt-hero{border:1px solid var(--edge)}
+/* Cartões de cor forte: texto sempre legível (fundo escurecido o suficiente para o texto) */
+.lt[data-escuro="1"],.lt[data-visual="aurora"]{--grad:linear-gradient(135deg,var(--ha1) 0%,var(--ha2) 55%,var(--ha3) 100%);--red:var(--ha2);--red-2:var(--ha1);--red-3:var(--ha3)}
+.lt[data-visual="aurora"] :is(.lt-hero,.hero,.news,.banner){background:var(--grad)}
+.lt[data-visual="aurora"] :is(.lt-tile .lt-ico,.lt-chip.on,.chip[aria-pressed="true"]){background:linear-gradient(135deg,var(--ha1),var(--ha2))}
+.lt :is(.now.red){background:var(--grad);color:var(--on-red)}
+.lt[data-escuro="1"] .hero-badge,.lt[data-visual="aurora"] .hero-badge{background:rgb(255 255 255 / .22)}
+/* Bento escuro: o destaque do topo ficava escuro sobre escuro (texto invisível) */
+.lt[data-visual="bento"][data-escuro="1"] :is(.hero,.news){background:#26262B;color:#F4F3EF;--on-red:#F4F3EF;border:1px solid var(--edge)}
+.lt[data-visual="bento"][data-escuro="1"] :is(.hero,.news) :is(span,small,p,h2,div,b){color:inherit}
+.lt[data-visual="bento"][data-escuro="1"] .hero-badge{background:#C9E655;color:#141416}
+.lt[data-visual="bento"][data-escuro="1"] .news .news-tag{background:#C9E655;color:#141416}
+/* Aurora: textos que ficam direto sobre o fundo escuro da página */
+.lt[data-visual="aurora"] .wa-chip{color:rgba(255,255,255,.92);border-color:rgba(255,255,255,.6)}
+.lt[data-visual="aurora"] .wa-chip.on{background:#fff;color:#8A1538;border-color:#fff}
+.lt[data-visual="aurora"] .wa-list .conv{color:#fff}
+.lt[data-visual="aurora"] .wa-list :is(.conv-top small,.conv-last){color:rgba(255,255,255,.82)}
+.lt[data-visual="aurora"] .wa-list .conv-last.nl{color:#fff}
+.lt[data-visual="aurora"] .wa-list .conv{border-bottom:1px solid rgba(255,255,255,.14)}
+.lt[data-visual="aurora"] :is(.lt-side .side-brand,.lt-side .side-brand b){color:#fff}
+.lt[data-visual="aurora"] .lt-side .side-brand small{color:rgba(255,255,255,.82)}
+.lt[data-visual="aurora"] :is(.modal,.sheet-in,.fab-pop,.card,.lt-card,.kpi) :is(.sec-h h2,h2.sec,.lt-sec h2){color:var(--muted)}
+.lt .now.red :is(.now-s,.now-l,.now-big,.now-btn,.now-ic){color:#fff;opacity:1}
+.lt[data-visual="bento"][data-escuro="1"] .hero .hero-badge{background:#C9E655;color:#141416}
+.lt[data-visual="aurora"] :is(.chip[aria-pressed="true"],.lt-chip.on){box-shadow:0 0 0 2px #fff}
+.lt[data-visual="aurora"] .acts .btn{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.65);box-shadow:none}
+.lt[data-visual="aurora"] .acts .btn:not(.ghost){background:#fff;color:#8A1538;border-color:#fff}
+.lt[data-visual="aurora"] .app>.sec-h .link,.lt[data-visual="aurora"] .app>.sec-h .muted{color:rgba(255,255,255,.88)}
+.lt[data-visual="aurora"] .app>.muted,.lt[data-visual="aurora"] .app>small{color:rgba(255,255,255,.82)}
+/* Menu lateral (computador): botão Lançar e aba ativa no Bento ficavam cortados/esticados */
+@media (min-width:1000px){
+  .lt[data-visual="bento"] .lt-side .lt-fab{position:relative!important;left:auto!important;top:auto!important;bottom:auto!important;transform:none!important;width:100%!important;height:46px!important;margin:0 0 10px!important;flex:none!important;border-radius:999px;justify-content:center}
+  .lt[data-visual="bento"] .lt-side .lt-tab{flex:none!important;height:46px!important;max-width:none!important}
+}
+.lt[data-escuro="1"] :is(.pend-pill.red,.ml-ic.pend-red,.ic-btn,.chipico){color:var(--accent)}
+.lt[data-escuro="1"] :focus-visible{outline-color:var(--accent)}
+.lt[data-escuro="1"] .pill.p-red{color:color-mix(in srgb,var(--a1) 35%,#fff)}
+.lt[data-escuro="1"] .btn:disabled,.lt[data-escuro="1"] .btn[disabled]{opacity:1;color:#9AA1A9;border-color:#5C636B}
+.lt[data-escuro="1"] .news-tag,.lt[data-visual="aurora"] .news-tag{background:rgb(0 0 0 / .32);color:#fff}
+.lt[data-escuro="1"] :is(.chip[aria-pressed="true"],.lt-chip.on,.wa-chip.on,.opt input:checked + span,.tag[aria-pressed="true"]){color:var(--card)}
+.lt[data-escuro="1"][data-visual="classico"] .btn.primary,.lt[data-escuro="1"][data-visual="classico"] .lt-btn{color:#fff}
+</style>
 <div id="toast-root"></div>
 
 <script>
