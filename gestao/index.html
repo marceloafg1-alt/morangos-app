@@ -586,7 +586,10 @@
   .app>*{grid-column:1/-1;min-width:0;margin-top:0!important;margin-bottom:0!important}
   /* Início */
   .app:has(>.lt-hero+.pend-btn)>.lt-hero{grid-column:1;grid-row:2}
-  .app:has(>.lt-hero+.pend-btn)>.pend-btn{grid-column:2;grid-row:2;align-self:start}
+  .app:has(>.lt-hero+.pend-btn)>.pend-btn{grid-column:2;grid-row:2;align-self:stretch}
+  /* web: Pendências com a altura do card Vendas de hoje, mostrando os primeiros assuntos que couberem */
+  .app:has(>.lt-hero+.pend-btn)>.pend-btn{display:grid;grid-template-columns:48px minmax(0,1fr) 20px;grid-template-rows:auto minmax(0,1fr);align-items:center;column-gap:14px;row-gap:10px;overflow:hidden;contain:size}
+  .app:has(>.lt-hero+.pend-btn)>.pend-btn .pend-list{display:flex;grid-column:1/-1;align-self:stretch;height:100%;flex-wrap:wrap;overflow:hidden;align-content:flex-start}
   .app:has(>.lt-hero+.pend-btn)>:nth-child(4){grid-row:3}
   .app:has(>.lt-hero+.pend-btn)>:nth-child(5){grid-row:4}
   .app:has(>.lt-hero+.pend-btn)>:nth-child(6){grid-column:1;grid-row:5}
@@ -646,6 +649,14 @@
 .pend-pill{font-style:normal;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
 .pend-pill.red{background:var(--red-soft);color:var(--red)}
 .pend-btn .chev{width:20px;height:20px;color:var(--muted)}
+.pend-list{display:none;flex-direction:column;gap:6px;min-width:0}
+.pend-li{width:100%;display:flex;align-items:center;gap:10px;min-width:0;padding:7px 10px;border-radius:12px;background:var(--fill,var(--surface-2));font-size:13.5px}
+.pend-li .pl-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.pend-li .pl-dot.red{background:var(--red)}.pend-li .pl-dot.dark{background:var(--muted)}
+.pend-li .pl-t{flex:none;font-weight:600}
+.pend-li .pl-d{flex:1;min-width:0;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pend-li .pl-n{flex:none;font-weight:700;font-style:normal;font-variant-numeric:tabular-nums}
+
 .pend-tx{min-width:0;display:grid;gap:2px}.pend-tx b{font-weight:600;font-size:16px}.pend-tx small{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pend-row .ml-v{font-weight:700}
 .ml-ic.pend-red{background:var(--red-soft);color:var(--red)}.ml-ic.pend-warn{background:var(--warn-soft);color:var(--warn)}
@@ -2773,7 +2784,10 @@ function pendencias() {
   return p;
 }
 const pendBtn = () => { const p = pendencias(), n = p.reduce((s, x) => s + (x[7] === 'dark' ? 0 : 1), 0), urg = p.filter(x => x[7] === 'red').length;
-  return `<button class="pend-btn" data-act="go" data-v="pendencias"><span class="pend-ic">${ic('list')}</span><span class="pend-t"><b>Pendências${n ? ` <i class="pend-pill ${urg ? 'red' : ''}">${n} ${n === 1 ? 'assunto' : 'assuntos'}</i>` : ''}</b><small>${n ? 'Tudo o que está em aberto' : 'Tudo em dia'}</small></span>${ic('right', 'i chev')}</button>`; };
+  return `<button class="pend-btn" data-act="go" data-v="pendencias"><span class="pend-ic">${ic('list')}</span><span class="pend-t"><b>Pendências${n ? ` <i class="pend-pill ${urg ? 'red' : ''}">${n} ${n === 1 ? 'assunto' : 'assuntos'}</i>` : ''}</b><small>${n ? 'Tudo o que está em aberto' : 'Tudo em dia'}</small></span>${ic('right', 'i chev')}${pendLista(p)}</button>`; };
+/* só aparece na versão web (tela larga): os assuntos que couberem no cartão, urgentes primeiro */
+const pendLista = p => { if (!p.length) return ''; const ord = { red: 0, warn: 1, dark: 2 }, L = [...p].sort((a, b) => (ord[a[7]] ?? 1) - (ord[b[7]] ?? 1)), vis = L;
+  return `<span class="pend-list">${vis.map(x => `<span class="pend-li"><i class="pl-dot ${x[7]}"></i><span class="pl-t">${esc(x[2])}</span><span class="pl-d">${esc(x[3] || '')}</span>${x[7] === 'dark' ? '' : `<i class="pl-n">${x[4]}</i>`}</span>`).join('')}</span>`; };
 function gPendencias() {
   const p = pendencias();
   const grupos = ['Responder', 'Receber', 'Pagar', 'Entregar', 'Estoque', 'Caixa'].map(g => [g, p.filter(x => x[0] === g)]).filter(g => g[1].length);
