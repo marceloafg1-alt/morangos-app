@@ -1592,9 +1592,9 @@ body.rolou .app > :is(.lt-top, .lt-head, .lt-headbox):first-child { box-shadow: 
 .bs-search input[type=search]::-webkit-search-cancel-button{display:none}
 .bs .bs-list .bs-row:first-child{padding-top:16px}
 .bs-foto{display:block;width:100%;border-radius:16px}
-/* Chat com teclado aberto: o topo fica preso no alto da tela visível */
-body.kb .app:has(.chat-comp) > .lt-head:first-child{position:fixed;left:0;right:0;top:var(--vvt,0px);margin:0;padding:calc(8px + env(safe-area-inset-top,0px)) var(--sp-page,18px) 8px;background:var(--page-bg);z-index:30}
-body.kb .app:has(.chat-comp){padding-top:76px}
+/* Chat: o topo é sempre fixo no alto da tela visível, com ou sem teclado, para a tela não dar solavanco ao tocar na caixa de texto */
+.app:has(.chat-comp) > .lt-head:first-child{position:fixed;left:0;right:0;top:var(--vvt,0px);max-width:480px;margin:0 auto;padding:calc(8px + env(safe-area-inset-top,0px)) max(var(--sp-page,18px),env(safe-area-inset-left,0px)) 8px;background:var(--page-bg);z-index:30}
+.app:has(.chat-comp){padding-top:calc(var(--chat-head-h,64px) + 4px)}
 body.kb .lt-tabbar,body.kb .cart-bar{display:none!important}
 body.kb .chat-comp{bottom:8px}
 body.kb .app{padding-bottom:20px}
@@ -2642,6 +2642,8 @@ function render() {
 function cabecalhoFixo() {
   const h = $main.querySelector(':scope > :is(.lt-top, .lt-head, .lt-headbox)');
   document.documentElement.style.scrollPaddingTop = h ? (h.offsetHeight + 8) + 'px' : '';
+  const ch = document.querySelector('.app:has(.chat-comp) > .lt-head:first-child');
+  if (ch) document.documentElement.style.setProperty('--chat-head-h', ch.offsetHeight + 'px');
   document.body.classList.toggle('rolou', window.scrollY > 4);
 }
 addEventListener('scroll', () => document.body.classList.toggle('rolou', window.scrollY > 4), { passive: true });
