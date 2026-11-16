@@ -3472,6 +3472,7 @@ function cNovidades() {
   const news = newsCliente();
   return pageHeader('Novidades') + `<div class="stack">${news.map(n => `<div style="display:grid;gap:4px">${newsCard(n, { solo: true })}<small class="c-news-dt">${fmtDT(n.ts)}</small></div>`).join('') || emptyBox('Nenhuma novidade agora.')}</div>`;
 }
+const pfAb = k => (ui.pfFechado || {})[k] ? '' : ' open';
 function cPerfil() {
   const d = { ...(cliData().clienteId === TESTE_ID ? { cep: TESTE.cep, rua: TESTE.endereco, numero: TESTE.numero, bairro: TESTE.bairro, cidade: TESTE.cidade, referencia: TESTE.referencia } : {}), ...cliData() };
   const nl = naoLidasC();
@@ -3484,16 +3485,16 @@ function cPerfil() {
   return pageHeader('Perfil') + acesso + `
   <div class="sec-h"><h2>Seus dados</h2></div>
   <form class="card pf-form" data-form="perfil">
-    <div class="pf-sec open">
-      <button type="button" class="pf-h" data-act="perfil-toggle" aria-expanded="true"><span>Dados pessoais</span>${ic('right', 'i chev')}</button>
+    <div class="pf-sec${pfAb('dados')}" data-sec="dados">
+      <button type="button" class="pf-h" data-act="perfil-toggle" aria-expanded="${pfAb('dados') ? 'true' : 'false'}"><span>Dados pessoais</span>${ic('right', 'i chev')}</button>
       <div class="pf-corpo">
         ${cf('pf-nome', 'Nome', 'nome', 'text', 'full', 'name')}
         ${cf('pf-tel', 'WhatsApp', 'telefone', 'tel', 'full', 'tel')}
         ${cf('pf-email', 'E-mail', 'email', 'email', 'full', 'email')}
       </div>
     </div>
-    <div class="pf-sec open">
-      <button type="button" class="pf-h" data-act="perfil-toggle" aria-expanded="true"><span>Endereço de entrega</span>${ic('right', 'i chev')}</button>
+    <div class="pf-sec${pfAb('end')}" data-sec="end">
+      <button type="button" class="pf-h" data-act="perfil-toggle" aria-expanded="${pfAb('end') ? 'true' : 'false'}"><span>Endereço de entrega</span>${ic('right', 'i chev')}</button>
       <div class="pf-corpo">
         ${cf('pf-cep', 'CEP', 'cep', 'text', '', 'postal-code')}
         ${cf('pf-rua', 'Rua', 'rua', 'text', 'full', 'address-line1')}
@@ -4488,7 +4489,7 @@ document.addEventListener('submit', e => {
 document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.item.tc, .li.tc-li')) { e.preventDefault(); e.target.click(); } });
 const OPEN = { 'nova-venda': () => modalVenda(), 'nova-compra': () => modalCompra(), 'nova-despesa': () => modalDespesa(), 'novo-produto': () => modalProduto(), 'nova-noticia': () => modalNoticia(), 'novo-cliente': () => modalCliente(), 'novo-fornecedor': () => modalFornecedor() };
 // Perfil: recolhe/expande a seção sem perder o que já foi digitado
-document.addEventListener('click', e => { const h = e.target.closest('[data-act="perfil-toggle"]'); if (!h) return; const sec = h.closest('.pf-sec'); const abre = !sec.classList.contains('open'); sec.classList.toggle('open', abre); h.setAttribute('aria-expanded', String(abre)); });
+document.addEventListener('click', e => { const h = e.target.closest('[data-act="perfil-toggle"]'); if (!h) return; const sec = h.closest('.pf-sec'); const abre = !sec.classList.contains('open'); sec.classList.toggle('open', abre); h.setAttribute('aria-expanded', String(abre)); ui.pfFechado = { ...(ui.pfFechado || {}), [sec.dataset.sec]: !abre }; });
 // Perfil: digitou o CEP, o endereço é preenchido sozinho
 document.addEventListener('input', async e => {
   const cepIn = e.target; if (!cepIn || cepIn.id !== 'pf-cep') return;
