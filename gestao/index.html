@@ -1721,6 +1721,11 @@ span.news-cta { cursor: default; padding-right: 16px; }
 .nw-sw .creme { background: linear-gradient(155deg, #FBFAF6, #DCD8CA); }
 .nw-sw .carvao { background: linear-gradient(155deg, #3A3A41, #141416); }
 .nw-sw .vinho { background: linear-gradient(155deg, #B8325A, #5E1028); }
+.nw-sw .lilas { background: linear-gradient(155deg, #D9CCFF, #B7A2F2); }
+.nw-sw .pessego { background: linear-gradient(155deg, #FFD2B5, #F5A979); }
+.nw-sw .azul { background: linear-gradient(155deg, #C2E2FF, #8CC4F5); }
+.nw-sw .menta { background: linear-gradient(155deg, #C8F2DA, #93DDB3); }
+.nw-sw .amarelo { background: linear-gradient(155deg, #FFEBA0, #F5CD4C); }
 .nw-em span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); font-size: 22px; line-height: 1; }
 .nw-em span img { width: 26px; height: 26px; }
 .nw-em input:checked + span { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--card)); }
@@ -1949,6 +1954,12 @@ span.news-cta { padding-right: 13px; }
 .lt[data-visual] .news.carvao, .lt[data-visual][data-escuro="1"] .news.carvao { background: linear-gradient(155deg, #3A3A41, #1C1C20 55%, #141416); border: 1px solid rgb(255 255 255 / .1); color: #F4F3EF; }
 .lt[data-visual] .news.vinho, .lt[data-visual][data-escuro="1"] .news.vinho { background: linear-gradient(155deg, #B8325A, #8E1B3A 55%, #5E1028); border: 0; color: #fff; }
 .lt[data-visual] .news.lima .news-tag, .lt[data-visual] .news.creme .news-tag, .lt[data-visual][data-escuro="1"] .news.lima .news-tag, .lt[data-visual][data-escuro="1"] .news.creme .news-tag { background: rgb(0 0 0 / .12); color: #141416; }
+.lt[data-visual] .news.lilas, .lt[data-visual][data-escuro="1"] .news.lilas { background: linear-gradient(155deg, #D9CCFF, #CDBEFF 55%, #B7A2F2); border: 0; color: #141416; }
+.lt[data-visual] .news.pessego, .lt[data-visual][data-escuro="1"] .news.pessego { background: linear-gradient(155deg, #FFD2B5, #FFC59F 55%, #F5A979); border: 0; color: #141416; }
+.lt[data-visual] .news.azul, .lt[data-visual][data-escuro="1"] .news.azul { background: linear-gradient(155deg, #C2E2FF, #AED8FE 55%, #8CC4F5); border: 0; color: #141416; }
+.lt[data-visual] .news.menta, .lt[data-visual][data-escuro="1"] .news.menta { background: linear-gradient(155deg, #C8F2DA, #B4EBCB 55%, #93DDB3); border: 0; color: #141416; }
+.lt[data-visual] .news.amarelo, .lt[data-visual][data-escuro="1"] .news.amarelo { background: linear-gradient(155deg, #FFEBA0, #FFE27A 55%, #F5CD4C); border: 0; color: #141416; }
+.lt[data-visual] .news.lilas .news-tag, .lt[data-visual] .news.pessego .news-tag, .lt[data-visual] .news.azul .news-tag, .lt[data-visual] .news.menta .news-tag, .lt[data-visual] .news.amarelo .news-tag, .lt[data-visual][data-escuro="1"] .news.lilas .news-tag, .lt[data-visual][data-escuro="1"] .news.pessego .news-tag, .lt[data-visual][data-escuro="1"] .news.azul .news-tag, .lt[data-visual][data-escuro="1"] .news.menta .news-tag, .lt[data-visual][data-escuro="1"] .news.amarelo .news-tag { background: rgb(0 0 0 / .12); color: #141416; }
 .lt[data-visual="bento"][data-escuro="1"] .now:not(.item) .now-ic{background:#141416;color:#C9E655}
 .lt[data-visual="bento"][data-escuro="1"] .now:not(.item) .now-ic *{color:#C9E655}
 
@@ -2931,6 +2942,7 @@ function gConfig() {
     ${cfgRow('bell', 'Notificações', nn ? `${nn} não ${nn === 1 ? 'lida' : 'lidas'}` : 'em dia', 'sheet', 'notif-ajustes')}
     ${cfgRow('palette', 'Aparência', lookLabel(), 'sheet', 'ajustes')}
     ${cfgRow('dots', 'Menu inferior', menuNaBarra().length + ' na barra', 'sheet', 'menu-cfg')}
+    ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
   </nav>`;
@@ -3218,7 +3230,7 @@ function gEstoque() {
     acts: `<button class="btn small" data-act="ajuste" data-id="${p.id}" ${W()}>Ajustar estoque</button>` })).join('') || emptyBox('Nenhum produto ainda. Cadastre o que você vende, por exemplo "Caixa 1 kg".', canWrite ? '<button class="btn primary" data-act="novo-produto">Novo produto</button>' : '')}</div>`;
 }
 /* ===== NOTÍCIAS v2: modelos, cores, ícone, foto, botão, público, agenda, visualizações ===== */
-const NEWS_CORES = [['morango', 'Cor do app'], ['vermelho', 'Morango'], ['folha', 'Folha'], ['rosa', 'Rosa'], ['laranja', 'Pôr do sol'], ['ceu', 'Céu'], ['uva', 'Uva'], ['dourado', 'Mel'], ['preto', 'Noite'], ['lima', 'Lima'], ['creme', 'Creme'], ['carvao', 'Carvão'], ['vinho', 'Vinho']];
+const NEWS_CORES = [['morango', 'Cor do app'], ['vermelho', 'Morango'], ['folha', 'Folha'], ['rosa', 'Rosa'], ['laranja', 'Pôr do sol'], ['ceu', 'Céu'], ['uva', 'Uva'], ['dourado', 'Mel'], ['preto', 'Noite'], ['lima', 'Lima'], ['creme', 'Creme'], ['carvao', 'Carvão'], ['vinho', 'Vinho'], ['lilas', 'Lilás'], ['pessego', 'Pêssego'], ['azul', 'Azul claro'], ['menta', 'Menta'], ['amarelo', 'Amarelo']];
 const NEWS_EMOS = ['', '🍓', '🍒', '🍇', '🍉', '🍋', '🍌', '🥝', '🍑', '🍍', '🥭', '🍫', '🍯', '🍰', '🧁', '🍨', '🥛', '🥤', '🧺', '🌱', '🌿', '🍀', '🌸', '🌻', '☀️', '🌧️', '❄️', '🔥', '✨', '⭐', '💥', '🎉', '🎊', '🎁', '🎂', '❤️', '💝', '😋', '🤩', '👏', '🙏', '📣', '📢', '🆕', '💯', '🏷️', '💸', '🛒', '📦', '🚚', '🛵', '⏰', '📅', '⚠️', '🚫', '✅'];
 const NEWS_ACAO = { '': 'Sem botão', comprar: 'Comprar um produto', loja: 'Ver os morangos da loja', chat: 'Falar com a gente (chat)', pedido: 'Acompanhar meu pedido' };
 const NEWS_ACAO_TXT = { comprar: 'Comprar agora', loja: 'Ver morangos', chat: 'Falar com a gente', pedido: 'Ver meu pedido' };
@@ -3376,7 +3388,7 @@ function relExportar(k) {
   if (k === 'pdf') relPDF();
   else if (k === 'xls') { baixarArq(relNome('xls'), relXLS(), 'application/vnd.ms-excel'); toast('Planilha Excel baixada.'); }
   else if (k === 'csv') { baixarArq(relNome('csv'), relCSV(), 'text/csv;charset=utf-8'); toast('Arquivo CSV baixado.'); }
-  else if (k === 'whats') window.open('https://wa.me/?text=' + encodeURIComponent(relResumoTexto()), '_blank');
+  else if (k === 'whats') window.open('https://wa.me/' + ls.get('mmr-wa-numero', '') + '?text=' + encodeURIComponent(relResumoTexto()), '_blank');
 }
 let _relDias = null;
 addEventListener('resize', () => { if (ui.mode === 'gestao' && ui.g === 'relatorios' && relDiasGrafico() !== _relDias) render(); });
@@ -3948,6 +3960,7 @@ function sheetHTML() {
     <div class="ap-sec"><span class="ap-l">Modo</span><div class="lt-chips">${[['sistema', 'Igual ao celular'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button class="lt-chip ${look.modo === k ? 'on' : ''}" data-act="look" data-k="modo" data-v="${k}" aria-pressed="${look.modo === k}" ${look.visual === 'aurora' && k !== 'claro' ? 'disabled' : ''}>${l}</button>`).join('')}</div>${look.visual === 'aurora' ? '<small class="muted">O Aurora só existe no modo claro.</small>' : ''}</div>
     <div class="ap-sec"><span class="ap-l">Cor</span>${look.visual === 'bento' ? '<small class="muted">O Bento usa a paleta própria (preto, lima e tons pastel).</small>' : ''}<div class="ap-cores">${(window.LT_TEMAS || []).map(([k, l, a, b]) => `<button class="ap-cor" style="background:linear-gradient(135deg,${a},${b})" data-act="look" data-k="tema" data-v="${k}" aria-label="${l}" aria-pressed="${look.tema === k}" title="${l}" ${look.visual === 'bento' ? 'disabled' : ''}>${look.tema === k ? icOwn('check') : ''}</button>`).join('')}</div></div>
     <button class="lt-btn lt-block" data-act="look-reset">Voltar ao padrão (Rosa, Clássico, claro)</button>`);
+  if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div class="menu" style="display:grid;gap:10px;margin-top:12px"><button class="btn primary block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="btn block" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
   if (s.type === 'exemplos') { const nEx = contaExemplos(); const tot = contaPorCat(montarExemplos()); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
     const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0);
     return wrap('Dados de exemplo', `<p class="muted" style="margin:0 0 10px;font-size:14px">Escolha o que inserir e quantos de cada. Cada exemplo fica marcado, e ao remover só eles são apagados. Não mexem no estoque dos seus produtos.</p>
@@ -4586,6 +4599,8 @@ document.addEventListener('click', async e => {
     case 'sheet': ui.sheet = { type: v }; render(); break;
     case 'ex-qtd': { const k = t.dataset.k, tot = contaPorCat(montarExemplos()); ui.exQtd[k] = Math.max(0, Math.min(tot[k], (ui.exQtd[k] || 0) + Number(v))); render(); break; }
     case 'ex-todos': ui.exQtd = exQtdInicial(contaPorCat(montarExemplos())); render(); break;
+    case 'wa-salvar': { const d = (document.getElementById('wa-num')?.value || '').replace(/\D/g, ''); if (d && d.length < 10) { toast('Número incompleto. Use DDD e número.'); break; } const num = d && d.length <= 11 ? '55' + d : d; ls.set('mmr-wa-numero', num); render(); toast(num ? 'Número salvo.' : 'Número apagado.'); break; }
+    case 'wa-apagar': ls.set('mmr-wa-numero', ''); render(); toast('Número apagado.'); break;
     case 'ex-zerar': ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
     case 'ex-carregar': carregarExemplos(); break;
     case 'ex-remover': modalConfirm('Remover todos os dados de exemplo? Seus lançamentos reais não são apagados.', 'Remover exemplos', () => { removerExemplos(); }); break;
