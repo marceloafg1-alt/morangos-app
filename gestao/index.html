@@ -252,7 +252,7 @@
    ===================================================================== */
 
 /* ---------- Tela ---------- */
-.lt-page{min-height:100vh;min-height:100dvh;background:var(--page-bg);color:var(--ink);
+.lt-page{min-height:100vh;min-height:100dvh;background:var(--page-bg);background-attachment:fixed;color:var(--ink);
   padding:12px var(--sp-page) 110px;display:flex;flex-direction:column;gap:var(--sp-gap);box-sizing:border-box}
 .lt-page>*{flex-shrink:0}
 .lt *,.lt *::before,.lt *::after{box-sizing:border-box}
@@ -1196,7 +1196,7 @@ input[type=text], input[type=number], input[type=tel], input[type=email], input[
   --body: var(--ff); --display: var(--fh);
   --grad: linear-gradient(135deg, var(--a1) 0%, var(--a2) 55%, var(--a3) 100%);
 }
-body.lt { background: var(--page-bg); color: var(--ink); font-family: var(--ff); font-size: var(--fs-md); }
+body.lt { background: var(--page-bg); background-attachment: fixed; color: var(--ink); font-family: var(--ff); font-size: var(--fs-md); }
 body.lt::before { background: var(--g1, var(--ground)); }
 .lt[data-visual="aurora"]::before { background: color-mix(in srgb, var(--a2) 80%, #0B1016); }
 .lt[data-visual="bento"]::before { background: var(--ground); }
@@ -4485,6 +4485,10 @@ g.ltAparencia=function(novo,alvo){
   var cs=getComputedStyle(el);
   m.content=(o.visual==='aurora')?cs.getPropertyValue('--a2').trim():(cs.getPropertyValue('--g1').trim()||cs.getPropertyValue('--ground').trim());
   if(sol||o.visual==='bento'||esc)m.content=cs.getPropertyValue('--ground').trim();
+  /* Aurora e Clássico escuro: a barra de status usa a cor do topo do degradê do fundo */
+  if(o.visual!=='bento'&&(o.visual==='aurora'||esc)){var g=(cs.backgroundImage||'').match(/gradient\((?:[^,()]+,\s*)?(color\(srgb [^)]+\)|rgba?\([^)]+\))/);
+    if(g){var q=g[1],n=q.match(/color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/),c=n?[n[1],n[2],n[3]].map(function(x){return Math.round(parseFloat(x)*255);}):(q.match(/\d+/g)||[]).slice(0,3).map(Number);
+      if(c.length===3&&c.every(function(x){return x>=0&&x<=255;}))m.content='#'+c.map(function(x){return ('0'+x.toString(16)).slice(-2);}).join('');}}
   gravar(o);return o;
 };
 })(window);
