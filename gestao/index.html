@@ -1923,6 +1923,23 @@ span.news-cta { padding-right: 13px; }
 .lt[data-visual="bento"][data-escuro="1"] .item.now :is(.steps-l span,.steps-l span.on){color:#141416;font-weight:700}
 .lt[data-visual="bento"][data-escuro="1"] .item.now :is(span,small,b,p):not(.pill):not(.tc-n):not(.lt-dot){color:#141416}
 .lt[data-visual="bento"][data-escuro="1"] .btn.small.green{color:#0E2A1B}
+
+/* ---- Bento: cards de Vendas, Compras, Entregas, Relatórios etc. usam os mesmos pastéis da tela inicial ---- */
+.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli,.card.calm){border:0;color:#141416;--ink:#141416;--muted:#2A2A2F;--muted2:#2A2A2F;--line:rgba(20,20,22,.22);box-shadow:none}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+1){background:var(--lime)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+2){background:var(--lilac)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+3){background:var(--peach)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+4){background:var(--sky)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+5){background:var(--mint)}
+.lt[data-visual="bento"] :is(.stack,.grid,.cards,.tc-grid,.kpis,.list-grid)>:is(.item.tc,.kpi,.item.c-cli):nth-child(6n+6){background:var(--butter)}
+.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli) :is(b,span,small,.s,.val,.tc-t,.tc-1,.tc-ed,.muted,small.muted){color:#141416}
+.lt[data-visual="bento"] :is(.item.tc,.kpi,.item.c-cli) :is(small,.s,.tc-1,.tc-ed,.muted){color:#2A2A2F}
+.lt[data-visual="bento"] .kpi:is(.good,.bad,.alert) b{color:#141416}
+.lt[data-visual="bento"] .item.tc .pill{background:rgba(255,255,255,.7);color:#141416}
+.lt[data-visual="bento"] .item.tc .btn.ghost,.lt[data-visual="bento"] .item.tc .btn.small:not(.green):not(.primary){background:#141416;color:#F4F3EF;border:0}
+.lt[data-visual="bento"] .item.tc .btn.small.green{background:#141416;color:#C9E655}
+.lt[data-visual="bento"] .item.tc .btn.small.ghost:last-child:not(.primary){background:transparent;color:#141416;font-weight:800}
+.lt[data-visual="bento"] .item.tc .tc-n{background:#141416;color:#C9E655}
 </style>
 <div id="toast-root"></div>
 
