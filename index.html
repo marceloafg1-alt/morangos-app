@@ -846,7 +846,7 @@ svg.i { width: 22px; height: 22px; flex: none; }
 .f { display: grid; gap: 6px; min-width: 0; }
 .f.full { grid-column: 1 / -1; }
 .f label, .f .lbl { font-size: 13px; font-weight: 700; color: var(--muted); }
-input[type=text], input[type=number], input[type=tel], input[type=date], select, textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 14px; padding: 11px 13px; min-width: 0; font-size: 16px; }
+input[type=text], input[type=number], input[type=tel], input[type=email], input[type=date], select, textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 14px; padding: 11px 13px; min-width: 0; font-size: 16px; }
 textarea { min-height: 80px; resize: vertical; }
 .lines { display: grid; gap: 10px; }
 .line { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 16px; }
@@ -1093,7 +1093,7 @@ body::before { background: var(--glow); }
 .btn.green { border-color: transparent; }
 .btn.ghost { border-color: transparent; }
 .hero, .banner { border-radius: 30px; }
-input[type=text], input[type=number], input[type=tel], input[type=date], select, textarea { border: 1.5px solid var(--outline); border-radius: 16px; background: var(--surface); }
+input[type=text], input[type=number], input[type=tel], input[type=email], input[type=date], select, textarea { border: 1.5px solid var(--outline); border-radius: 16px; background: var(--surface); }
 .modal, .sheet-in { border-radius: 32px 32px 0 0; }
 .menu button { border: 1.5px solid var(--outline); border-radius: 20px; background: var(--surface); }
 .menu button .chipico { background: var(--chip); color: var(--chip-fg); }
@@ -1265,10 +1265,10 @@ body.lt::before { background: var(--g1, var(--ground)); }
 .add-btn, .stepper button { background: var(--grad); color: var(--onA); box-shadow: 0 6px 14px var(--glow); }
 .stepper button.minus { background: var(--tint); color: var(--accent); box-shadow: none; }
 .lt[data-visual="bento"] :is(.add-btn, .stepper button:not(.minus)) { background: var(--jet); color: var(--ground); box-shadow: none; }
-input[type=text], input[type=number], input[type=tel], input[type=date], select { height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--card); color: var(--ink); font-size: var(--fs-md); font-weight: 500; }
+input[type=text], input[type=number], input[type=tel], input[type=email], input[type=date], select { height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--card); color: var(--ink); font-size: var(--fs-md); font-weight: 500; }
 textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--card); color: var(--ink); }
 :is(input, select, textarea):focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
-.lt[data-visual="aurora"] :is(input[type=text], input[type=number], input[type=tel], input[type=date], select, textarea) { background: var(--fill); border-color: transparent; }
+.lt[data-visual="aurora"] :is(input[type=text], input[type=number], input[type=tel], input[type=email], input[type=date], select, textarea) { background: var(--fill); border-color: transparent; }
 .f label, .f .lbl { color: var(--ink); font-size: 13px; font-weight: 700; }
 .opt span { border: 1px solid var(--line); border-radius: var(--r-chip); background: var(--card); font-size: 13px; font-weight: 600; padding: 8px 14px; }
 .opt input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--onA); }
@@ -1797,7 +1797,7 @@ span.news-cta { padding-right: 13px; }
 .lt[data-escuro="1"]{--edge:#727A83;--outline:var(--edge);--bd:1px solid var(--edge);--muted2:#A3AAB2}
 .lt[data-visual="bento"][data-escuro="1"]{--edge:#7A7A84;--outline:var(--edge);--bd:1px solid var(--edge);--muted2:#A5A39D}
 .lt[data-visual="aurora"]{--muted:#4F5D73;--muted2:#5B6A80;--edge:#8A96AB;--outline:var(--edge)}
-.lt[data-escuro="1"] :is(input,select,textarea),.lt[data-visual="aurora"] :is(input[type=text],input[type=number],input[type=tel],input[type=date],select,textarea){border:1.5px solid var(--edge)}
+.lt[data-escuro="1"] :is(input,select,textarea),.lt[data-visual="aurora"] :is(input[type=text],input[type=number],input[type=tel],input[type=email],input[type=date],select,textarea){border:1.5px solid var(--edge)}
 .lt[data-escuro="1"] ::placeholder{color:#A3AAB2;opacity:1}
 .lt[data-visual="aurora"] ::placeholder{color:#5B6A80;opacity:1}
 .lt[data-escuro="1"] :is(.card,.kpi,.item,.rowcard,.lt-card,.lt-tile,.lt-row.lt-solo,.mp,.order-strip,.quick,.now,.ap-opt,.menu button,.lt-search,.chip:not([aria-pressed="true"]),.lt-chip:not(.on),.wa-chip:not(.on),.btn:not(.primary):not(.ghost):not(.green),.lt-btn2){border:1px solid var(--edge)}
@@ -2650,7 +2650,6 @@ function topHeader(kind) {
     <div class="lt-toprow"><h1 class="lt-title">${title}</h1>${isG ? (() => { const nn = notifNaoLidas(); return `<div class="lt-iconbtns">
       <button class="lt-iconbtn" data-act="go" data-v="notificacoes" aria-label="Notificações${nn ? ', ' + nn + ' não lidas' : ''}">${ic('bell')}${nn ? `<span class="lt-dot">${nn > 99 ? '99+' : nn}</span>` : ''}</button>
     </div>`; })() : `<div class="lt-iconbtns">
-      <button class="lt-iconbtn" data-act="go" data-v="chat" aria-label="Chat com a loja">${ic('chat')}${naoLidasC() ? `<span class="lt-dot">${naoLidasC()}</span>` : ''}</button>
       <button class="lt-iconbtn" data-act="go-pedidos" aria-label="Avisos">${ic('bell')}${ord ? '<span class="lt-dot">1</span>' : ''}</button>
     </div>`}</div>
     <div class="mr-sub">${isG ? hojeTxt() : 'Morangos colhidos hoje, entregues na sua casa.'}</div>
@@ -3432,13 +3431,24 @@ function cNovidades() {
   return pageHeader('Novidades') + `<div class="stack">${news.map(n => `<div style="display:grid;gap:4px">${newsCard(n, { solo: true })}<small class="c-news-dt">${fmtDT(n.ts)}</small></div>`).join('') || emptyBox('Nenhuma novidade agora.')}</div>`;
 }
 function cPerfil() {
-  const d = cliData();
+  const d = { ...(cliData().clienteId === TESTE_ID ? { cep: TESTE.cep, rua: TESTE.endereco, numero: TESTE.numero, bairro: TESTE.bairro, cidade: TESTE.cidade, referencia: TESTE.referencia } : {}), ...cliData() };
   const nl = naoLidasC();
+  const v = k => esc(d[k] || '');
+  const cf = (id, label, name, type, cls, ac) => `<div class="f${cls ? ' ' + cls : ''}"><label for="${id}">${label}</label><input type="${type}" id="${id}" name="${name}" value="${v(name)}" autocomplete="${ac}"></div>`;
   return pageHeader('Perfil') + `<div class="sec-h"><h2>Seus dados</h2></div>
   <form class="item" data-form="perfil" style="gap:14px">
-    <div class="f"><label for="pf-nome">Nome</label><input type="text" id="pf-nome" name="nome" value="${esc(d.nome || '')}" autocomplete="name"></div>
-    <div class="f"><label for="pf-tel">WhatsApp</label><input type="tel" id="pf-tel" name="telefone" value="${esc(d.telefone || '')}" autocomplete="tel"></div>
-    <div class="f"><label for="pf-end">Endereço de entrega</label><input type="text" id="pf-end" name="endereco" value="${esc(d.endereco || '')}" autocomplete="street-address"></div>
+    ${cf('pf-nome', 'Nome', 'nome', 'text', 'full', 'name')}
+    ${cf('pf-tel', 'WhatsApp', 'telefone', 'tel', 'full', 'tel')}
+    ${cf('pf-email', 'E-mail', 'email', 'email', 'full', 'email')}
+    ${cf('pf-login', 'Login', 'login', 'text', 'full', 'username')}
+    <div class="sec-h" style="padding:0"><h2>Endereço de entrega</h2></div>
+    ${cf('pf-cep', 'CEP', 'cep', 'text', '', 'postal-code')}
+    ${cf('pf-num', 'Número', 'numero', 'text', '', 'address-line2')}
+    ${cf('pf-rua', 'Rua', 'rua', 'text', 'full', 'address-line1')}
+    ${cf('pf-compl', 'Complemento', 'complemento', 'text', 'full', 'off')}
+    ${cf('pf-bairro', 'Bairro', 'bairro', 'text', '', 'off')}
+    ${cf('pf-cidade', 'Cidade', 'cidade', 'text', '', 'address-level2')}
+    ${cf('pf-ref', 'Referência', 'referencia', 'text', 'full', 'off')}
     <button class="btn primary block" type="submit">Salvar</button></form>
   <div class="sec-h"><h2>App</h2></div>
   <nav class="card menu-list cfg-list" aria-label="App">
@@ -3761,7 +3771,7 @@ function nav() {
     const fabLbl = fabOn ? 'Fechar' : convCli ? 'Nova venda ou novo chat' : ui.g === 'conversas' ? 'Novo chat' : ui.g === 'vendas' ? 'Nova venda avulsa' : fabPag ? fabPag[1] : 'Lançar';
     return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', 'Mais', '', 'sheet', maisOn)}</nav>`;
   }
-  return `${bar}<nav class="lt-tabbar" aria-label="Loja">${t('inicio', 'home', 'Loja')}${t('pedidos', 'truck', 'Pedidos', activeOrder() ? cnt(1) : '')}<button class="lt-fab" data-act="go" data-v="sacola" aria-label="Sacola${n ? ', ' + n + ' itens' : ''}">${ic('bag')}${cnt(n)}</button>${t('novidades', 'news', 'Novidades')}${t('perfil', 'user', 'Perfil')}</nav>`;
+  return `${bar}<nav class="lt-tabbar" aria-label="Loja">${t('inicio', 'home', 'Loja')}${t('pedidos', 'truck', 'Pedidos', activeOrder() ? cnt(1) : '')}<button class="lt-fab" data-act="go" data-v="sacola" aria-label="Sacola${n ? ', ' + n + ' itens' : ''}">${ic('bag')}${cnt(n)}</button>${t('novidades', 'news', 'Novidades')}${t('chat', 'chat', 'Chat', cnt(naoLidasC()))}${t('perfil', 'user', 'Perfil')}</nav>`;
 }
 function sheetHTML() {
   const s = ui.sheet;
@@ -4393,7 +4403,9 @@ document.addEventListener('submit', e => {
   if (k === 'checkout') { e.preventDefault(); checkout(e.target); }
   if (k === 'chat') { e.preventDefault(); enviarChat(e.target); }
   if (k === 'chat-id') { e.preventDefault(); const fd = new FormData(e.target); const nome = String(fd.get('nome') || '').trim(); if (!nome) { toast('Escreva seu nome.'); return; } ls.set('mmr-cliente', { ...cliData(), nome, telefone: String(fd.get('telefone') || '').trim() }); render(); }
-  if (k === 'perfil') { e.preventDefault(); const fd = new FormData(e.target); ls.set('mmr-cliente', { clienteId: cliData().clienteId, nome: String(fd.get('nome') || '').trim(), telefone: String(fd.get('telefone') || '').trim(), endereco: String(fd.get('endereco') || '').trim() }); toast('Dados salvos neste aparelho.'); }
+  if (k === 'perfil') { e.preventDefault(); const fd = new FormData(e.target); const g = x => String(fd.get(x) || '').trim(); const rua = g('rua'), numero = g('numero'), compl = g('complemento'), bairro = g('bairro'), cidade = g('cidade'), cep = g('cep');
+    const endereco = [rua ? rua + (numero ? ', ' + numero : '') + (compl ? ' - ' + compl : '') : '', bairro, cidade, cep ? 'CEP ' + cep : ''].filter(Boolean).join(' · ');
+    ls.set('mmr-cliente', { ...cliData(), nome: g('nome'), telefone: g('telefone'), email: g('email'), login: g('login'), cep, rua, numero, complemento: compl, bairro, cidade, referencia: g('referencia'), endereco }); toast('Dados salvos neste aparelho.'); }
 });
 document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.item.tc, .li.tc-li')) { e.preventDefault(); e.target.click(); } });
 const OPEN = { 'nova-venda': () => modalVenda(), 'nova-compra': () => modalCompra(), 'nova-despesa': () => modalDespesa(), 'novo-produto': () => modalProduto(), 'nova-noticia': () => modalNoticia(), 'novo-cliente': () => modalCliente(), 'novo-fornecedor': () => modalFornecedor() };
