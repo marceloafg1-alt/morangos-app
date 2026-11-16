@@ -2633,6 +2633,7 @@ function render() {
   newsAfterRender();
   navSync();
   cabecalhoFixo();
+  avisarNovidades();
 }
 /* cabeçalho fixo: sombra ao rolar e espaço para rolagens automáticas não pararem atrás dele */
 function cabecalhoFixo() {
@@ -2660,7 +2661,7 @@ function topHeader(kind) {
     <div class="lt-toprow"><h1 class="lt-title">${title}</h1>${isG ? (() => { const nn = notifNaoLidas(); return `<div class="lt-iconbtns">
       <button class="lt-iconbtn" data-act="go" data-v="notificacoes" aria-label="Notificações${nn ? ', ' + nn + ' não lidas' : ''}">${ic('bell')}${nn ? `<span class="lt-dot">${nn > 99 ? '99+' : nn}</span>` : ''}</button>
     </div>`; })() : `<div class="lt-iconbtns">
-      <button class="lt-iconbtn" data-act="go-pedidos" aria-label="Avisos">${ic('bell')}${ord ? '<span class="lt-dot">1</span>' : ''}</button>
+      <button class="lt-iconbtn" data-act="go" data-v="notificacoes" aria-label="Notificações${naoLidasC() + (ord ? 1 : 0) ? ', ' + (naoLidasC() + (ord ? 1 : 0)) + ' novas' : ''}">${ic('bell')}${naoLidasC() + (ord ? 1 : 0) ? `<span class="lt-dot">${naoLidasC() + (ord ? 1 : 0)}</span>` : ''}</button>
     </div>`}</div>
     <div class="mr-sub">${isG ? hojeTxt() : 'Morangos colhidos hoje, entregues na sua casa.'}</div>
   </header>${statusNote()}${isG ? bandGestao() + pendBtn() : ''}`;
@@ -3346,7 +3347,7 @@ const cartCount = () => Object.values(ui.cart).reduce((s, q) => s + q, 0);
 const cartTotal = () => Object.entries(ui.cart).reduce((s, [id, q]) => s + (prodById(id)?.preco || 0) * q, 0);
 const cliData = () => ls.get('mmr-cliente', {});
 function cliente() {
-  return ({ inicio: cInicio, pedidos: cPedidos, sacola: cSacola, novidades: cNovidades, perfil: cPerfil, chat: cChat }[ui.c] || cInicio)();
+  return ({ inicio: cInicio, pedidos: cPedidos, sacola: cSacola, novidades: cNovidades, perfil: cPerfil, chat: cChat, notificacoes: cNotif }[ui.c] || cInicio)();
 }
 const meusPedidos = () => { const cid = meuClienteId(); return S.vendas.filter(v => myOrders.includes(v.id) || v.id === ui.track || (cid && v.clienteId === cid)); };
 function activeOrder() {
@@ -3436,6 +3437,34 @@ function routeMap(total, pos) {
     <text x="${tx}" y="${ty + 28}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--muted)">entregador</text>
   </svg></div>`;
 }
+/* ---------- Notificações do app cliente ---------- */
+const pushOn = () => !!ls.get('mmr-push', false) && 'Notification' in window && Notification.permission === 'granted';
+async function pushMostrar(titulo, texto) {
+  const opt = { body: texto, icon: 'icon-192.png', tag: 'mmr-' + Date.now() };
+  try { const reg = await navigator.serviceWorker?.ready; if (reg && reg.showNotification) return reg.showNotification(titulo, opt); } catch (e) {}
+  try { new Notification(titulo, opt); } catch (e) {}
+}
+// Enquanto o app está aberto, avisa mensagens novas da loja e mudanças nos seus pedidos
+function avisarNovidades() {
+  if (ui.mode !== 'cliente') return;
+  try {
+    const nl = naoLidasC(), ant = ls.get('mmr-push-nl', null);
+    ls.set('mmr-push-nl', nl);
+    if (ant !== null && nl > ant && pushOn()) pushMostrar('Nova mensagem da loja', 'Toque em Fale com a gente para responder.');
+    const st = Object.fromEntries(meusPedidos().map(v => [v.id, v.status]));
+    const prev = ls.get('mmr-push-st', null);
+    ls.set('mmr-push-st', st);
+    if (prev && pushOn()) Object.keys(st).forEach(id => { if (prev[id] && prev[id] !== st[id]) pushMostrar('Seu pedido mudou', C_ST[st[id]] || 'Veja em Pedidos.'); });
+  } catch (e) {}
+}
+function cNotif() {
+  const nl = naoLidasC();
+  const ped = meusPedidos().slice().sort((a, b) => b.ts - a.ts).slice(0, 5);
+  const linhas = [];
+  if (nl) linhas.push(menuBtn('chat', `${nl} ${nl === 1 ? 'mensagem nova' : 'mensagens novas'} da loja`, 'Toque para responder em Fale com a gente', 'go', 'chat'));
+  ped.forEach(v => linhas.push(menuBtn('truck', `Pedido de ${new Date(v.ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`, C_ST[v.status] || v.status, 'go', 'pedidos')));
+  return pageHeader('Notificações') + `<nav class="menu" aria-label="Notificações">${linhas.join('') || '<div class="muted" style="padding:16px">Nenhuma notificação por enquanto.</div>'}</nav>`;
+}
 function cNovidades() {
   const news = newsCliente();
   return pageHeader('Novidades') + `<div class="stack">${news.map(n => `<div style="display:grid;gap:4px">${newsCard(n, { solo: true })}<small class="c-news-dt">${fmtDT(n.ts)}</small></div>`).join('') || emptyBox('Nenhuma novidade agora.')}</div>`;
@@ -3478,6 +3507,7 @@ function cPerfil() {
   <div class="sec-h"><h2>App</h2></div>
   <nav class="card menu-list cfg-list" aria-label="App">
     ${cfgRow('chat', 'Fale com a gente', nl ? `${nl} ${nl === 1 ? 'nova' : 'novas'}` : '', 'go', 'chat')}
+    ${cfgRow('bell', 'Notificações push', !('Notification' in window) ? 'Não disponível' : Notification.permission === 'denied' ? 'Bloqueadas no navegador' : pushOn() ? 'Ativadas' : 'Desativadas', 'push-toggle', 'push')}
     ${cfgRow('palette', 'Aparência', lookLabel(), 'sheet', 'ajustes')}
     ${cfgRow('swap', 'Trocar de app', 'Gestão', 'mode', 'gestao')}
   </nav>`;
@@ -4474,6 +4504,12 @@ document.addEventListener('click', async e => {
   if (OPEN[a]) { if (ui.sheet) { ui.sheet = null; render(); } if (!canWrite) { toast('Modo leitura: não dá para lançar.'); return; } OPEN[a](); return; }
   switch (a) {
     case 'sair': ls.set('mmr-sessao', ''); toast('Você saiu deste aparelho.'); render(); break;
+    case 'push-toggle': {
+      if (!('Notification' in window)) { toast('Este aparelho não recebe notificações.'); break; }
+      if (pushOn()) { ls.set('mmr-push', false); toast('Notificações desligadas neste aparelho.'); render(); break; }
+      const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+      if (perm === 'granted') { ls.set('mmr-push', true); toast('Notificações ativadas neste aparelho.'); } else toast('Permita as notificações no navegador para ativar.');
+      render(); break; }
     case 'go': ui.voltaCfg = false; go(v); break;
     case 'go-cfg': ui.voltaCfg = true; go(v); break;
     case 'voltar': go(ui.voltaCfg && ui.g !== 'config' ? 'config' : 'inicio'); if (ui.g === 'config' || ui.g === 'inicio') ui.voltaCfg = false; break;
