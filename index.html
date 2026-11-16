@@ -774,6 +774,8 @@ svg.i { width: 22px; height: 22px; flex: none; }
 .rel-cols .col i { width: var(--bw, 20px); max-width: none; border-radius: 8px 8px 3px 3px; }
 .rel-cols.cols { gap: 4px; flex: 1; height: auto; min-height: 150px; }
 .rel-card { display: flex; flex-direction: column; }
+.rel-2col { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: stretch; container-type: inline-size; --bw: min(28px, calc(((100cqw - 12px) * 2 / 3 - 32px - (var(--n) - 1) * 4px) / var(--n))); }
+@media (max-width: 700px) { .rel-2col { grid-template-columns: minmax(0, 1fr); gap: 18px; --bw: min(28px, calc((100cqw - 32px - (var(--n) - 1) * 4px) / var(--n))); } }
 .rel-foot { margin: 0; padding: 0 16px 14px; font-size: 13px; }
 .col-labels { display: flex; gap: 4px; padding: 6px 16px 14px; border-top: 1px solid var(--line); margin-top: 0; }
 .col-labels span { flex: 1; text-align: center; font-size: 10.5px; color: var(--muted); min-width: 0; }
@@ -3389,7 +3391,7 @@ function gRelatorios() {
   <div class="kpis"><button class="kpi ${sArec ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go" data-v="caixa"><small>A receber</small><b>${money(sArec)}</b><span class="s">${ar.length} ${ar.length === 1 ? 'venda' : 'vendas'} sem pagar</span></button>
     <button class="kpi ${sApag ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go" data-v="compras"><small>A pagar na roça</small><b>${money(sApag)}</b><span class="s">${ap.length} ${ap.length === 1 ? 'compra' : 'compras'}</span></button>
     <div class="kpi good wide"><small>Saldo do caixa</small><b>${money(saldoGeral())}</b><span class="s">todo o histórico</span></div></div>
-  <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px;align-items:stretch;container-type:inline-size;--bw:min(28px,calc(((100cqw - 12px) * 2 / 3 - 32px - ${(ndias - 1) * 4}px) / ${ndias}))">
+  <div class="rel-2col" style="--n:${ndias}">
   <div style="min-width:0;display:grid;gap:14px;grid-template-rows:auto 1fr"><div class="sec-h"><h2>Vendas por dia</h2><span class="muted" style="font-size:13px">últimos ${ndias} dias</span></div>
   <div class="card rel-card"><div class="cols rel-cols">${days.map(d => `<div class="col" title="${d.lbl}: ${money(d.v)}"><i class="${d.v ? '' : 'zero'}" style="height:${d.v / maxD * 100}%"></i></div>`).join('')}</div><div class="col-labels">${days.map(d => `<span>${ndias > 15 ? (d.d.getDate() % 5 === 0 ? d.lbl : '') : d.lbl}</span>`).join('')}</div>
     ${melhorDia.v ? `<p class="muted rel-foot">Melhor dia: <b>${melhorDia.lbl}/${String(melhorDia.d.getMonth() + 1).padStart(2, '0')}</b> com ${money(melhorDia.v)}</p>` : ''}</div></div>
