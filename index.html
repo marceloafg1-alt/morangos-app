@@ -1326,6 +1326,16 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cep-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .cep-btn svg.i { width: 18px; height: 18px; }
 .cep-btn.busy { opacity: .6; }
+/* Perfil: seções recolhíveis, acesso */
+.pf-form { display: grid; gap: 14px; padding: 16px; }
+.pf-sec .pf-h { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: none; padding: 4px 0; font: inherit; font-weight: 700; color: var(--fg); cursor: pointer; text-align: left; }
+.pf-sec .pf-h .chev { transition: transform .2s; }
+.pf-sec.open .pf-h .chev { transform: rotate(90deg); }
+.pf-sec .pf-corpo { display: grid; gap: 14px; margin-top: 10px; }
+.pf-sec:not(.open) .pf-corpo { display: none; }
+.pf-acesso { display: grid; gap: 10px; margin: 0 0 14px; padding: 16px; }
+.pf-acesso-t { display: grid; gap: 2px; }
+.pf-acesso small { color: var(--muted); }
 .cep-msg { color: var(--muted); font-size: 12.5px; }
 .cep-msg.bad { color: var(--bad, #B42318); font-weight: 600; }
 
@@ -3435,21 +3445,36 @@ function cPerfil() {
   const nl = naoLidasC();
   const v = k => esc(d[k] || '');
   const cf = (id, label, name, type, cls, ac) => `<div class="f${cls ? ' ' + cls : ''}"><label for="${id}">${label}</label><input type="${type}" id="${id}" name="${name}" value="${v(name)}" autocomplete="${ac}"></div>`;
-  return pageHeader('Perfil') + `<div class="sec-h"><h2>Seus dados</h2></div>
-  <form class="item" data-form="perfil" style="gap:14px">
-    ${cf('pf-nome', 'Nome', 'nome', 'text', 'full', 'name')}
-    ${cf('pf-tel', 'WhatsApp', 'telefone', 'tel', 'full', 'tel')}
-    ${cf('pf-email', 'E-mail', 'email', 'email', 'full', 'email')}
-    ${cf('pf-login', 'Login', 'login', 'text', 'full', 'username')}
-    <div class="sec-h" style="padding:0"><h2>Endereço de entrega</h2></div>
-    ${cf('pf-cep', 'CEP', 'cep', 'text', '', 'postal-code')}
-    ${cf('pf-num', 'Número', 'numero', 'text', '', 'address-line2')}
-    ${cf('pf-rua', 'Rua', 'rua', 'text', 'full', 'address-line1')}
-    ${cf('pf-compl', 'Complemento', 'complemento', 'text', 'full', 'off')}
-    ${cf('pf-bairro', 'Bairro', 'bairro', 'text', '', 'off')}
-    ${cf('pf-cidade', 'Cidade', 'cidade', 'text', '', 'address-level2')}
-    ${cf('pf-ref', 'Referência', 'referencia', 'text', 'full', 'off')}
-    <button class="btn primary block" type="submit">Salvar</button></form>
+  const sessao = ls.get('mmr-sessao', '');
+  const acesso = sessao
+    ? `<div class="card pf-acesso"><div class="pf-acesso-t"><b>Conectado como ${esc(sessao)}</b><small>Por enquanto o acesso fica neste aparelho.</small></div><button class="btn small ghost" type="button" data-act="sair">Sair</button></div>`
+    : `<form class="card pf-acesso" data-form="entrar"><div class="f"><label for="pf-login-in">Login</label><input type="text" id="pf-login-in" name="login" value="${v('login')}" autocomplete="username" required></div><button class="btn primary block" type="submit">Entrar</button><small class="muted">Por enquanto o acesso fica neste aparelho.</small></form>`;
+  return pageHeader('Perfil') + acesso + `
+  <div class="sec-h"><h2>Seus dados</h2></div>
+  <form class="card pf-form" data-form="perfil">
+    <div class="pf-sec open">
+      <button type="button" class="pf-h" data-act="perfil-toggle" aria-expanded="true"><span>Dados pessoais</span>${ic('right', 'i chev')}</button>
+      <div class="pf-corpo">
+        ${cf('pf-nome', 'Nome', 'nome', 'text', 'full', 'name')}
+        ${cf('pf-tel', 'WhatsApp', 'telefone', 'tel', 'full', 'tel')}
+        ${cf('pf-email', 'E-mail', 'email', 'email', 'full', 'email')}
+        ${cf('pf-login', 'Login', 'login', 'text', 'full', 'username')}
+      </div>
+    </div>
+    <div class="pf-sec open">
+      <button type="button" class="pf-h" data-act="perfil-toggle" aria-expanded="true"><span>Endereço de entrega</span>${ic('right', 'i chev')}</button>
+      <div class="pf-corpo">
+        ${cf('pf-cep', 'CEP', 'cep', 'text', '', 'postal-code')}
+        ${cf('pf-num', 'Número', 'numero', 'text', '', 'address-line2')}
+        ${cf('pf-rua', 'Rua', 'rua', 'text', 'full', 'address-line1')}
+        ${cf('pf-compl', 'Complemento', 'complemento', 'text', 'full', 'off')}
+        ${cf('pf-bairro', 'Bairro', 'bairro', 'text', '', 'off')}
+        ${cf('pf-cidade', 'Cidade', 'cidade', 'text', '', 'address-level2')}
+        ${cf('pf-ref', 'Referência', 'referencia', 'text', 'full', 'off')}
+      </div>
+    </div>
+    <button class="btn primary block" type="submit">Salvar</button>
+  </form>
   <div class="sec-h"><h2>App</h2></div>
   <nav class="card menu-list cfg-list" aria-label="App">
     ${cfgRow('chat', 'Fale com a gente', nl ? `${nl} ${nl === 1 ? 'nova' : 'novas'}` : '', 'go', 'chat')}
@@ -4415,6 +4440,7 @@ document.addEventListener('submit', e => {
   if (k === 'checkout') { e.preventDefault(); checkout(e.target); }
   if (k === 'chat') { e.preventDefault(); enviarChat(e.target); }
   if (k === 'chat-id') { e.preventDefault(); const fd = new FormData(e.target); const nome = String(fd.get('nome') || '').trim(); if (!nome) { toast('Escreva seu nome.'); return; } ls.set('mmr-cliente', { ...cliData(), nome, telefone: String(fd.get('telefone') || '').trim() }); render(); }
+  if (k === 'entrar') { e.preventDefault(); const lg = String(new FormData(e.target).get('login') || '').trim(); if (!lg) { toast('Escreva o login.'); return; } ls.set('mmr-sessao', lg); ls.set('mmr-cliente', { ...cliData(), login: lg }); render(); }
   if (k === 'perfil') { e.preventDefault(); const fd = new FormData(e.target); const g = x => String(fd.get(x) || '').trim(); const rua = g('rua'), numero = g('numero'), compl = g('complemento'), bairro = g('bairro'), cidade = g('cidade'), cep = g('cep');
     const endereco = [rua ? rua + (numero ? ', ' + numero : '') + (compl ? ' - ' + compl : '') : '', bairro, cidade, cep ? 'CEP ' + cep : ''].filter(Boolean).join(' · ');
     const nome = g('nome'), telefone = g('telefone'), email = g('email').toLowerCase(), referencia = g('referencia');
@@ -4426,6 +4452,19 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.item.tc, .li.tc-li')) { e.preventDefault(); e.target.click(); } });
 const OPEN = { 'nova-venda': () => modalVenda(), 'nova-compra': () => modalCompra(), 'nova-despesa': () => modalDespesa(), 'novo-produto': () => modalProduto(), 'nova-noticia': () => modalNoticia(), 'novo-cliente': () => modalCliente(), 'novo-fornecedor': () => modalFornecedor() };
+// Perfil: recolhe/expande a seção sem perder o que já foi digitado
+document.addEventListener('click', e => { const h = e.target.closest('[data-act="perfil-toggle"]'); if (!h) return; const sec = h.closest('.pf-sec'); const abre = !sec.classList.contains('open'); sec.classList.toggle('open', abre); h.setAttribute('aria-expanded', String(abre)); });
+// Perfil: digitou o CEP, o endereço é preenchido sozinho
+document.addEventListener('input', async e => {
+  const cepIn = e.target; if (!cepIn || cepIn.id !== 'pf-cep') return;
+  const val = cepFmt(cepIn.value); if (val !== cepIn.value) cepIn.value = val;
+  if (val.replace(/\D/g, '').length !== 8) return;
+  const f = cepIn.form; const r = await buscaCEP(val.replace(/\D/g, ''));
+  if (!r || r.naoExiste || !f.isConnected) return;
+  const set = (n, x) => { if (x) f.elements[n].value = x; };
+  set('rua', r.rua); set('bairro', r.bairro); set('cidade', r.cidade);
+  (r.rua ? f.elements['numero'] : f.elements['rua']).focus();
+});
 document.addEventListener('click', async e => {
   const t = e.target.closest('[data-act]');
   if (!t) return;
@@ -4434,6 +4473,7 @@ document.addEventListener('click', async e => {
   const a = t.dataset.act, v = t.dataset.v, id = t.dataset.id;
   if (OPEN[a]) { if (ui.sheet) { ui.sheet = null; render(); } if (!canWrite) { toast('Modo leitura: não dá para lançar.'); return; } OPEN[a](); return; }
   switch (a) {
+    case 'sair': ls.set('mmr-sessao', ''); toast('Você saiu deste aparelho.'); render(); break;
     case 'go': ui.voltaCfg = false; go(v); break;
     case 'go-cfg': ui.voltaCfg = true; go(v); break;
     case 'voltar': go(ui.voltaCfg && ui.g !== 'config' ? 'config' : 'inicio'); if (ui.g === 'config' || ui.g === 'inicio') ui.voltaCfg = false; break;
