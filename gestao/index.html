@@ -586,7 +586,7 @@
   .app>*{grid-column:1/-1;min-width:0;margin-top:0!important;margin-bottom:0!important}
   /* Início */
   .app:has(>.lt-hero+.pend-btn)>.lt-hero{grid-column:1;grid-row:2}
-  .app:has(>.lt-hero+.pend-btn)>.pend-btn{grid-column:2;grid-row:2;align-self:start}
+  .app:has(>.lt-hero+.pend-btn)>.pend-btn{grid-column:2;grid-row:2;align-self:stretch}
   .app:has(>.lt-hero+.pend-btn)>:nth-child(4){grid-row:3}
   .app:has(>.lt-hero+.pend-btn)>:nth-child(5){grid-row:4}
   .app:has(>.lt-hero+.pend-btn)>:nth-child(6){grid-column:1;grid-row:5}
@@ -2514,6 +2514,8 @@ function notifIr(x) {
   if (x.act === 'abrir-conversa' && x.aid) { ui.conv = x.aid; ui.g = 'conversas'; ui.sheet = null; render(); window.scrollTo(0, 0); }
   else if (x.act === 'go-vendas-abertas') { ui.vt = 'todas'; ui.vf = 'abertas'; ui.vp = 'tudo'; go('vendas'); }
   else if (x.act === 'go-vendas-receber') { ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'tudo'; go('vendas'); }
+  else if (x.act === 'go-vendas-receber-hoje') { ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'hoje'; go('vendas'); }
+  else if (x.act === 'go-vendas-hoje') { ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = 'hoje'; go('vendas'); }
   else if (x.act === 'go' && x.v) { ui.voltaCfg = false; go(x.v); }
   else render();
 }
@@ -2701,20 +2703,19 @@ function topHeader(kind) {
   </header>${statusNote()}${isG ? bandGestao() + pendBtn() : ''}`;
 }
 function bandGestao() {
+  /* só vendas de hoje (nada acumulado): vendido, recebido, falta receber e lucro bruto do dia */
   const t = totals('hoje');
-  const rec = aReceber().reduce((s, v) => s + vLiq(v), 0);
-  /* de hoje: o que já entrou e o que ainda falta receber; "A receber" e "Saldo em caixa" são acumulados (todos os dias) */
   const faltaHoje = t.vs.filter(v => !v.pago).reduce((s, v) => s + vLiq(v), 0);
   const recebidoHoje = Math.max(0, t.vendas - faltaHoje);
-  const est = S.produtos.reduce((s, p) => s + (p.estoque || 0), 0);
+  const ticket = t.vs.length ? t.vendas / t.vs.length : 0;
+  const pagos = t.vs.filter(v => v.pago).length;
   return `<section class="lt-hero" aria-label="Vendas de hoje">
     <div class="lt-hero-head"><span>Vendas de hoje</span><span class="lt-pill-on">${t.vs.length} ${t.vs.length === 1 ? 'pedido' : 'pedidos'}</span></div>
     <div class="mr-big num">${money(t.vendas)}</div>
-    <div class="mr-hero-sub num">Recebido ${money(recebidoHoje)} · Falta receber ${money(faltaHoje)}</div>
-    <button class="lt-hero-item" data-act="go-vendas-receber">${ic('cash')}<span class="lt-grow">A receber (total)</span><small class="num">${money(rec)}</small>${ic('right')}</button>
-    <button class="lt-hero-item" data-act="go" data-v="caixa">${ic('wallet')}<span class="lt-grow">Saldo em caixa (total)</span><small class="num">${money(saldoGeral())}</small>${ic('right')}</button>
-    <button class="lt-hero-item" data-act="go" data-v="estoque">${ic('box')}<span class="lt-grow">Estoque</span><small class="num">${fmtNum(est)} un.</small>${ic('right')}</button>
-    <div class="lt-hero-foot"><span>Lucro bruto: ${money(t.lucroBruto)}</span><span>Despesas: ${money(t.despesas)}</span></div>
+    <button class="lt-hero-item" data-act="go-vendas-hoje">${ic('cash')}<span class="lt-grow">Recebido hoje</span><small class="num">${money(recebidoHoje)}</small>${ic('right')}</button>
+    <button class="lt-hero-item" data-act="go-vendas-receber-hoje">${ic('wallet')}<span class="lt-grow">Falta receber de hoje</span><small class="num">${money(faltaHoje)}</small>${ic('right')}</button>
+    <button class="lt-hero-item" data-act="go" data-v="relatorios">${ic('chart')}<span class="lt-grow">Lucro bruto de hoje</span><small class="num">${money(t.lucroBruto)}</small>${ic('right')}</button>
+    <div class="lt-hero-foot"><span>Ticket médio: ${money(ticket)}</span><span>${pagos} de ${t.vs.length} pagos</span></div>
   </section>`;
 }
 function bandCliente() { return ''; }
@@ -4472,6 +4473,8 @@ document.addEventListener('click', async e => {
     case 'notif-pref': notifPrefs[t.dataset.k] = t.checked; ls.set('mmr-notif-prefs', notifPrefs); render(); break;
     case 'go-vendas-abertas': ui.vt = 'todas'; ui.vf = 'abertas'; ui.vp = 'tudo'; ui.mode = 'gestao'; go('vendas'); break;
     case 'go-vendas-receber': ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'tudo'; go('vendas'); break;
+    case 'go-vendas-receber-hoje': ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'hoje'; go('vendas'); break;
+    case 'go-vendas-hoje': ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = 'hoje'; go('vendas'); break;
     case 'go-estoque': go('estoque'); break;
     case 'go-vendas-estornar': ui.vt = 'todas'; ui.vf = 'canceladas'; ui.vp = 'tudo'; go('vendas'); break;
     case 'go-compras': go('compras'); break;
