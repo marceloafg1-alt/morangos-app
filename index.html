@@ -3320,7 +3320,7 @@ function gRelatorios() {
   const novos = new Set(vs.map(v => v.clienteId || v.cliente?.nome).filter(Boolean)).size;
   const margem = t.vendas ? Math.round(t.lucroBruto / t.vendas * 100) : 0;
   const dif = n2(t.vendas - D.comprado), mx = Math.max(t.vendas, D.comprado, 1);
-  const sel = `<div class="vsel"><button data-act="vsel" data-v="rp" aria-label="Período: ${rPerLabel()}"><small>Período</small><span><b>${rPerLabel()}</b>${ic('down')}</span></button></div>`;
+  const sel = `<div class="vsel cx-per"><button data-act="vsel" data-v="rp" aria-label="Período: ${rPerLabel()}"><small>Período</small><span><b>${rPerLabel()}</b>${ic('down')}</span></button></div>`;
   return pageHeaderFixo('Relatórios', '', sel) +
   `<section class="hero" style="min-height:0"><div class="hero-top"><span>Resultado</span><span class="hero-badge">${rPerLabel()}</span></div>
     <div style="font-size:36px;font-weight:800;letter-spacing:-.02em" class="num">${money(t.resultado)}</div>
