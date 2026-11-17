@@ -4044,7 +4044,7 @@ function nav() {
     const naBarra = menuNaBarra();
     const extras = { vendas: cnt(novos), entregas: cnt(rota().length), conversas: cnt(naoLidasG()) };
     const menuBar = MENU_ITENS.filter(i => naBarra.includes(i.k)).map(i => t(i.k, i.ic, i.l, extras[i.k] || '', i.act));
-    const maisOn = !naBarra.includes(cur) && MENU_ITENS.some(i => i.k === cur);
+    const maisOn = (!naBarra.includes(cur) && MENU_ITENS.some(i => i.k === cur)) || ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].includes(cur);
     const fabOn = ui.sheet?.type === 'novo' || ui.sheet?.type === 'conv-mais';
     const convCli = !fabOn && ui.g === 'conversas' && ui.conv ? ui.conv : '';
     const fabPag = { estoque: ['novo-produto', 'Novo produto'], compras: ['nova-compra', 'Nova compra na roça'], noticias: ['nova-noticia', 'Nova notícia'], clientes: ['novo-cliente', 'Novo cliente'], fornecedores: ['novo-fornecedor', 'Novo fornecedor'] }[ui.g];
