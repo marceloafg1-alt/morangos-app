@@ -5860,6 +5860,7 @@ function rotaCfgSheet(wrap) {
   return wrap('Rotas', `<p class="muted" style="margin:0 0 10px;font-size:14px">Valem para este aparelho. O ponto de partida é de onde você sai com as entregas.</p>
     <div class="f full"><label for="rt-part">Ponto de partida (endereço)</label><input type="text" id="rt-part" value="${esc(c.partida)}" placeholder="Rua, número, cidade" autocomplete="off"></div>
     <button class="lt-btn lt-block" style="margin-top:8px;background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.85" data-act="rota-gps">Usar minha localização agora</button>
+    <small id="rt-gps" class="muted" style="display:block;margin-top:6px;min-height:1.2em" aria-live="polite"></small>
     <div class="f full" style="margin-top:12px"><label for="rt-par">Tempo por parada (minutos)</label><input type="number" id="rt-par" min="0" max="60" step="1" value="${Number(c.parada) || 0}" inputmode="numeric"></div>
     <div class="f full" style="margin-top:12px"><label for="rt-chave">Chave do OpenRouteService (opcional)</label><input type="text" id="rt-chave" value="${esc(c.chave)}" placeholder="${c.chave ? '' : 'Em branco usa a chave do app'}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
     <small class="muted" style="display:block;margin-top:6px">Sem chave própria, o app usa a chave dele. Se um dia parar de calcular, crie uma gratuita em openrouteservice.org e cole aqui.</small>
@@ -5872,9 +5873,13 @@ async function rotaCfgSalvar() {
   ls.set('mmr-rota-cfg', body); ui.sheet = null; render(); toast('Ajustes da rota salvos.');
 }
 function rotaGps() {
-  if (!navigator.geolocation) { toast('Este aparelho não informa a localização.'); return; }
-  navigator.geolocation.getCurrentPosition(p => { ls.set('mmr-rota-cfg', { ...rotaCfg(), partida: 'Minha localização', pLat: p.coords.latitude, pLon: p.coords.longitude }); const i = document.getElementById('rt-part'); if (i) i.value = 'Minha localização'; toast('Localização atual definida como partida.'); },
-    () => toast('Não consegui a localização. Libere o acesso no navegador.'), { enableHighAccuracy: true, timeout: 12000 });
+  const st = document.getElementById('rt-gps'), say = (t, erro) => { if (st) { st.textContent = t; st.style.color = erro ? '#d11a3a' : ''; } else toast(t); };
+  if (!navigator.geolocation) { say('Este aparelho ou navegador não informa a localização.', true); return; }
+  say('Obtendo a localização… se o navegador perguntar, toque em Permitir.');
+  const ok = p => { ls.set('mmr-rota-cfg', { ...rotaCfg(), partida: 'Minha localização', pLat: p.coords.latitude, pLon: p.coords.longitude }); const i = document.getElementById('rt-part'); if (i) i.value = 'Minha localização';
+    say(`Localização definida (precisão de ${Math.round(p.coords.accuracy || 0)} m). Toque em Salvar.`); };
+  const falha = e => say(e && e.code === 1 ? 'Acesso à localização negado. No navegador, toque no cadeado ao lado do endereço, abra Permissões e libere a Localização para este site. Depois tente de novo.' : e && e.code === 3 ? 'Demorou demais para obter a localização. Vá para um lugar aberto e tente de novo.' : 'Não consegui obter a localização agora.', true);
+  navigator.geolocation.getCurrentPosition(ok, e => { if (e && e.code === 1) return falha(e); say('Procurando com mais precisão…'); navigator.geolocation.getCurrentPosition(ok, falha, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
 }
 
 async function checkout(f) {
