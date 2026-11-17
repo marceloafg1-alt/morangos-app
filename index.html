@@ -2243,6 +2243,35 @@ html.rt-lock, html.rt-lock body { overflow: hidden; }
 .cad-ch { flex: none; color: var(--muted, #6b6b70); display: grid; }
 .cad-ch svg { width: 22px; height: 22px; }
 .cad-modal .item { box-shadow: none; margin: 0; }
+/* ---- Bento escuro: números das paradas, etiquetas escuras e mapa da entrega legíveis ---- */
+.lt[data-visual="bento"] :is(.kpi,.item.tc,.item.c-cli,.item.c-forn) .tc-n{color:#C9E655!important}
+.lt[data-visual="bento"][data-escuro="1"] :is(.kpi,.item.tc,.item.c-cli,.item.c-forn,.item.now) .pill.p-gray{background:#141416!important;color:#F4F3EF!important}
+.lt[data-visual="bento"][data-escuro="1"] .item.now .map{--muted:#C9C7C0;--line:rgba(255,255,255,.14);--surface:#3A3A41}
+.lt[data-visual="bento"][data-escuro="1"] .item.now .map text{fill:#F4F3EF}
+.lt[data-visual="bento"][data-escuro="1"] .item.now .map text[fill="#fff"]{fill:#141416}
+/* ---- Aurora e Clássico escuro: botões, atividade, etiquetas e cores de temas claros legíveis ---- */
+.lt[data-visual="aurora"] :is(.item,.card) .acts .btn.ghost{background:transparent;color:#8A1538;border-color:rgba(138,21,56,.45)}
+.lt[data-visual="aurora"] :is(.item,.card) .acts .btn:not(.ghost):not(.green):not(.primary){background:#FBE9EE;color:#8A1538;border-color:rgba(138,21,56,.3)}
+.lt[data-visual="aurora"] .feed>.feed-i{border-bottom-color:rgba(255,255,255,.2)}
+.lt[data-visual="aurora"] .feed>.feed-i b{color:#fff}
+.lt[data-visual="aurora"] .feed>.feed-i small{color:rgba(255,255,255,.78)}
+.lt[data-visual="aurora"] .feed>.feed-i .val.in{color:#8FF0B8}
+.lt[data-visual="aurora"] .feed>.feed-i .val.out{color:#FFC2CC}
+.lt[data-visual="aurora"] .feed>.feed-i .val.muted{color:rgba(255,255,255,.7)}
+.lt[data-visual="aurora"] .conv-ab{color:#fff;background:rgba(255,255,255,.2)}
+.lt[data-visual="aurora"] :is(.chip[aria-pressed="true"],.lt-chip.on){color:var(--onA)}
+.lt[data-visual="aurora"] .pend-pill.red{color:var(--btnInk)}
+.lt[data-escuro="1"][data-visual="classico"] :is(.btn.primary,.lt-btn){color:var(--onA)}
+.lt[data-visual="aurora"] .iv-mov .feed-i{border-bottom-color:rgba(20,20,22,.1)}
+.lt[data-visual="aurora"] .iv-mov .feed-i b{color:#141416}
+.lt[data-visual="aurora"] .iv-mov .feed-i small{color:#5A5560}
+.lt[data-visual="aurora"] .iv-mov .feed-i .val.in{color:#1B7F47}
+.lt[data-visual="aurora"] .iv-mov .feed-i .val.out{color:#B42343}
+.lt[data-visual="aurora"] .iv-mov .feed-i .val.muted{color:#5A5560}
+.lt[data-visual="aurora"] .cx-dt .out{color:#FFC2CC}
+.lt[data-visual="aurora"] .cx-dt .in{color:#8FF0B8}
+.lt[data-visual="aurora"][data-tema="nude"] .lt-hero.iv-hero :is(span,b,small,div,i){color:var(--onA)}
+.lt:not([data-visual="bento"]) .cx-hero.folha :is(span,b,small,div){color:#fff}
 </style>
 <div id="toast-root"></div>
 
@@ -4327,7 +4356,7 @@ function routeMap(total, pos) {
     <path d="${d}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 7" stroke-linecap="round" opacity=".6"/>
     ${stops}
     <g transform="translate(${tx - 16} ${ty - 14})"><rect width="32" height="26" rx="8" fill="var(--green)"/><path d="M7 9h11v8H7zM18 12h3l2 2.5V17h-5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></g>
-    <text x="${tx}" y="${ty + 28}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--muted)">entregador</text>
+    <text x="6" y="${ty - 22}" text-anchor="start" font-size="10" font-weight="700" fill="var(--muted)">entregador</text>
   </svg></div>`;
 }
 /* ---------- Notificações do app cliente ---------- */
