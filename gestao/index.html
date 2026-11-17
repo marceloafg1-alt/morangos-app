@@ -4989,14 +4989,25 @@ function nfceUsar(txt) {
   if (st) st.textContent = `Cupom lido: emitido em ${mm}/20${aa}, CNPJ ${nfceCNPJ(cnpj)}. Confira o valor e a data, que o QR code não traz.`;
   toast('Cupom lido.'); return true;
 }
+function carregarJsQR() {
+  if (window.jsQR) return Promise.resolve();
+  return new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js'; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+}
 async function nfceDeFoto(file) {
   if (!file) return;
-  if (!('BarcodeDetector' in window)) { toast('Este navegador não lê QR code. Cole o link do cupom.'); return; }
   try {
     const bmp = await createImageBitmap(file);
-    const r = await new BarcodeDetector({ formats: ['qr_code'] }).detect(bmp);
-    if (!r.length) { toast('Não achei o QR code na foto. Tente de novo, mais perto.'); return; }
-    nfceUsar(r[0].rawValue);
+    let txt = '';
+    if ('BarcodeDetector' in window) { const r = await new BarcodeDetector({ formats: ['qr_code'] }).detect(bmp); if (r.length) txt = r[0].rawValue; }
+    if (!txt) {
+      await carregarJsQR();
+      const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+      const g = c.getContext('2d'); g.drawImage(bmp, 0, 0);
+      const im = g.getImageData(0, 0, c.width, c.height); const q = window.jsQR && window.jsQR(im.data, im.width, im.height);
+      if (q) txt = q.data;
+    }
+    if (!txt) { toast('Não achei o QR code na foto. Tente de novo, mais perto e com boa luz.'); return; }
+    nfceUsar(txt);
   } catch { toast('Não consegui ler a foto. Cole o link do cupom.'); }
 }
 
