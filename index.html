@@ -1923,6 +1923,25 @@ span.news-cta { padding-right: 13px; }
 .c-hist-t { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
 .c-hist-r small { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .c-hist-r .pills { flex-wrap: wrap; }
+/* ===== Rotas: mapa ===== */
+html.rt-lock, html.rt-lock body { overflow: hidden; }
+.rt-ov { position: fixed; inset: 0; z-index: 400; display: flex; flex-direction: column; background: var(--ground, #fff); color: var(--ink, #111); }
+.rt-top { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px; border-bottom: 1px solid var(--line, #ddd); }
+.rt-top b { display: block; font-size: 17px; } .rt-top small { display: block; color: var(--muted, #666); min-height: 1em; }
+.rt-x { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line, #ddd); background: var(--card, #fff); color: inherit; display: grid; place-items: center; cursor: pointer; }
+.rt-map { flex: 0 0 46%; min-height: 200px; position: relative; z-index: 0; background: var(--fill, #eee); }
+.rt-wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted, #666); text-align: center; padding: 20px; }
+.rt-pn { flex: 1; overflow: auto; padding: 12px 14px calc(env(safe-area-inset-bottom, 0px) + 18px); }
+.rt-sum { font-size: 15px; line-height: 1.4; } .rt-sum small { display: block; color: var(--muted, #666); margin-top: 3px; font-size: 12.5px; }
+.rt-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.rt-li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line, #ddd); }
+.rt-n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: #d11a3a; color: #fff; }
+.rt-tx { flex: 1; min-width: 0; } .rt-tx b, .rt-tx small { display: block; } .rt-tx small { color: var(--muted, #666); font-size: 13px; }
+.rt-eta { font-weight: 800; font-variant-numeric: tabular-nums; }
+.rt-mk { margin-top: 4px; border: 0; background: none; color: #d11a3a; font-weight: 700; padding: 4px 0; cursor: pointer; text-align: left; }
+.rt-pin span { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; background: #d11a3a; color: #fff; border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.rt-pin.rt-ini span { background: #1f8f4e; font-size: 12px; }
+@media (min-width: 900px) { .rt-ov { flex-direction: row; flex-wrap: wrap; } .rt-top { flex: 0 0 100%; } .rt-map { flex: 1 1 60%; min-height: 0; } .rt-pn { flex: 0 0 380px; } }
 </style>
 
 <div class="bgglow" aria-hidden="true"></div>
@@ -3131,6 +3150,7 @@ function gConfig() {
     ${cfgRow('home', 'Tela inicial', INICIO_BLOCOS.filter(b => inicioOn(b[0])).length + ' de ' + INICIO_BLOCOS.length + ' blocos', 'sheet', 'inicio-cfg')}
     ${cfgRow('dots', 'Menu inferior', menuNaBarra().length + ' na barra', 'sheet', 'menu-cfg')}
     ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
+    ${cfgRow('pin', 'Rotas', rotaCfg().partida ? 'partida: ' + rotaCfg().partida : 'ponto de partida', 'sheet', 'rota-cfg')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
   </nav>
@@ -3217,7 +3237,7 @@ function gEntregas() {
   const doneTot = done.reduce((s, v) => s + (v.total || 0), 0);
   return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
   `<p class="sub" style="margin:0">A ordem abaixo é a que o cliente vê no app. A primeira parada é a próxima entrega.</p>
-  <div class="sec-h"><h2>Rota · ${r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2></div>
+  <div class="sec-h"><h2>Rota · ${r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
   <div class="stack">${r.map((v, i) => tcard({ act: 'editar-entrega', id: v.id, cls: i === 0 ? 'now' : '', lead: `<span class="tc-n">${i + 1}</span>`,
     title: v.cliente?.nome || 'Cliente', val: money(v.total),
     meta: `${ic('pin', 'i')}<span>${esc(v.cliente?.endereco || 'Sem endereço')}</span>`,
@@ -4335,6 +4355,7 @@ function sheetHTML() {
     <div class="ap-sec"><span class="ap-l">Modo</span><div class="lt-chips">${[['sistema', 'Igual ao celular'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button class="lt-chip ${look.modo === k ? 'on' : ''}" data-act="look" data-k="modo" data-v="${k}" aria-pressed="${look.modo === k}" ${look.visual === 'aurora' && k !== 'claro' ? 'disabled' : ''}>${l}</button>`).join('')}</div>${look.visual === 'aurora' ? '<small class="muted">O Aurora só existe no modo claro.</small>' : ''}</div>
     <div class="ap-sec"><span class="ap-l">Cor</span>${look.visual === 'bento' ? '<small class="muted">O Bento usa a paleta própria (preto, lima e tons pastel).</small>' : ''}<div class="ap-cores">${(window.LT_TEMAS || []).map(([k, l, a, b]) => `<button class="ap-cor" style="background:linear-gradient(135deg,${a},${b})" data-act="look" data-k="tema" data-v="${k}" aria-label="${l}" aria-pressed="${look.tema === k}" title="${l}" ${look.visual === 'bento' ? 'disabled' : ''}>${look.tema === k ? icOwn('check') : ''}</button>`).join('')}</div></div>
     <button class="lt-btn lt-block" data-act="look-reset">Voltar ao padrão (Rosa, Clássico, claro)</button>`);
+  if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
   if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
   if (s.type === 'exemplos') { const nEx = contaExemplos(); const tot = contaPorCat(montarExemplos()); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
     const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0);
@@ -4854,6 +4875,198 @@ async function move(id, dir) {
   await safe(async () => { for (let k = 0; k < order.length; k++) { const v = r.find(x => x.id === order[k]); if (v.ordemRota !== k + 1) await patch('vendas', v.id, { ordemRota: k + 1 }); } });
 }
 
+/* ===== ROTAS: mapa das paradas, coordenadas e melhor ordem de entrega ===== */
+const ROTA_CHAVE_PADRAO = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijc2MzM0Y2YxZDg3NzQ1MWRhOGRlMjg5YWI4OTNkMTY5IiwiaCI6Im11cm11cjY0In0=';
+const ORS = 'https://api.heigit.org/openrouteservice/v2';
+const rotaCfg = () => ({ chave: '', partida: '', pLat: null, pLon: null, parada: 3, ...ls.get('mmr-rota-cfg', {}) });
+const rotaChave = () => String(rotaCfg().chave || '').trim() || ROTA_CHAVE_PADRAO;
+const geoCache = ls.get('mmr-geo', {});
+const geoK = t => String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const geoSave = () => ls.set('mmr-geo', geoCache);
+const rtSleep = ms => new Promise(r => setTimeout(r, ms));
+const rtEnd = t => String(t || '').replace(/\s·\s/g, ', ').replace(/\bCEP\s*/gi, '').replace(/\s+-\s+/g, ', ').replace(/\s+/g, ' ').trim();
+let geoFila = Promise.resolve(), geoUltimo = 0; const geoFalhou = new Set();
+function geocodar(txt) {
+  const k = geoK(txt); if (!k) return Promise.resolve(null);
+  if (geoCache[k]) return Promise.resolve(geoCache[k]);
+  if (geoFalhou.has(k)) return Promise.resolve(null);
+  const run = async () => {
+    if (geoCache[k]) return geoCache[k];
+    const q0 = rtEnd(txt), semNum = q0.replace(/,\s*\d+[A-Za-z]?(?=\s*,|$)/, '');
+    for (const q of [...new Set([q0, semNum])]) {
+      const espera = 1100 - (Date.now() - geoUltimo); if (espera > 0) await rtSleep(espera);
+      geoUltimo = Date.now();
+      const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q));
+      if (!r.ok) throw new Error('geo ' + r.status);
+      const j = await r.json();
+      if (j && j[0]) { geoCache[k] = { lat: Number(j[0].lat), lon: Number(j[0].lon) }; geoSave(); return geoCache[k]; }
+    }
+    geoFalhou.add(k); return null;
+  };
+  geoFila = geoFila.then(run, run); return geoFila;
+}
+const rtPtsStr = pts => pts.map(p => p.lon.toFixed(6) + ',' + p.lat.toFixed(6)).join(';');
+const rtOrsPost = async (rota, body) => {
+  const r = await fetch(ORS + rota, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: rotaChave() }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('ors ' + r.status); return r.json();
+};
+/* tempos e distâncias entre todos os pontos: OpenRouteService (com chave) ou OSRM público */
+async function rtMatriz(pts) {
+  try { const j = await rtOrsPost('/matrix/driving-car', { locations: pts.map(p => [p.lon, p.lat]), metrics: ['duration', 'distance'] }); if (j.durations) return { dur: j.durations, dist: j.distances, fonte: 'ors' }; } catch (e) { console.warn('matriz ORS', e); }
+  const r = await fetch('https://router.project-osrm.org/table/v1/driving/' + rtPtsStr(pts) + '?annotations=duration,distance');
+  if (!r.ok) throw new Error('osrm ' + r.status); const j = await r.json(); if (!j.durations) throw new Error('osrm sem dados');
+  return { dur: j.durations, dist: j.distances, fonte: 'osrm' };
+}
+/* melhor ordem: caminho aberto que parte do ponto 0 e passa por todos (exato até 13 paradas, depois heurística) */
+function rtOrdem(D) {
+  const n = D.length, d = (a, b) => D[a][b] == null ? 1e9 : D[a][b];
+  if (n <= 2) return [...Array(n).keys()].slice(1);
+  const m = n - 1;
+  if (m <= 13) {
+    const N = 1 << m, dp = new Float64Array(N * m).fill(Infinity), pr = new Int8Array(N * m).fill(-1);
+    for (let j = 0; j < m; j++) dp[(1 << j) * m + j] = d(0, j + 1);
+    for (let s = 1; s < N; s++) for (let j = 0; j < m; j++) { const v = dp[s * m + j]; if (v === Infinity || !(s & (1 << j))) continue;
+      for (let k = 0; k < m; k++) { if (s & (1 << k)) continue; const t = s | (1 << k), c = v + d(j + 1, k + 1); if (c < dp[t * m + k]) { dp[t * m + k] = c; pr[t * m + k] = j; } } }
+    let best = Infinity, bj = 0; for (let j = 0; j < m; j++) { const c = dp[(N - 1) * m + j]; if (c < best) { best = c; bj = j; } }
+    const out = []; let s = N - 1, j = bj; while (j >= 0) { out.push(j + 1); const p = pr[s * m + j]; s &= ~(1 << j); j = p; }
+    return out.reverse();
+  }
+  let ord = [], falta = new Set([...Array(n).keys()].slice(1)), at = 0;
+  while (falta.size) { let b = -1, bc = Infinity; for (const k of falta) { const c = d(at, k); if (c < bc) { bc = c; b = k; } } ord.push(b); falta.delete(b); at = b; }
+  const custo = o => { let c = d(0, o[0]); for (let i = 1; i < o.length; i++) c += d(o[i - 1], o[i]); return c; };
+  let melhor = true; while (melhor) { melhor = false;
+    for (let i = 0; i < ord.length - 1; i++) for (let k = i + 1; k < ord.length; k++) { const t = ord.slice(0, i).concat(ord.slice(i, k + 1).reverse(), ord.slice(k + 1)); if (custo(t) + 1e-6 < custo(ord)) { ord = t; melhor = true; } } }
+  return ord;
+}
+/* traçado pelas ruas e tempo de cada trecho, na ordem dada */
+async function rtTraco(pts) {
+  try { if (pts.length <= 50) { const j = await rtOrsPost('/directions/driving-car/geojson', { coordinates: pts.map(p => [p.lon, p.lat]), instructions: false }); const f = j.features[0];
+    return { geom: f.geometry.coordinates.map(c => [c[1], c[0]]), legs: f.properties.segments.map(s => ({ dur: s.duration, dist: s.distance })) }; } } catch (e) { console.warn('traço ORS', e); }
+  const r = await fetch('https://router.project-osrm.org/route/v1/driving/' + rtPtsStr(pts) + '?overview=full&geometries=geojson&steps=false');
+  if (!r.ok) throw new Error('osrm ' + r.status); const j = await r.json(), rt = j.routes[0];
+  return { geom: rt.geometry.coordinates.map(c => [c[1], c[0]]), legs: rt.legs.map(l => ({ dur: l.duration, dist: l.distance })) };
+}
+const rtMin = s => { const m = Math.round(s / 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0'); };
+const rtKm = m => (m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' km';
+const rtHora = ts => new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const rtLoadLeaflet = () => window.L ? Promise.resolve() : new Promise((ok, no) => {
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(css);
+  const js = document.createElement('script'); js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'; js.onload = ok; js.onerror = () => no(new Error('leaflet')); document.head.appendChild(js);
+});
+/* cálculo guardado: vale enquanto a ordem das paradas for a mesma */
+const rtSalvo = () => ls.get('mmr-rota-calc', null);
+const rtAssin = ids => ids.join('|');
+const RT = { map: null, camada: null, ordem: [], calc: null, ocupado: false, marcando: null };
+const rtParadas = () => (RT.ordem.length ? RT.ordem : rota().map(v => v.id)).map(id => S.vendas.find(v => v.id === id)).filter(Boolean);
+const rtGeoDe = v => geoCache[geoK(v.cliente?.endereco)] || null;
+const rtStatus = t => { const e = document.getElementById('rt-st'); if (e) e.textContent = t || ''; };
+
+function rotaMapaAbrir() {
+  if (document.getElementById('rt-ov')) return;
+  const ov = document.createElement('div'); ov.id = 'rt-ov'; ov.className = 'rt-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Mapa da rota');
+  ov.innerHTML = `<div class="rt-top"><button class="rt-x" data-rt="fechar" aria-label="Fechar">${ic('x')}</button><div><b>Rota de hoje</b><small id="rt-st"></small></div></div>
+    <div id="rt-map" class="rt-map"><div class="rt-wait">Carregando o mapa…</div></div>
+    <div class="rt-pn"><div id="rt-sum" class="rt-sum"></div><div class="rt-btns"><button class="btn primary" data-rt="otimizar" ${W()}>Otimizar rota</button><button class="btn" data-rt="maps">Abrir no Google Maps</button><button class="btn ghost" data-rt="cfg">Ajustes</button></div><div id="rt-list" class="rt-list"></div></div>`;
+  document.body.appendChild(ov); document.documentElement.classList.add('rt-lock');
+  ov.addEventListener('click', rtClick);
+  RT.ordem = rota().map(v => v.id); const s = rtSalvo(); RT.calc = s && s.assin === rtAssin(RT.ordem) ? s : null;
+  rtLoadLeaflet().then(() => { document.getElementById('rt-map').innerHTML = ''; RT.map = L.map('rt-map', { zoomControl: true }).setView([-15.8, -47.9], 4);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(RT.map); RT.camada = L.layerGroup().addTo(RT.map);
+    RT.map.on('click', e => { if (!RT.marcando) return; const v = S.vendas.find(x => x.id === RT.marcando); RT.marcando = null; if (v) { geoCache[geoK(v.cliente?.endereco)] = { lat: e.latlng.lat, lon: e.latlng.lng }; geoSave(); toast('Local marcado.'); rtDesenha(); } });
+    rtResolve();
+  }).catch(() => { document.getElementById('rt-map').innerHTML = '<div class="rt-wait">Não deu para carregar o mapa. Confira a internet.</div>'; });
+  rtDesenha();
+}
+function rotaMapaFechar() { document.getElementById('rt-ov')?.remove(); document.documentElement.classList.remove('rt-lock'); try { RT.map && RT.map.remove(); } catch {} RT.map = null; RT.marcando = null; }
+async function rtResolve() { /* busca as coordenadas que faltam, uma por vez */
+  const ps = rtParadas(); let i = 0;
+  for (const v of ps) { i++; if (!document.getElementById('rt-ov')) return; if (rtGeoDe(v) || !(v.cliente?.endereco || '').trim()) continue;
+    rtStatus(`Localizando endereços ${i} de ${ps.length}…`);
+    try { await geocodar(v.cliente.endereco); } catch (e) { rtStatus('Sem internet para localizar endereços.'); return; }
+    rtDesenha(); }
+  const p = rotaCfg(); if (p.partida && p.pLat == null) { try { const g = await geocodar(p.partida); if (g) ls.set('mmr-rota-cfg', { ...p, pLat: g.lat, pLon: g.lon }); } catch {} }
+  rtStatus(''); rtDesenha();
+}
+function rtEtas() { /* hora estimada de chegada em cada parada, se há cálculo válido */
+  const c = RT.calc; if (!c || c.assin !== rtAssin(RT.ordem)) return null;
+  const pm = (rotaCfg().parada || 0) * 60, off = c.temPartida ? 0 : -1; let t = c.saida || Date.now(); const out = [];
+  for (let i = 0; i < RT.ordem.length; i++) { const leg = c.legs[i + off]; if (leg) t += leg.dur * 1000; out.push(leg || (i === 0 && !c.temPartida) ? t : null); t += pm * 1000; }
+  return out;
+}
+function rtDesenha() {
+  if (!document.getElementById('rt-ov')) return;
+  const ps = rtParadas(), etas = rtEtas(), cfg = rotaCfg(), temP = cfg.pLat != null;
+  if (RT.map && RT.camada) { RT.camada.clearLayers(); const bounds = [];
+    if (temP) { L.marker([cfg.pLat, cfg.pLon], { icon: L.divIcon({ className: 'rt-pin rt-ini', html: '<span>●</span>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip('Partida').addTo(RT.camada); bounds.push([cfg.pLat, cfg.pLon]); }
+    if (RT.calc && RT.calc.assin === rtAssin(RT.ordem) && RT.calc.geom && RT.calc.geom.length) L.polyline(RT.calc.geom, { color: '#d11a3a', weight: 5, opacity: .8 }).addTo(RT.camada);
+    ps.forEach((v, i) => { const g = rtGeoDe(v); if (!g) return; bounds.push([g.lat, g.lon]);
+      L.marker([g.lat, g.lon], { icon: L.divIcon({ className: 'rt-pin', html: `<span>${i + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip(esc(v.cliente?.nome || 'Cliente')).addTo(RT.camada); });
+    if (bounds.length) RT.map.fitBounds(bounds, { padding: [34, 34], maxZoom: 16 }); }
+  const c = RT.calc && RT.calc.assin === rtAssin(RT.ordem) ? RT.calc : null;
+  document.getElementById('rt-sum').innerHTML = !ps.length ? 'Nenhuma entrega na rota. Ponha pedidos na rota para vê-los aqui.'
+    : c ? `<b>${ps.length} ${ps.length === 1 ? 'parada' : 'paradas'}</b> · ${rtKm(c.dist)} · ${rtMin(c.dur)} dirigindo${etas ? ' · termina ~' + rtHora(etas.filter(Boolean).pop()) : ''}<small>Tempo estimado sem trânsito ao vivo, com ${cfg.parada || 0} min por parada.${temP ? '' : ' Defina o ponto de partida em Ajustes para contar o primeiro trecho.'}</small>`
+    : `<b>${ps.length} ${ps.length === 1 ? 'parada' : 'paradas'}</b><small>Toque em Otimizar rota para ver a melhor ordem, a distância e o tempo.</small>`;
+  document.getElementById('rt-list').innerHTML = ps.map((v, i) => { const g = rtGeoDe(v);
+    return `<div class="rt-li"><span class="rt-n">${i + 1}</span><div class="rt-tx"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || 'Sem endereço')}</small>${g ? '' : `<button class="rt-mk" data-rt="marcar" data-id="${v.id}">${RT.marcando === v.id ? 'Toque no mapa…' : 'Não achei o endereço. Marcar no mapa'}</button>`}</div>${etas && etas[i] ? `<span class="rt-eta">~${rtHora(etas[i])}</span>` : ''}</div>`; }).join('');
+}
+async function rtOtimizar() {
+  if (RT.ocupado) return; const ps = rtParadas(); if (ps.length < 2) { toast('Com menos de 2 paradas não há o que reordenar.'); return; }
+  RT.ocupado = true; const b = document.querySelector('[data-rt="otimizar"]'); if (b) b.disabled = true;
+  try {
+    await rtResolve(); const cfg = rotaCfg();
+    const com = ps.filter(v => rtGeoDe(v)), sem = ps.filter(v => !rtGeoDe(v));
+    if (com.length < 2) { toast('Preciso da localização de pelo menos 2 endereços.'); return; }
+    const temP = cfg.pLat != null; const pts = (temP ? [{ lat: cfg.pLat, lon: cfg.pLon }] : []).concat(com.map(v => ({ lat: rtGeoDe(v).lat, lon: rtGeoDe(v).lon })));
+    if (pts.length > 60) { toast('Muitas paradas para calcular de uma vez (máx. 60).'); return; }
+    rtStatus('Calculando a melhor rota…'); const m = await rtMatriz(pts); /* sem partida, a 1ª parada atual é o início */
+    const o = rtOrdem(m.dur), seq = temP ? o.map(i => com[i - 1]) : [com[0]].concat(o.map(i => com[i]));
+    const final = seq.concat(sem), ids = final.map(v => v.id);
+    const pOrd = (temP ? [pts[0]] : []).concat(seq.map(v => ({ lat: rtGeoDe(v).lat, lon: rtGeoDe(v).lon })));
+    let tr = null; try { tr = await rtTraco(pOrd); } catch (e) { console.warn(e); }
+    const mudou = ids.some((id, i) => id !== RT.ordem[i]);
+    if (mudou) { const okp = await safe(async () => { for (let k = 0; k < ids.length; k++) { const v = S.vendas.find(x => x.id === ids[k]); if (!v || v.ordemRota !== k + 1) await patch('vendas', ids[k], { ordemRota: k + 1 }); } }); if (!okp) return; }
+    RT.ordem = ids;
+    const legs = tr ? tr.legs : [], dur = legs.reduce((s, l) => s + l.dur, 0), dist = legs.reduce((s, l) => s + l.dist, 0);
+    RT.calc = tr ? { assin: rtAssin(ids), geom: tr.geom, legs, dur, dist, saida: Date.now(), temPartida: temP, fonte: m.fonte } : null; if (RT.calc) ls.set('mmr-rota-calc', RT.calc);
+    toast(mudou ? 'Rota otimizada: entregas reordenadas.' : 'A ordem atual já é a melhor.' ); rtDesenha();
+  } catch (e) { console.error(e); toast('Não deu para calcular agora. Confira a internet e tente de novo.'); }
+  finally { RT.ocupado = false; rtStatus(''); const b2 = document.querySelector('[data-rt="otimizar"]'); if (b2 && canWrite) b2.disabled = false; }
+}
+function rtClick(e) {
+  const t = e.target.closest('[data-rt]'); if (!t) return; const a = t.dataset.rt;
+  if (a === 'fechar') rotaMapaFechar();
+  else if (a === 'otimizar') rtOtimizar();
+  else if (a === 'cfg') { rotaMapaFechar(); ui.sheet = { type: 'rota-cfg' }; render(); }
+  else if (a === 'marcar') { RT.marcando = t.dataset.id; toast('Toque no mapa, no local da entrega.'); rtDesenha(); }
+  else if (a === 'maps') { const ps = rtParadas().filter(v => (v.cliente?.endereco || '').trim()); if (!ps.length) { toast('Nenhuma parada com endereço.'); return; }
+    const q = v => { const g = rtGeoDe(v); return g ? g.lat + ',' + g.lon : rtEnd(v.cliente.endereco); }, cfg = rotaCfg();
+    const org = cfg.pLat != null ? cfg.pLat + ',' + cfg.pLon : q(ps[0]), rest = cfg.pLat != null ? ps : ps.slice(1), dest = rest[rest.length - 1];
+    const url = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=' + encodeURIComponent(org) + '&destination=' + encodeURIComponent(q(dest)) + (rest.length > 1 ? '&waypoints=' + encodeURIComponent(rest.slice(0, -1).slice(0, 9).map(q).join('|')) : '');
+    window.open(url, '_blank'); }
+}
+/* ajustes da rota (ponto de partida, tempo por parada, chave) */
+function rotaCfgSheet(wrap) {
+  const c = rotaCfg();
+  return wrap('Rotas', `<p class="muted" style="margin:0 0 10px;font-size:14px">Valem para este aparelho. O ponto de partida é de onde você sai com as entregas.</p>
+    <div class="f full"><label for="rt-part">Ponto de partida (endereço)</label><input type="text" id="rt-part" value="${esc(c.partida)}" placeholder="Rua, número, cidade" autocomplete="off"></div>
+    <button class="lt-btn lt-block" style="margin-top:8px;background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.85" data-act="rota-gps">Usar minha localização agora</button>
+    <div class="f full" style="margin-top:12px"><label for="rt-par">Tempo por parada (minutos)</label><input type="number" id="rt-par" min="0" max="60" step="1" value="${Number(c.parada) || 0}" inputmode="numeric"></div>
+    <div class="f full" style="margin-top:12px"><label for="rt-chave">Chave do OpenRouteService (opcional)</label><input type="text" id="rt-chave" value="${esc(c.chave)}" placeholder="${c.chave ? '' : 'Em branco usa a chave do app'}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+    <small class="muted" style="display:block;margin-top:6px">Sem chave própria, o app usa a chave dele. Se um dia parar de calcular, crie uma gratuita em openrouteservice.org e cole aqui.</small>
+    <div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="rota-cfg-salvar">Salvar</button></div>`);
+}
+async function rotaCfgSalvar() {
+  const ant = rotaCfg(), part = (document.getElementById('rt-part')?.value || '').trim();
+  const body = { ...ant, partida: part, parada: Math.max(0, Math.min(60, Number(document.getElementById('rt-par')?.value) || 0)), chave: (document.getElementById('rt-chave')?.value || '').trim() };
+  if (part !== ant.partida) { body.pLat = null; body.pLon = null; if (part) { try { const g = await geocodar(part); if (g) { body.pLat = g.lat; body.pLon = g.lon; } else toast('Não achei esse endereço de partida. Confira a rua e a cidade.'); } catch { toast('Sem internet para localizar a partida. Ela será buscada depois.'); } } }
+  ls.set('mmr-rota-cfg', body); ui.sheet = null; render(); toast('Ajustes da rota salvos.');
+}
+function rotaGps() {
+  if (!navigator.geolocation) { toast('Este aparelho não informa a localização.'); return; }
+  navigator.geolocation.getCurrentPosition(p => { ls.set('mmr-rota-cfg', { ...rotaCfg(), partida: 'Minha localização', pLat: p.coords.latitude, pLon: p.coords.longitude }); const i = document.getElementById('rt-part'); if (i) i.value = 'Minha localização'; toast('Localização atual definida como partida.'); },
+    () => toast('Não consegui a localização. Libere o acesso no navegador.'), { enableHighAccuracy: true, timeout: 12000 });
+}
+
 async function checkout(f) {
   const fd = new FormData(f);
   const nome = String(fd.get('nome') || '').trim(), endereco = String(fd.get('endereco') || '').trim();
@@ -5018,6 +5231,9 @@ document.addEventListener('click', async e => {
     case 'ex-qtd': { const k = t.dataset.k, tot = contaPorCat(montarExemplos()); ui.exQtd[k] = Math.max(0, Math.min(tot[k], (ui.exQtd[k] || 0) + Number(v))); render(); break; }
     case 'ex-todos': ui.exQtd = exQtdInicial(contaPorCat(montarExemplos())); render(); break;
     case 'wa-salvar': { const d = (document.getElementById('wa-num')?.value || '').replace(/\D/g, ''); if (d && d.length < 10) { toast('Número incompleto. Use DDD e número.'); break; } const num = d && d.length <= 11 ? '55' + d : d; ls.set('mmr-wa-numero', num); ui.sheet = null; render(); toast(num ? 'Número salvo.' : 'Número apagado.'); break; }
+    case 'rota-mapa': rotaMapaAbrir(); break;
+    case 'rota-cfg-salvar': rotaCfgSalvar(); break;
+    case 'rota-gps': rotaGps(); break;
     case 'wa-apagar': ls.set('mmr-wa-numero', ''); ui.sheet = null; render(); toast('Número apagado.'); break;
     case 'ex-zerar': ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
     case 'ex-carregar': carregarExemplos(); break;
