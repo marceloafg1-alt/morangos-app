@@ -4976,7 +4976,11 @@ function nfceUsar(txt) {
   document.getElementById('d-nfce-chave').value = chave;
   document.getElementById('d-nfce-cnpj').value = cnpj;
   document.getElementById('d-nfce-url').value = /^https?:\/\//i.test(raw) ? raw : '';
-  if (st) st.textContent = `Cupom lido: emitido em ${mm}/20${aa}, CNPJ ${nfceCNPJ(cnpj)}. Confira o valor e a data, que o QR code não traz.`;
+  if (st) {
+    const url = /^https?:\/\//i.test(raw) ? raw : '';
+    st.textContent = `Cupom lido: emitido em ${mm}/20${aa}, CNPJ ${nfceCNPJ(cnpj)}. O QR code não traz o valor nem a data exata.`;
+    if (url) { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Abrir o cupom na SEFAZ para ver o total'; a.style.display = 'block'; a.style.marginTop = '6px'; st.appendChild(a); }
+  }
   toast('Cupom lido.'); return true;
 }
 function carregarJsQR() {
@@ -5007,7 +5011,6 @@ function modalDespesa() {
       <div style="display:flex;gap:8px;align-items:center"><input type="text" id="d-desc" name="descricao" required placeholder="Ex.: Gasolina da entrega" style="flex:1;min-width:0"><button type="button" class="btn small ghost" data-act="nfce-foto" style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none">${ic('camera')}<span>Ler QR Code</span></button></div>
       <input type="file" id="d-nfce-foto" accept="image/*" capture="environment" hidden>
       <small id="d-nfce-st" class="muted" style="display:block;margin-top:6px"></small>
-      <div style="display:flex;gap:8px;margin-top:8px"><input type="text" id="d-nfce-txt" placeholder="ou cole o link do cupom" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1;min-width:0"><button type="button" class="btn small" data-act="nfce-txt">Usar</button></div>
       <input type="hidden" id="d-nfce-chave" name="nfceChave"><input type="hidden" id="d-nfce-url" name="nfceUrl"><input type="hidden" id="d-nfce-cnpj" name="nfceCnpj">
     </div>
     <div class="f"><label for="d-cat">Categoria</label><select id="d-cat" name="categoria">${catLista().map(c => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')}</select></div>
@@ -5734,7 +5737,6 @@ document.addEventListener('click', async e => {
     case 'rota-mapa': rotaMapaAbrir(); break;
     case 'rota-cfg-salvar': rotaCfgSalvar(); break;
     case 'nfce-foto': document.getElementById('d-nfce-foto')?.click(); break;
-    case 'nfce-txt': nfceUsar(document.getElementById('d-nfce-txt')?.value || ''); break;
     case 'cat-nova': ui.sheet = null; render(); modalCategoria(); break;
     case 'cat-editar': ui.sheet = null; render(); modalCategoria(id); break;
     case 'cat-apagar': catApagar(id); break;
