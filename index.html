@@ -2368,21 +2368,21 @@ function montarExemplos() {
 
   // clientes
   const CLI = {
-    ana: ['Ana Paula Souza', 'pessoa', '(15) 99712-4410', '18170-000', 'Rua das Flores', '120', 'Centro', 'Piedade / SP', 'Portão branco', 'Prefere Pix'],
-    carlos: ['Carlos Eduardo Lima', 'pessoa', '(15) 99803-2271', '18170-000', 'Rua do Campo', '33', 'Vila Moraes', 'Piedade / SP', 'Casa de esquina', ''],
-    paula: ['Paula Reis', 'pessoa', '(15) 99655-1834', '18170-000', 'Rua Sete de Setembro', '90', 'Centro', 'Piedade / SP', '', 'Entregar depois das 17h'],
-    rosana: ['Rosana Albuquerque', 'pessoa', '(15) 99124-7765', '18170-000', 'Av. Brasil', '1.540', 'Jardim Elzinha', 'Piedade / SP', 'Apto 12, interfone 12', ''],
-    beatriz: ['Beatriz Fontes', 'pessoa', '(15) 99231-0098', '18170-000', 'Rua José Bonifácio', '311', 'Centro', 'Piedade / SP', '', 'Faz doces sob encomenda'],
-    jorge: ['Jorge Tanaka', 'pessoa', '(15) 99478-5502', '18170-000', 'Estrada do Paiol', 'km 3', 'Paiol Grande', 'Piedade / SP', 'Porteira azul', ''],
-    merc: ['Mercadinho Bom Preço', 'comercio', '(15) 3244-1188', '18170-000', 'Av. Central', '455', 'Centro', 'Piedade / SP', '', 'Paga fiado toda sexta'],
-    pad: ['Padaria Pão de Ouro', 'comercio', '(15) 3244-7720', '18170-000', 'Rua Pedro Ortiz', '78', 'Vila Olinda', 'Piedade / SP', 'Entrar pelos fundos', 'Recebe até 7h'],
-    rest: ['Restaurante Sabor da Serra', 'comercio', '(15) 99910-3345', '18170-000', 'Rod. SP-79', 'km 98', 'Bairro dos Godinhos', 'Piedade / SP', '', 'Nota no fim do mês'],
-    doce: ['Doceria Vó Lurdes', 'comercio', '(15) 99387-6612', '18170-000', 'Rua Benedito Pereira', '205', 'Jardim Santa Rosa', 'Piedade / SP', '', ''],
+    ana: ['Ana Paula Souza', 'pessoa', '(15) 99712-4410', '18010-000', 'Rua Doutor Álvaro Soares', '120', 'Centro', 'Sorocaba / SP', 'Portão branco', 'Prefere Pix'],
+    carlos: ['Carlos Eduardo Lima', 'pessoa', '(15) 99803-2271', '18010-000', 'Avenida Afonso Vergueiro', '633', 'Centro', 'Sorocaba / SP', 'Casa de esquina', ''],
+    paula: ['Paula Reis', 'pessoa', '(15) 99655-1834', '18010-000', 'Avenida Dom Aguirre', '490', 'Jardim Vergueiro', 'Sorocaba / SP', '', 'Entregar depois das 17h'],
+    rosana: ['Rosana Albuquerque', 'pessoa', '(15) 99124-7765', '18110-000', 'Avenida 31 de Março', '540', 'Centro', 'Votorantim / SP', 'Apto 12, interfone 12', ''],
+    beatriz: ['Beatriz Fontes', 'pessoa', '(15) 99231-0098', '18110-000', 'Rua Rui Barbosa', '311', 'Centro', 'Votorantim / SP', '', 'Faz doces sob encomenda'],
+    jorge: ['Jorge Tanaka', 'pessoa', '(15) 99478-5502', '18010-000', 'Avenida Pereira da Silva', '210', 'Jardim Santa Rosália', 'Sorocaba / SP', 'Portão azul', ''],
+    merc: ['Mercadinho Bom Preço', 'comercio', '(15) 3244-1188', '18010-000', 'Avenida Antônio Carlos Comitre', '455', 'Parque Campolim', 'Sorocaba / SP', '', 'Paga fiado toda sexta'],
+    pad: ['Padaria Pão de Ouro', 'comercio', '(15) 3244-7720', '18010-000', 'Avenida General Carneiro', '78', 'Centro', 'Sorocaba / SP', 'Entrar pelos fundos', 'Recebe até 7h'],
+    rest: ['Restaurante Sabor da Serra', 'comercio', '(15) 99910-3345', '18110-000', 'Rua Quinze de Novembro', '98', 'Centro', 'Votorantim / SP', '', 'Nota no fim do mês'],
+    doce: ['Doceria Vó Lurdes', 'comercio', '(15) 99387-6612', '18110-000', 'Rua Tiradentes', '205', 'Centro', 'Votorantim / SP', '', ''],
   };
   const cid = k => EX_PREFIX + 'cli-' + k;
   Object.entries(CLI).forEach(([k, [nome, tipo, telefone, cep, endereco, numero, bairro, cidade, referencia, obs]], i) =>
     X('clientes', 'cli-' + k, { nome, tipo, telefone, cep: cep.replace(/\D/g, ''), endereco, numero, bairro, cidade, referencia, obs, ts: T(25 - i, '09:00') }));
-  const endTxt = k => { const c = CLI[k]; return `${c[4]}, ${c[5]} · ${c[6]}`; };
+  const endTxt = k => { const c = CLI[k]; return `${c[4]}, ${c[5]} · ${c[6]} · ${c[7]}`; };
 
   // fornecedores
   const FORN = {
@@ -2411,6 +2411,10 @@ function montarExemplos() {
   V('h3', ago(95), 'ana', [it('cx1', 2)], 'pix', true, 'app', 'em_rota');
   V('h4', ago(110), 'beatriz', [it('cx1', 3)], 'fiado', false, 'chat', 'em_rota', { obs: 'Combinado pelo chat' });
   V('h5', ago(130), 'pad', [it('cx4', 2, 135)], 'fiado', false, 'avulsa', 'em_rota', { obs: 'Paga na sexta' });
+  V('h8', ago(60), 'jorge', [it('cx1', 2)], 'pix', true, 'app', 'em_rota');
+  V('h9', ago(70), 'merc', [it('cx4', 2, 135)], 'fiado', false, 'avulsa', 'em_rota', { obs: 'Paga na sexta' });
+  V('h10', ago(80), 'rest', [it('cx1', 4, 36)], 'fiado', false, 'avulsa', 'em_rota');
+  V('h11', ago(90), 'doce', [it('bd', 3)], 'pix', true, 'chat', 'em_rota');
   V('h6', ago(150), 'paula', [it('bd', 2), it('geleia', 1)], 'cartao_entrega', false, 'app', 'separado');
   V('h7', ago(170), null, [it('bd', 6)], 'dinheiro', true, 'avulsa', 'entregue', { nome: 'Venda na porteira', entregueTs: ago(170) });
   // ontem e dias anteriores
@@ -4878,13 +4882,13 @@ async function move(id, dir) {
 /* ===== ROTAS: mapa das paradas, coordenadas e melhor ordem de entrega ===== */
 const ROTA_CHAVE_PADRAO = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijc2MzM0Y2YxZDg3NzQ1MWRhOGRlMjg5YWI4OTNkMTY5IiwiaCI6Im11cm11cjY0In0=';
 const ORS = 'https://api.heigit.org/openrouteservice/v2';
-const rotaCfg = () => ({ chave: '', partida: '', pLat: null, pLon: null, parada: 3, ...ls.get('mmr-rota-cfg', {}) });
+const rotaCfg = () => ({ chave: '', partida: 'Rua Pedro Ortiz, 100, Vila Olinda, Piedade, SP', pLat: null, pLon: null, parada: 3, ...ls.get('mmr-rota-cfg', {}) });
 const rotaChave = () => String(rotaCfg().chave || '').trim() || ROTA_CHAVE_PADRAO;
 const geoCache = ls.get('mmr-geo', {});
 const geoK = t => String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const geoSave = () => ls.set('mmr-geo', geoCache);
 const rtSleep = ms => new Promise(r => setTimeout(r, ms));
-const rtEnd = t => String(t || '').replace(/\s·\s/g, ', ').replace(/\bCEP\s*/gi, '').replace(/\s+-\s+/g, ', ').replace(/\s+/g, ' ').trim();
+const rtEnd = t => String(t || '').replace(/\s·\s/g, ', ').replace(/\s*\/\s*/g, ', ').replace(/\bCEP\s*/gi, '').replace(/\s+-\s+/g, ', ').replace(/\s+/g, ' ').trim();
 let geoFila = Promise.resolve(), geoUltimo = 0; const geoFalhou = new Set();
 function geocodar(txt) {
   const k = geoK(txt); if (!k) return Promise.resolve(null);
@@ -4892,8 +4896,8 @@ function geocodar(txt) {
   if (geoFalhou.has(k)) return Promise.resolve(null);
   const run = async () => {
     if (geoCache[k]) return geoCache[k];
-    const q0 = rtEnd(txt), semNum = q0.replace(/,\s*\d+[A-Za-z]?(?=\s*,|$)/, '');
-    for (const q of [...new Set([q0, semNum])]) {
+    const q0 = rtEnd(txt), semNum = q0.replace(/,\s*\d+[A-Za-z]?(?=\s*,|$)/, ''), pt = semNum.split(', '), soRua = pt.length > 3 ? pt[0] + ', ' + pt.slice(-2).join(', ') : semNum;
+    for (const q of [...new Set([q0, semNum, soRua])]) {
       const espera = 1100 - (Date.now() - geoUltimo); if (espera > 0) await rtSleep(espera);
       geoUltimo = Date.now();
       const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q));
