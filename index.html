@@ -5816,7 +5816,7 @@ function catApagar(id) {
 function rotaCfgSheet(wrap) {
   const c = rotaCfg();
   return wrap('Rotas', `<p class="muted" style="margin:0 0 10px;font-size:14px">Valem para este aparelho. O ponto de partida é de onde você sai com as entregas.</p>
-    <div class="f full"><label for="rt-part">Ponto de partida (endereço)</label><input type="text" id="rt-part" value="${esc(c.partida)}" placeholder="Rua, número, cidade" autocomplete="off"></div>
+    <div class="f full"><label for="rt-part">Ponto de partida (endereço)</label><input type="text" id="rt-part" value="${esc(c.partida)}" placeholder="Rua, número, cidade ou só o CEP" autocomplete="off" inputmode="text"></div>
     <button class="lt-btn lt-block" style="margin-top:8px;background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.85" data-act="rota-gps">Usar minha localização agora</button>
     <small id="rt-gps" class="muted" style="display:block;margin-top:6px;min-height:1.2em" aria-live="polite"></small>
     <div class="f full" style="margin-top:12px"><label for="rt-par">Tempo por parada (minutos)</label><input type="number" id="rt-par" min="0" max="60" step="1" value="${Number(c.parada) || 0}" inputmode="numeric"></div>
@@ -5824,8 +5824,31 @@ function rotaCfgSheet(wrap) {
     <small class="muted" style="display:block;margin-top:6px">Sem chave própria, o app usa a chave dele. Se um dia parar de calcular, crie uma gratuita em openrouteservice.org e cole aqui.</small>
     <div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="rota-cfg-salvar">Salvar</button></div>`);
 }
+/* partida: aceita endereço, CEP, ou "CEP, número" */
+const rtCepRe = /^\s*(\d{5})-?(\d{3})(?:\s*[,;\-]?\s*(.*))?$/;
+async function rtPartidaCep(texto) { /* devolve { texto } com o endereço do CEP, ou { erro } */
+  const m = rtCepRe.exec(texto || ''); if (!m) return { texto };
+  const r = await buscaCEP(m[1] + m[2]); if (!r) return { erro: 'Não deu para consultar o CEP agora. Confira a internet ou digite o endereço.' }; if (r.naoExiste) return { erro: 'CEP não encontrado. Confira os números.' };
+  const num = (m[3] || '').trim(), rua = r.rua ? r.rua + (num ? ', ' + num : '') : '';
+  return { texto: [rua, r.bairro, r.cidade].filter(Boolean).join(' · '), cepOk: true };
+}
+async function rtReverso(lat, lon) { /* endereço a partir da localização do GPS */
+  const compor = (rua, num, bairro, cidade, uf) => rua ? [rua + (num ? ', ' + num : ''), bairro, [cidade, uf].filter(Boolean).join(' / ')].filter(Boolean).join(' · ') : '';
+  try { const r = await fetch('https://api.heigit.org/openrouteservice/geocode/reverse?api_key=' + encodeURIComponent(rotaChave()) + '&size=1&layers=address,street&point.lon=' + lon + '&point.lat=' + lat);
+    if (r.ok) { const p = (await r.json()).features?.[0]?.properties; if (p) { const t = compor(p.street || (p.layer === 'street' ? p.name : ''), p.housenumber, p.neighbourhood || p.borough, p.locality || p.localadmin, p.region_a); if (t) return t; } } } catch {}
+  try { const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=pt-BR&lat=' + lat + '&lon=' + lon);
+    if (r.ok) { const a = (await r.json()).address || {}; return compor(a.road, a.house_number, a.suburb || a.neighbourhood, a.city || a.town || a.village || a.municipality, String(a['ISO3166-2-lvl4'] || '').replace('BR-', '')); } } catch {}
+  return '';
+}
+document.addEventListener('input', async e => { /* digitou só o CEP: preenche o endereço */
+  const i = e.target; if (!i || i.id !== 'rt-part') return; const v = i.value.trim(); if (!/^\d{5}-?\d{3}$/.test(v)) return;
+  const st = document.getElementById('rt-gps'), say = t => { if (st) st.textContent = t; };
+  say('Procurando o CEP…'); const r = await rtPartidaCep(v); if (!document.body.contains(i) || i.value.trim() !== v) return;
+  if (r.erro) { say(r.erro); return; } i.value = r.texto; say('Achei o endereço. Para incluir o número, escreva depois do nome da rua (ex.: Rua X, 120). Depois toque em Salvar.');
+});
 async function rotaCfgSalvar() {
-  const ant = rotaCfg(), part = (document.getElementById('rt-part')?.value || '').trim();
+  const ant = rotaCfg(); let part = (document.getElementById('rt-part')?.value || '').trim();
+  if (rtCepRe.test(part)) { const r = await rtPartidaCep(part); if (r.erro) { toast(r.erro); return; } part = r.texto; }
   const body = { ...ant, partida: part, parada: Math.max(0, Math.min(60, Number(document.getElementById('rt-par')?.value) || 0)), chave: (document.getElementById('rt-chave')?.value || '').trim() };
   if (part !== ant.partida) { body.pLat = null; body.pLon = null; if (part) { try { const g = await geocodar(part); if (g) { body.pLat = g.lat; body.pLon = g.lon; } else toast('Não achei esse endereço de partida. Confira a rua e a cidade.'); } catch { toast('Sem internet para localizar a partida. Ela será buscada depois.'); } } }
   ls.set('mmr-rota-cfg', body); ui.sheet = null; render(); toast('Ajustes da rota salvos.');
@@ -5834,8 +5857,9 @@ function rotaGps() {
   const st = document.getElementById('rt-gps'), say = (t, erro) => { if (st) { st.textContent = t; st.style.color = erro ? '#d11a3a' : ''; } else toast(t); };
   if (!navigator.geolocation) { say('Este aparelho ou navegador não informa a localização.', true); return; }
   say('Obtendo a localização… se o navegador perguntar, toque em Permitir.');
-  const ok = p => { ls.set('mmr-rota-cfg', { ...rotaCfg(), partida: 'Minha localização', pLat: p.coords.latitude, pLon: p.coords.longitude }); const i = document.getElementById('rt-part'); if (i) i.value = 'Minha localização';
-    say(`Localização definida (precisão de ${Math.round(p.coords.accuracy || 0)} m). Toque em Salvar.`); };
+  const ok = async p => { const lat = p.coords.latitude, lon = p.coords.longitude, prec = Math.round(p.coords.accuracy || 0); say('Localização obtida. Procurando o endereço…');
+    const fim = (await rtReverso(lat, lon)) || 'Minha localização'; ls.set('mmr-rota-cfg', { ...rotaCfg(), partida: fim, pLat: lat, pLon: lon }); const i = document.getElementById('rt-part'); if (i) i.value = fim;
+    say(`Localização definida${fim === 'Minha localização' ? '' : ': ' + fim} (precisão de ${prec} m). Toque em Salvar.`); };
   const falha = e => say(e && e.code === 1 ? 'Acesso à localização negado. No navegador, toque no cadeado ao lado do endereço, abra Permissões e libere a Localização para este site. Depois tente de novo.' : e && e.code === 3 ? 'Demorou demais para obter a localização. Vá para um lugar aberto e tente de novo.' : 'Não consegui obter a localização agora.', true);
   navigator.geolocation.getCurrentPosition(ok, e => { if (e && e.code === 1) return falha(e); say('Procurando com mais precisão…'); navigator.geolocation.getCurrentPosition(ok, falha, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
 }
