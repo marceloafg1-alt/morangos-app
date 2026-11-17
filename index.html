@@ -653,6 +653,51 @@ small b.iv-bad{color:var(--bad)}small b.iv-warn{color:var(--warn)}small b.iv-ok{
 .iv-seg{display:flex;gap:6px;margin-top:10px}.iv-seg span{flex:1;height:8px;border-radius:99px;background:var(--fill);border:1px solid var(--line)}
 .iv-seg span.done,.iv-seg span.cur{border-color:transparent}
 .iv-seg span.cur{background:var(--accent)}
+
+/* ===== Início no Bento: blocos coloridos (lima, lilás, pêssego, azul, menta, amarelo) ===== */
+.iv-div{--iv1:var(--a2);--iv2:var(--okc);--iv3:var(--info);--iv4:var(--warn);--iv5:var(--muted2)}
+.lt[data-visual="bento"] :is(.iv-div,.iv-est,.iv-rota,.iv-sum,.iv-mov){color:var(--onT);border:0;border-radius:28px;box-shadow:none}
+.lt[data-visual="bento"] .iv-div{background:var(--sky);--iv1:#141416;--iv2:#fff;--iv3:var(--lime);--iv4:var(--peach);--iv5:#6B6B73}
+.lt[data-visual="bento"] .iv-est{background:var(--butter)}
+.lt[data-visual="bento"] .iv-rota{background:var(--mint)}
+.lt[data-visual="bento"] .iv-sum{background:var(--peach)}
+.lt[data-visual="bento"] .iv-mov{background:var(--lilac)}
+.lt[data-visual="bento"] .iv-mov :is(.feed-row,.fd,.fi,li,.item){border-color:rgba(20,20,22,.12)}
+.lt[data-visual="bento"] .iv-mov :is(small,.sub,.muted){color:var(--onT2)}
+.lt[data-visual="bento"] .iv-list{background:transparent;border:0;box-shadow:none;padding:0;display:grid;gap:10px}
+.lt[data-visual="bento"] .iv-list .iv-it{border:0;border-radius:26px;padding:12px 14px;color:var(--onT)}
+.lt[data-visual="bento"] .iv-list .iv-it:nth-child(3n+1){--tc:var(--lime);background:var(--lime)}
+.lt[data-visual="bento"] .iv-list .iv-it:nth-child(3n+2){--tc:var(--lilac);background:var(--lilac)}
+.lt[data-visual="bento"] .iv-list .iv-it:nth-child(3n+3){--tc:var(--peach);background:var(--peach)}
+.lt[data-visual="bento"] .iv-list .iv-ic{background:#141416;color:var(--tc)}
+.lt[data-visual="bento"] .iv-sum .iv-ic{background:#141416;color:var(--peach)}
+.lt[data-visual="bento"] :is(.iv-list,.iv-sum) .iv-btn{background:#141416;color:var(--lime)}
+.lt[data-visual="bento"] :is(.iv-list,.iv-div,.iv-est,.iv-rota,.iv-sum) :is(.iv-t small,.iv-row small,.iv-note){color:var(--onT2)}
+.lt[data-visual="bento"] .iv-it{border-color:rgba(20,20,22,.12)}
+.lt[data-visual="bento"] .iv-chip{background:rgba(255,255,255,.6);color:var(--onT);border:0}
+.lt[data-visual="bento"] .iv-chip.on{background:#141416;color:var(--lime)}
+.lt[data-visual="bento"] .iv-donut i{background:var(--sky)}
+.lt[data-visual="bento"] .iv-donut small{color:var(--onT2)}
+.lt[data-visual="bento"] .iv-st{border-color:rgba(20,20,22,.12)}
+.lt[data-visual="bento"] .iv-bar,.lt[data-visual="bento"] .iv-seg span{background:rgba(20,20,22,.12);border:0}
+.lt[data-visual="bento"] .iv-seg span.done{background:#141416}
+.lt[data-visual="bento"] .iv-seg span.cur{background:#fff}
+.lt[data-visual="bento"] .iv-bar i.ok{background:#141416}
+.lt[data-visual="bento"] small b.iv-ok{color:#141416}
+.lt[data-visual="bento"] .iv-hero .iv-ring{background:conic-gradient(var(--lime) calc(var(--p)*1%),rgba(255,255,255,.18) 0)}
+.lt[data-visual="bento"] .iv-hero .iv-b.h i,.lt[data-visual="bento"] .iv-hero .iv-d.on{background:var(--lime)}
+.lt[data-visual="bento"] .iv-hero .iv-days span.h{color:var(--lime)}
+.lt[data-visual="bento"] .iv-hero .iv-cmp{background:rgba(255,255,255,.14)}
+
+.lt[data-visual="bento"] .iv-mov .feed-i{border-color:rgba(20,20,22,.12)}
+.lt[data-visual="bento"] .iv-mov .feed-i b{color:var(--onT)}
+.lt[data-visual="bento"] .iv-mov .fdot{background:#141416}
+.lt[data-visual="bento"] .iv-mov .val{color:#141416}
+.lt[data-visual="bento"] .iv-mov .val.out{color:#8A1C1C}
+.lt[data-visual="bento"] .iv-mov .val.in{color:#0E5A36}
+.lt[data-visual="bento"] :is(.iv-sum,.iv-rota,.iv-est,.iv-div) :is(b,.iv-t b){color:var(--onT)}
+.lt[data-visual="bento"] .iv-need .card.calm{background:var(--lime);color:var(--onT);border:0}
+.lt[data-visual="bento"] .iv-need .card.calm small{color:var(--onT2)}
 </style>
 <style>
 /* Layout: app de celular em uma coluna (até 480px), cabeçalho com saudação, cartão destaque em degradê, atalhos em grade, barra inferior flutuante com botão + */
@@ -2931,7 +2976,7 @@ function gPendencias() {
 }
 /* Início: "Precisa de você", divisão das vendas, estoque em dias, rota de hoje, clientes sumidos */
 const IV_ACAO = { Responder: 'Responder', Receber: 'Receber', Pagar: 'Pagar', Entregar: 'Ver', Estoque: 'Repor', Caixa: 'Ver' };
-const IV_CORES = ['var(--a2)', 'var(--okc)', 'var(--info)', 'var(--warn)', 'var(--muted2)'];
+const IV_CORES = ['var(--iv1)', 'var(--iv2)', 'var(--iv3)', 'var(--iv4)', 'var(--iv5)'];
 function ivDivisao() {
   const per = ui.dp || '7d', vis = ui.dv || 'pag';
   const vs = vendasValidas().filter(v => inPeriod(v.ts, per));
@@ -2997,7 +3042,7 @@ function gInicio() {
   ${p.length ? `<div class="card iv-list">${p.slice(0, 3).map(item).join('')}</div>`
     : `<div class="card calm"><span class="chipico g">${ic('check')}</span><div><b>Tudo em dia</b><small>Nenhum pedido esperando, nada a cobrar.</small></div></div>`}</div>`;
   const mov = `<div class="sec-h"><h2>Movimentações</h2><button class="link" data-act="go" data-v="atividade">Ver todas</button></div>
-  <div class="card feed-card"><div class="feed">${activity().slice(0, 3).map(feedHTML).join('') || '<p class="sub">Nada por aqui ainda.</p>'}</div></div>`;
+  <div class="card feed-card iv-mov"><div class="feed">${activity().slice(0, 3).map(feedHTML).join('') || '<p class="sub">Nada por aqui ainda.</p>'}</div></div>`;
   const vazio = INICIO_BLOCOS.every(b => !inicioOn(b[0]));
   return topHeader('gestao') +
   (inicioOn('need') ? need : '') +
