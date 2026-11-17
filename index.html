@@ -567,6 +567,10 @@
   .lt-page{max-width:720px;margin:0 auto}
 }
 
+/* o app do celular não usa a versão web dos cartões do Início */
+.iv-ct,.iv-w{display:none}
+.iv-btn2{margin-right:6px}
+
 /* ---------- Cor sólida: o que fica direto sobre o fundo colorido ---------- */
 .lt[data-visual="classico"][data-solido="1"]:not([data-escuro="1"]) .lt-chip.on,
 .lt[data-visual="classico"][data-solido="1"]:not([data-escuro="1"]) .lt-chattab.on{background:var(--onG);border-color:var(--onG);color:var(--ground)}
@@ -2476,10 +2480,19 @@ function montarExemplos(extras = false) {
     c19: ['Juliana Matos', 'pessoa', '(15) 99690-8827', '18110-000', 'Rua José Martins Rodrigues', '95', 'Jardim Toledo', 'Votorantim / SP', '', 'Prefere entrega à tarde'],
     c20: ['Café da Esquina', 'comercio', '(15) 99912-4458', '18110-000', 'Avenida Antônio Castanharo', '300', 'Parque Jataí', 'Votorantim / SP', '', ''],
   };
+  /* clientes sumidos (categoria própria no criador de exemplos): têm 2 compras antigas e estão 14 dias ou mais sem pedir */
+  const SUM = {
+    s1: ['Luciana Teixeira', 'pessoa', '(15) 99811-2045', '18010-000', 'Rua Padre Luiz', '340', 'Centro', 'Sorocaba / SP', '', 'Cliente do app'],
+    s2: ['Mercearia Dois Irmãos', 'comercio', '(15) 3233-4470', '18010-000', 'Rua Aparecida', '88', 'Vila Hortência', 'Sorocaba / SP', '', 'Pedido pelo WhatsApp'],
+    s3: ['Gabriel Nogueira', 'pessoa', '(15) 99677-5531', '18110-000', 'Rua Nove de Julho', '52', 'Centro', 'Votorantim / SP', 'Casa de muro azul', 'Cliente do app'],
+    s4: ['Pizzaria Estrela', 'comercio', '(15) 3244-8806', '18110-000', 'Avenida Gisele Constantino', '700', 'Parque Bela Vista', 'Votorantim / SP', '', 'Compra só aos sábados'],
+  };
   const cid = k => EX_PREFIX + 'cli-' + k;
   Object.entries(CLI).forEach(([k, [nome, tipo, telefone, cep, endereco, numero, bairro, cidade, referencia, obs]], i) =>
     X('clientes', 'cli-' + k, { nome, tipo, telefone, cep: cep.replace(/\D/g, ''), endereco, numero, bairro, cidade, referencia, obs, ts: T(25 - i, '09:00') }));
-  const endTxt = k => { const c = CLI[k]; return [[c[4], c[5]].filter(Boolean).join(', '), c[6], c[7]].filter(Boolean).join(' · '); };
+  Object.entries(SUM).forEach(([k, [nome, tipo, telefone, cep, endereco, numero, bairro, cidade, referencia, obs]], i) =>
+    X('clientes', 'cli-' + k, { nome, tipo, telefone, cep: cep.replace(/\D/g, ''), endereco, numero, bairro, cidade, referencia, obs, ts: T(60 - i, '09:00'), exSumido: true, ...(k === 's1' || k === 's3' ? { noApp: true } : {}) }));
+  const endTxt = k => { const c = CLI[k] || SUM[k]; return [[c[4], c[5]].filter(Boolean).join(', '), c[6], c[7]].filter(Boolean).join(' · '); };
 
   // fornecedores
   const FORN = {
@@ -2495,13 +2508,22 @@ function montarExemplos(extras = false) {
   // vendas: [id, ts, cliente, itens, forma, pago, origem, status, extra]
   let ordem = Math.max(0, ...S.vendas.filter(v => v.status === 'em_rota' && !ehExemplo('vendas', v)).map(v => v.ordemRota || 0));
   const V = (id, ts, ck, itens, forma, pago, origem, status, extra = {}) => {
-    const c = ck && CLI[ck];
+    const c = ck && (CLI[ck] || SUM[ck]);
     const cliente = c ? { nome: c[0], telefone: c[2], endereco: endTxt(ck) } : { nome: extra.nome || '', telefone: '', endereco: '' };
     delete extra.nome;
     const total = n2(itens.reduce((s, i) => s + i.qtd * i.preco, 0));
     X('vendas', 'v-' + id, { ts, cliente, ...(c ? { clienteId: cid(ck) } : {}), itens, total, forma, pago, pagoTs: pago ? (extra.pagoTs || ts) : null, origem, status,
       ordemRota: status === 'em_rota' ? ++ordem : null, ...(status === 'entregue' ? { entregueTs: extra.entregueTs || ts + 3 * H } : {}), obs: '', ...extra });
   };
+  // clientes sumidos: já compraram mais de uma vez e estão 14 dias ou mais sem pedir (s1 e s3 também usam o app do cliente)
+  V('s1a', T(40, '10:20'), 's1', [it('cx1', 2)], 'pix', true, 'app', 'entregue', { exSumido: true });
+  V('s1b', T(19, '15:10'), 's1', [it('bd', 4)], 'pix', true, 'app', 'entregue', { exSumido: true });
+  V('s2a', T(52, '08:40'), 's2', [it('cx4', 1, 140)], 'fiado', true, 'avulsa', 'entregue', { exSumido: true });
+  V('s2b', T(27, '09:15'), 's2', [it('cx4', 2, 135)], 'fiado', true, 'avulsa', 'entregue', { exSumido: true });
+  V('s3a', T(58, '17:05'), 's3', [it('geleia', 2)], 'dinheiro', true, 'app', 'entregue', { exSumido: true });
+  V('s3b', T(34, '16:30'), 's3', [it('cx1', 1), it('bd', 2)], 'cartao_entrega', true, 'app', 'entregue', { exSumido: true });
+  V('s4a', T(71, '11:00'), 's4', [it('cx4', 1, 140)], 'pix', true, 'avulsa', 'entregue', { exSumido: true });
+  V('s4b', T(45, '11:20'), 's4', [it('cx1', 3, 36)], 'pix', true, 'avulsa', 'entregue', { exSumido: true });
   // hoje
   V('h1', ago(25), 'rosana', [it('cx1', 1), it('geleia', 1)], 'pix', false, 'app', 'recebido', { clienteInformouPix: true });
   V('h2', ago(48), 'carlos', [it('bd', 4)], 'dinheiro', false, 'app', 'recebido', { obs: 'Troco para R$ 50,00' });
@@ -2853,6 +2875,7 @@ function montarExemplos(extras = false) {
 const EX_MAX = 20; // limite de cada tipo
 const EX_CATS = [
   { k: 'clientes', nome: 'Clientes', ic: '👤' },
+  { k: 'sumidos', nome: 'Clientes sumidos', ic: '💤' },
   { k: 'fornecedores', nome: 'Fornecedores', ic: '🚜' },
   { k: 'produtos', nome: 'Produtos extras', ic: '📦' },
   { k: 'vendas-app', nome: 'Vendas pelo app', ic: '📱' },
@@ -2867,6 +2890,8 @@ const EX_CATS = [
   { k: 'notificacoes', nome: 'Notificações', ic: '🔔' },
 ];
 function catDoExemplo(col, d) {
+  if (col === 'clientes' && d.exSumido) return 'sumidos';
+  if (col === 'vendas' && d.exSumido) return 'sumidos-v'; /* compras antigas do cliente sumido: entram e saem junto com ele */
   if (col === 'vendas' && d.clienteId === TESTE_ID) return 'historico';
   if (col === 'vendas' && ['recebido', 'separado', 'em_rota'].includes(d.status)) return 'entregas';
   if (col === 'vendas') return 'vendas-' + (d.origem === 'chat' ? 'chat' : d.origem === 'avulsa' ? 'avulsa' : 'app');
@@ -2878,23 +2903,25 @@ function contaPorCat(data) {
   const n = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
   for (const [col, docs] of Object.entries(data)) {
     if (col === 'mensagens') { n.conversas = new Set(Object.values(docs).map(m => m.clienteId)).size; continue; }
-    for (const d of Object.values(docs)) n[catDoExemplo(col, d)]++;
+    for (const d of Object.values(docs)) { const c = catDoExemplo(col, d); if (c in n) n[c]++; }
   }
   return n;
 }
 // só pega o que ainda não está no app (conversa = um cliente com mensagens)
 function filtrarExemplos(data, qtd, jaTem) {
-  const out = {}, usados = {}, convs = [];
+  const out = {}, usados = {}, convs = [], vendasSum = [];
   for (const [col, docs] of Object.entries(data)) {
     out[col] = {};
     for (const [id, d] of Object.entries(docs)) {
       if (jaTem && jaTem(col, id, d)) continue;
       const c = catDoExemplo(col, d);
+      if (c === 'sumidos-v') { vendasSum.push([col, id, d]); continue; }
       if (c === 'conversas') { if (!convs.includes(d.clienteId)) convs.push(d.clienteId); if (convs.indexOf(d.clienteId) < (qtd.conversas || 0)) out[col][id] = d; continue; }
       usados[c] = (usados[c] || 0) + 1;
       if (usados[c] <= (qtd[c] || 0)) out[col][id] = d;
     }
   }
+  for (const [col, id, d] of vendasSum) if (out.clientes?.[d.clienteId]) out[col][id] = d;
   return out;
 }
 // quantos exemplos de cada categoria estão no app agora (conversa = um cliente com mensagens)
@@ -2922,7 +2949,7 @@ function exDisponivel(soBasico) {
   for (const [col, docs] of Object.entries(u.data)) for (const [id, d] of Object.entries(docs)) {
     if (soBasico && !u.base[col]?.[id]) continue;
     if (col === 'mensagens') { if (vistos.has(d.clienteId)) continue; vistos.add(d.clienteId); }
-    if (!jaTem(col, id, d)) n[catDoExemplo(col, d)]++;
+    if (!jaTem(col, id, d)) { const c = catDoExemplo(col, d); if (c in n) n[c]++; }
   }
   for (const k in n) n[k] = Math.max(0, Math.min(n[k], EX_MAX - (noApp[k] || 0)));
   return n;
@@ -3025,7 +3052,7 @@ async function removerExemplosCat(k) {
   if (!canWrite) { toast('Modo leitura: não dá para apagar.'); return; }
   ui.exBusy = true; render();
   const itens = [], ids = new Set();
-  for (const c of COLS) for (const d of S[c]) if (ehExemplo(c, d) && catDoExemplo(c, d) === k) { ids.add(d.id); itens.push([c, d.id]); }
+  for (const c of COLS) for (const d of S[c]) if (ehExemplo(c, d) && (catDoExemplo(c, d) === k || (k === 'sumidos' && catDoExemplo(c, d) === 'sumidos-v'))) { ids.add(d.id); itens.push([c, d.id]); }
   let ok = true; try { await exApagar(itens); } catch (e) { console.error(e); ok = false; }
   if (ids.size) { myOrders = myOrders.filter(id => !ids.has(id)); ls.set('mmr-meus-pedidos', myOrders); }
   if ((k === 'conversas' || k === 'clientes') && String(ui.conv || '').startsWith(EX_PREFIX)) ui.conv = null;
@@ -3333,7 +3360,7 @@ function render() {
   periodoNaTroca();
   if (ui.mode !== 'gestao' || ui.g !== 'inicio') { ui.hd = 0; ui.dv = 'pag'; ui.dp = 'hoje'; } /* ao sair do Início, volta para Vendas de hoje */
   if (backend === 'pending') { $main.innerHTML = '<div class="empty" style="padding-top:120px">Carregando…</div>'; return; }
-  ensureTeste();
+  ensureTeste(); marcarNoApp();
   const keep = {}; $main.querySelectorAll('input[id],select[id],textarea[id]').forEach(el => { keep[el.id] = el.type === 'radio' || el.type === 'checkbox' ? el.checked : el.value; });
   const focused = document.activeElement && $main.contains(document.activeElement) ? document.activeElement.id : null;
   $main.innerHTML = ui.mode === 'gestao' ? gestao() : cliente();
@@ -3523,8 +3550,8 @@ function ivDivisao() {
   let acc = 0;
   const grad = L.map(([, val], i) => { const p0 = acc / tot * 100; acc += val; return `${IV_CORES[i]} ${p0.toFixed(2)}% ${(acc / tot * 100).toFixed(2)}%`; }).join(',');
   const chip = (act, v, cur, l) => `<button class="iv-chip ${cur === v ? 'on' : ''}" data-act="${act}" data-v="${v}">${l}</button>`;
-  return `<div class="sec-h"><h2>Divisão das vendas</h2></div>
-  <div class="card iv-div">
+  return `<div class="sec-h iv-sh"><h2>Divisão das vendas</h2></div>
+  <div class="card iv-div"><div class="iv-ct"><h2>Divisão das vendas</h2></div>
     <div class="iv-chips">${chip('iv-dv', 'pag', vis, 'Pagamento')}${chip('iv-dv', 'prod', vis, 'Produto')}${chip('iv-dv', 'orig', vis, 'App × Avulsa')}</div>
     <div class="iv-chips">${chip('iv-dp', 'hoje', per, 'Hoje')}${chip('iv-dp', '7d', per, '7 dias')}${chip('iv-dp', 'mes', per, 'Mês')}</div>
     ${tot > 0 ? `<div class="iv-pie"><div class="iv-donut" style="background:conic-gradient(${grad})"><i><b class="num">${money(tot)}</b><small>${per === 'hoje' ? 'hoje' : per === '7d' ? '7 dias' : 'no mês'}</small></i></div>
@@ -3561,23 +3588,43 @@ function ivRota() {
   const d0 = startOfDay();
   const feitas = S.vendas.filter(v => v.status === 'entregue' && (v.entregueTs || v.ts) >= d0).length;
   const r = rota(), tot = feitas + r.length;
-  return `<div class="sec-h"><h2>Rota de hoje</h2><button class="link" data-act="go" data-v="entregas">Abrir rota</button></div>
-  <div class="card iv-rota">${tot ? `<div class="iv-row"><b>${feitas} de ${tot} ${tot === 1 ? 'entrega feita' : 'entregas feitas'}</b><small>${r.length ? 'Próxima: ' + esc(r[0].cliente?.nome || 'cliente') : 'Rota concluída'}</small></div>
+  return `<div class="sec-h iv-sh"><h2>Rota de hoje</h2><button class="link" data-act="go" data-v="entregas">Abrir rota</button></div>
+  <div class="card iv-rota"><div class="iv-w"><div class="iv-it iv-clk" data-act="go" data-v="entregas" role="button" tabindex="0" aria-label="Abrir rota"><span class="iv-ic ok">${ic('truck')}</span><span class="iv-t"><b>Rota de hoje</b><small>${tot ? `${feitas} de ${tot} ${tot === 1 ? 'entrega feita' : 'entregas feitas'} · ${r.length ? 'Próxima: ' + esc(r[0].cliente?.nome || 'cliente') : 'Rota concluída'}` : 'Nenhuma entrega na rota hoje'}</small></span><button class="iv-btn" data-act="go" data-v="entregas">Abrir rota</button></div></div><div class="iv-m">${tot ? `<div class="iv-row"><b>${feitas} de ${tot} ${tot === 1 ? 'entrega feita' : 'entregas feitas'}</b><small>${r.length ? 'Próxima: ' + esc(r[0].cliente?.nome || 'cliente') : 'Rota concluída'}</small></div>
     <div class="iv-seg">${Array.from({ length: Math.min(tot, 12) }, (_, i) => `<span class="${i < feitas ? 'done' : i === feitas ? 'cur' : ''}"></span>`).join('')}</div>`
-    : `<p class="sub" style="margin:8px 0">Nenhuma entrega na rota hoje.</p>`}</div>`;
+    : `<p class="sub" style="margin:8px 0">Nenhuma entrega na rota hoje.</p>`}</div></div>`;
 }
-function ivSumidos() {
+/* cliente que também usa o app do cliente (Loja): marcado no cadastro quando entra na Loja, ou deduzido de pedido feito pelo app */
+const temApp = c => !!c && (c.noApp === true || S.vendas.some(v => v.clienteId === c.id && v.origem === 'app'));
+const marcadosApp = new Set();
+function marcarNoApp() {
+  if (ui.mode === 'gestao' || !canWrite) return;
+  const cid = meuClienteId(); if (!cid || marcadosApp.has(cid)) return;
+  marcadosApp.add(cid);
+  const c = S.clientes.find(x => x.id === cid);
+  if (c && c.noApp !== true) patch('clientes', cid, { noApp: true, noAppTs: Date.now() }).catch(() => {});
+}
+function sumidosLista() {
   const now = Date.now(), L = [];
   for (const c of S.clientes) {
     const os = vendasValidas().filter(v => v.clienteId === c.id).sort((a, b) => b.ts - a.ts);
     if (os.length < 2 || soDig(c.telefone).length < 8) continue;
     const dias = Math.floor((now - os[0].ts) / 864e5);
-    if (dias >= 14) L.push({ c, dias });
+    if (dias >= 14) L.push({ c, dias, ult: os[0].ts });
   }
-  L.sort((a, b) => b.dias - a.dias);
-  return `<div class="sec-h"><h2>Clientes sumidos</h2></div>
-  <div class="card iv-sum">${L.length ? L.slice(0, 3).map(({ c, dias }) => `<div class="iv-it"><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>${esc(c.nome)}</b><small>Já comprou antes · ${dias} dias sem pedir</small></span><button class="iv-btn" data-act="iv-wa" data-id="${esc(c.id)}">WhatsApp</button></div>`).join('')
-    : `<div class="iv-it"><span class="iv-ic ok">${ic('check')}</span><span class="iv-t"><b>Todo mundo em dia</b><small>Ninguém que já comprou está há mais de 14 dias sem pedir.</small></span></div>`}</div>`;
+  return L.sort((a, b) => b.dias - a.dias);
+}
+const sumBtns = c => `${temApp(c) ? `<button class="iv-btn iv-btn2" data-act="abrir-conversa-cad" data-id="${esc(c.id)}">Chat</button>` : ''}<button class="iv-btn" data-act="iv-wa" data-id="${esc(c.id)}">WhatsApp</button>`;
+function modalSumidos() {
+  const L = sumidosLista();
+  openModal('Clientes sumidos', `<p class="muted" style="margin:0 0 6px;font-size:13.5px">Já compraram mais de uma vez e estão 14 dias ou mais sem pedir.</p>
+    <div class="iv-sumlist">${L.map(({ c, dias, ult }) => `<div class="iv-it"><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>${esc(c.nome)}</b><small>${dias} dias sem pedir · último pedido em ${new Date(ult).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</small></span>${sumBtns(c)}</div>`).join('') || '<p class="sub">Ninguém sumido.</p>'}</div>
+    <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Fechar</button></div>`, () => true);
+}
+function ivSumidos() {
+  const L = sumidosLista();
+  return `<div class="sec-h iv-sh"><h2>Clientes sumidos</h2></div>
+  <div class="card iv-sum"><div class="iv-w"><div class="iv-it ${L.length ? 'iv-clk' : ''}" ${L.length ? 'data-act="iv-sum-lista" role="button" tabindex="0" aria-label="Ver os clientes sumidos"' : ''}><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>Clientes sumidos${L.length > 1 ? ` · ${L.length}` : ''}</b><small>${L.length ? esc(L[0].c.nome) + ' · ' + L[0].dias + ' dias sem pedir' + (L.length > 1 ? ' · toque para ver todos' : '') : 'Todo mundo em dia'}</small></span>${L.length ? sumBtns(L[0].c) : ''}</div></div><div class="iv-m">${L.length ? L.slice(0, 3).map(({ c, dias }) => `<div class="iv-it"><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>${esc(c.nome)}</b><small>Já comprou antes · ${dias} dias sem pedir</small></span>${sumBtns(c)}</div>`).join('')
+    : `<div class="iv-it"><span class="iv-ic ok">${ic('check')}</span><span class="iv-t"><b>Todo mundo em dia</b><small>Ninguém que já comprou está há mais de 14 dias sem pedir.</small></span></div>`}</div></div>`;
 }
 function gInicio() {
   const p = pendencias().filter(x => x[7] !== 'dark');
@@ -5869,6 +5916,7 @@ document.addEventListener('click', async e => {
     case 'iv-vdia': { const dia = ymd(new Date(startOfDay() - (ui.hd || 0) * 864e5)); ui.vt = 'todas'; ui.vf = v; ui.vp = 'custom'; ui.vDe = dia; ui.vAte = dia; go('vendas'); break; }
     case 'iv-dv': ui.dv = v; render(); break;
     case 'iv-dp': ui.dp = v; render(); break;
+    case 'iv-sum-lista': modalSumidos(); break;
     case 'iv-wa': { const c = S.clientes.find(x => x.id === id); if (!c) break; let n = soDig(c.telefone); if (n.length <= 11) n = '55' + n; window.open('https://wa.me/' + n + '?text=' + encodeURIComponent('Oi ' + String(c.nome || '').split(' ')[0] + ', tudo bem? Chegaram morangos fresquinhos 🍓 Quer que eu separe um pedido para você?'), '_blank'); break; }
     case 'go-vendas-hoje': ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = 'hoje'; go('vendas'); break;
     case 'go-estoque': go('estoque'); break;
