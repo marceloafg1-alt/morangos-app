@@ -1639,6 +1639,38 @@ form .is-off { opacity: .55; }
 .bs .menu button:last-child { border-bottom: 0; }
 .bs .menu button[aria-pressed="true"] { background: none; border-color: var(--line); color: var(--accent); }
 .bs .ap-sec { padding: 4px 0; }
+/* Dados de exemplo */
+.bs-fica, .bs-fica .bs { animation: none; }
+.ex-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.ex-lista { display: grid; gap: 8px; }
+.ex-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 10px 10px 14px; border-radius: 16px; background: color-mix(in srgb, var(--ink) 5%, var(--card)); color: var(--ink); }
+.lt[data-visual="bento"]:not([data-escuro="1"]) .ex-row { background: var(--fill); }
+.lt[data-escuro="1"] .ex-row { background: color-mix(in srgb, var(--ink) 7%, var(--card)); }
+.ex-info { flex: 1 1 0; min-width: 0; display: grid; justify-items: start; gap: 2px; }
+.ex-info b { font-size: 15.5px; line-height: 1.25; }
+.ex-info small { color: var(--muted); font-size: 12.5px; }
+.ex-tem { color: var(--ink); font-weight: 700; }
+.ex-apagar { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; height: 30px; padding: 0 12px; border: 1.5px solid color-mix(in srgb, #d93a3a 55%, transparent); border-radius: 15px; background: none; color: #d93a3a; font: inherit; font-size: 13px; font-weight: 700; }
+.lt[data-escuro="1"] .ex-apagar { color: #ff8a80; border-color: color-mix(in srgb, #ff8a80 55%, transparent); }
+.ex-apagar svg.i { width: 15px; height: 15px; }
+.ex-row .stepper { flex: none; }
+.stepper .ex-n { width: 46px; height: 36px; padding: 0 2px; text-align: center; font: inherit; font-size: 16px; font-weight: 800; color: var(--ink); background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; -moz-appearance: textfield; appearance: textfield; }
+.stepper .ex-n::-webkit-outer-spin-button, .stepper .ex-n::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper .ex-n:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ex-row { flex-wrap: wrap; }
+.ex-aviso { flex: 0 0 100%; margin: 0; padding: 8px 10px; border-radius: 10px; font-size: 13px; line-height: 1.35; font-weight: 600; background: color-mix(in srgb, #d93a3a 12%, transparent); color: #b3261e; }
+.lt[data-escuro="1"] .ex-aviso { color: #ffb4ab; background: color-mix(in srgb, #ff8a80 16%, transparent); }
+.ex-aviso[hidden] { display: none; }
+.ex-msg.ok { background: color-mix(in srgb, #2e9b57 16%, transparent); color: inherit; }
+.ex-msg.aviso { background: color-mix(in srgb, #d93a3a 12%, transparent); color: inherit; font-weight: 600; }
+.stepper .ex-n:disabled { opacity: .45; }
+.ex-acts { display: grid; gap: 10px; margin-top: 4px; }
+.ex-acts .lt-btn { white-space: normal; text-align: center; line-height: 1.2; }
+.ex-acts .lt-btn[disabled] { opacity: .5; box-shadow: none; }
+.ex-rem { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 50px; padding: 10px 18px; border: 1.5px solid color-mix(in srgb, #d93a3a 60%, transparent); border-radius: var(--r-btn, 16px); background: none; color: #d93a3a; font: inherit; font-size: var(--fs-md, 16px); font-weight: 700; text-align: center; line-height: 1.2; }
+.lt[data-escuro="1"] .ex-rem { color: #ff8a80; border-color: color-mix(in srgb, #ff8a80 60%, transparent); }
+.ex-rem svg.i { width: 18px; height: 18px; flex: none; }
+:is(.ex-rem, .ex-apagar)[disabled] { opacity: .45; }
 @keyframes bsUp { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
 @keyframes bsFade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .bs, .bs-scrim { animation: none; } }
@@ -2402,7 +2434,7 @@ const ehExemplo = (col, d) => !!d && (d.exemplo === true || String(d.id || '').s
 const contaExemplos = () => COLS.reduce((s, c) => s + S[c].filter(d => ehExemplo(c, d)).length, 0);
 const temExemplos = () => contaExemplos() > 0;
 
-function montarExemplos() {
+function montarExemplos(extras = false) {
   const now = Date.now(), M = 6e4, H = 36e5, D = 864e5, d0 = startOfDay();
   // d = dias atrás, hm = 'HH:MM'. Hoje: nunca depois de agora.
   const T = (d, hm) => { const [h, m] = hm.split(':').map(Number); const t = d0 - d * D + h * H + m * M; return d === 0 ? Math.min(t, now - 5 * M) : t; };
@@ -2601,10 +2633,189 @@ function montarExemplos() {
     const de = q === 'c' ? 'cliente' : 'gestao';
     X('mensagens', 'm-' + (++n), { ts, clienteId: cid(ck), de, texto, lidaGestao: de === 'gestao' ? true : lida !== false, lidaCliente: de === 'cliente' ? true : lida !== false });
   }
+  // ---- extras: completa até EX_MAX de cada tipo, cruzando clientes, fornecedores, produtos, vendas e conversas ----
+  if (extras) {
+    const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const rng = (cat, i) => { let h = 2166136261; for (const ch of cat) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); const r = mulberry(h + i * 7919); r(); r(); return r; };
+    const pick = (r, a) => a[Math.floor(r() * a.length)];
+    const between = (r, a, b) => a + Math.floor(r() * (b - a + 1));
+    const pesos = (r, lista) => { let x = r() * lista.reduce((s, [, p]) => s + p, 0); for (const [v, p] of lista) { if ((x -= p) < 0) return v; } return lista[0][0]; };
+    const hm = (r, h0 = 7, h1 = 19) => String(between(r, h0, h1)).padStart(2, '0') + ':' + String(between(r, 0, 59)).padStart(2, '0');
+    const base = contaPorCat(out);
+    const falta = k => Math.max(0, EX_MAX - base[k]);
+
+    // ---- clientes (pessoas e comércios de Sorocaba e Votorantim) ----
+    const NOMES = ['Maria', 'José', 'Ana', 'João', 'Antônio', 'Francisca', 'Carlos', 'Paulo', 'Luiza', 'Pedro', 'Marcos', 'Juliana', 'Fernanda', 'Lucas', 'Rafael', 'Camila', 'Bruno', 'Patrícia', 'Rodrigo', 'Aline', 'Gustavo', 'Renata', 'Diego', 'Sandra', 'Eduardo', 'Vanessa', 'Fábio', 'Cláudia', 'Thiago', 'Márcia', 'Leandro', 'Simone', 'Roberto', 'Tatiana', 'Sérgio', 'Luciana', 'André', 'Priscila', 'Marcelo', 'Débora', 'Felipe', 'Adriana', 'Ricardo', 'Cristina', 'Vinícius', 'Elaine', 'Henrique', 'Mônica', 'Gabriel', 'Larissa'];
+    const SOBRE = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves', 'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro', 'Martins', 'Carvalho', 'Almeida', 'Lopes', 'Soares', 'Fernandes', 'Vieira', 'Barbosa', 'Rocha', 'Dias', 'Nascimento', 'Andrade', 'Moreira', 'Nunes', 'Marques', 'Machado', 'Mendes', 'Freitas', 'Cardoso', 'Ramos', 'Teixeira', 'Moraes', 'Pinto', 'Campos', 'Cavalcante', 'Araújo', 'Batista', 'Siqueira'];
+    const RUAS = [['Rua da Penha', 'Centro', 'Sorocaba / SP'], ['Rua Souza Pereira', 'Centro', 'Sorocaba / SP'], ['Rua Barão do Rio Branco', 'Centro', 'Sorocaba / SP'], ['Avenida Itavuvu', 'Jardim Itavuvu', 'Sorocaba / SP'], ['Rua XV de Novembro', 'Centro', 'Sorocaba / SP'], ['Avenida Ipanema', 'Jardim Ipanema', 'Sorocaba / SP'], ['Rua Sete de Setembro', 'Vila Carvalho', 'Sorocaba / SP'], ['Avenida Washington Luiz', 'Vila Santana', 'Sorocaba / SP'], ['Avenida General Osório', 'Jardim Faculdade', 'Sorocaba / SP'], ['Avenida São Paulo', 'Vila Hortência', 'Sorocaba / SP'], ['Rua Cesário Mota', 'Vila Jardini', 'Sorocaba / SP'], ['Rua Leopoldo Machado', 'Jardim Santa Rosália', 'Sorocaba / SP'], ['Rua Humberto de Campos', 'Jardim Paulistano', 'Sorocaba / SP'], ['Avenida Dom Aguirre', 'Jardim Vergueiro', 'Sorocaba / SP'], ['Rua Doutor Álvaro Soares', 'Centro', 'Sorocaba / SP'], ['Avenida Antônio Carlos Comitre', 'Parque Campolim', 'Sorocaba / SP'], ['Rua Padre Luiz', 'Centro', 'Sorocaba / SP'], ['Rua Tiradentes', 'Centro', 'Votorantim / SP'], ['Avenida 31 de Março', 'Centro', 'Votorantim / SP'], ['Rua Quinze de Novembro', 'Centro', 'Votorantim / SP'], ['Rua José Bonifácio', 'Vila Nova', 'Votorantim / SP'], ['Avenida Primeiro de Maio', 'Vila Garcia', 'Votorantim / SP'], ['Rua Santa Cruz', 'Jardim Rio Branco', 'Votorantim / SP'], ['Rua Padre Anchieta', 'Vila Ana', 'Votorantim / SP']];
+    const KIND = ['Mercadinho', 'Padaria', 'Restaurante', 'Lanchonete', 'Doceria', 'Confeitaria', 'Sorveteria', 'Hortifruti', 'Empório', 'Cafeteria', 'Pizzaria', 'Mercearia'];
+    const SUF = ['Bom Sabor', 'Dois Irmãos', 'Central', 'da Praça', 'Nova Esperança', 'Sol Nascente', 'do Zé', 'Santa Clara', 'Vila Nova', 'Primavera', 'Casa Verde', 'Estrela', 'Doce Mel', 'Flor de Lis', 'da Vovó', 'São Jorge'];
+    const REF = ['', '', 'Portão branco', 'Casa de esquina', 'Apto 21, interfone 21', 'Ao lado da farmácia', 'Em frente à praça', 'Portão azul', 'Sobrado amarelo'];
+    const OBS = ['', '', '', 'Prefere Pix', 'Entregar depois das 17h', 'Toca a campainha duas vezes', 'Deixar com o porteiro', 'Recebe só pela manhã', 'Cliente antigo', 'Pede sempre aos sábados'];
+    const nCli = falta('clientes'), CKG = [];
+    for (let i = 0; i < nCli; i++) {
+      const r = rng('cli', i), com = i % 4 === 1, [rua, bairro, cidade] = pick(r, RUAS);
+      const nome = com ? `${pick(r, KIND)} ${pick(r, SUF)}` : `${pick(r, NOMES)} ${pick(r, SOBRE)}`;
+      const tel = com ? `(15) 32${between(r, 40, 49)}-${between(r, 1000, 9999)}` : `(15) 9${between(r, 6000, 9999)}-${between(r, 1000, 9999)}`;
+      const k = 'g' + i, c = [nome, com ? 'comercio' : 'pessoa', tel, cidade.startsWith('Vot') ? '18110-000' : '18010-000', rua, String(between(r, 12, 1980)), bairro, cidade, pick(r, REF), com && r() < .5 ? 'Paga fiado toda sexta' : pick(r, OBS)];
+      CLI[k] = c; CKG.push(k);
+      X('clientes', 'cli-' + k, { nome: c[0], tipo: c[1], telefone: c[2], cep: c[3].replace(/\D/g, ''), endereco: c[4], numero: c[5], bairro: c[6], cidade: c[7], referencia: c[8], obs: c[9], ts: T(61 + Math.floor(i * 0.72), hm(r)) });
+    }
+    const CKP = Object.keys(CLI).filter(k => CLI[k][1] === 'pessoa'), CKC = Object.keys(CLI).filter(k => CLI[k][1] === 'comercio');
+
+    // ---- fornecedores ----
+    const FTIPO = ['Sítio', 'Chácara', 'Fazenda', 'Granja', 'Recanto'];
+    const FLUG = ['Boa Esperança', 'Santa Rita', 'São José', 'Três Marias', 'Bela Vista', 'Morro Alto', 'Água Limpa', 'Vale Verde', 'Cachoeira', 'Estrela do Sul', 'Pedra Branca', 'Nova Aliança', 'Rio Claro', 'Santo Antônio', 'Campo Belo', 'Ouro Verde', 'Monte Alegre', 'Flor do Campo', 'Boa Fé', 'São Pedro'];
+    const FEMP = [['Embalagens', 'Bandejas, caixas de papelão e etiquetas'], ['Insumos Agrícolas', 'Adubo, mudas e defensivos'], ['Gráfica', 'Etiquetas e sacolas personalizadas'], ['Transportes', 'Frete e entregas refrigeradas']];
+    const FCID = [['Piedade / SP', '18170000', 'Estrada do Ribeirão'], ['Ibiúna / SP', '18150000', 'Estrada dos Mendes'], ['São Roque / SP', '18130000', 'Estrada do Vinho'], ['Mairinque / SP', '18120000', 'Estrada Velha'], ['Votorantim / SP', '18110000', 'Estrada do Tijuco Preto'], ['Salto de Pirapora / SP', '18160000', 'Estrada da Serra']];
+    const BANCOS = ['Sicoob', 'Banco do Brasil', 'Caixa', 'Bradesco', 'Itaú', 'Nubank'];
+    const FPROD = ['Morango San Andreas', 'Morango Albion', 'Morango Oso Grande', 'Morango orgânico', 'Morango miúdo para geleia', 'Morango Camarosa', 'Morango Festival'];
+    const nFor = falta('fornecedores'), FKP = Object.keys(FORN).filter(k => FORN[k][1] === 'produtor');
+    for (let i = 0; i < nFor; i++) {
+      const r = rng('for', i), emp = i % 9 === 4, [cidade, cep, estrada] = pick(r, FCID), dono = pick(r, NOMES);
+      const k = 'g' + i, tel = `(15) 9${between(r, 6000, 9999)}-${between(r, 1000, 9999)}`;
+      let nome, tipo, produtos, pix;
+      if (emp) { const [n, p] = pick(r, FEMP); nome = `${n} ${pick(r, SOBRE)}`; tipo = 'empresa'; produtos = p; pix = `contato@${nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '')}.com.br`; }
+      else { nome = `${pick(r, FTIPO)} ${pick(r, FLUG)} (${r() < .5 ? 'Seu' : 'Dona'} ${dono})`; tipo = 'produtor'; produtos = `${pick(r, FPROD)}${r() < .4 ? ' e ' + pick(r, FPROD).toLowerCase() : ''}`; pix = tel; }
+      FORN[k] = [nome, tipo, tel, produtos, pix, '', '', '', '', estrada, 'km ' + between(r, 1, 14), '', ''];
+      X('fornecedores', 'forn-' + k, { nome, tipo, telefone: tel, produtos, pix, banco: pick(r, BANCOS), agencia: String(between(r, 1000, 4999)), conta: `${between(r, 10000, 99999)}-${between(r, 0, 9)}`, tipoConta: 'corrente', titular: emp ? nome : `${dono} ${pick(r, SOBRE)}`, docTitular: '', cep, endereco: estrada, numero: 'km ' + between(r, 1, 14), bairro: 'Zona rural', cidade, referencia: '', obs: emp ? 'Entrega em 2 dias úteis' : pick(r, ['', 'Colhe terça e sexta', 'Aceita Pix na hora', 'Só vende com encomenda', 'Entrega na roça, retirada às 6h']), ts: T(31 + Math.floor(i * 0.9), hm(r, 7, 12)) });
+      if (tipo === 'produtor') FKP.push(k);
+    }
+
+    // ---- produtos extras (derivados de produtos e variações do morango) ----
+    const PTIPO = [['Geleia de morango', ['300 g', '200 g'], 'pote', 16, 8, 1], ['Polpa de morango congelada', ['500 g', '1 kg'], 'pacote', 14, 7, 1], ['Suco de morango', ['300 ml', '1 L'], 'garrafa', 9, 4, 1], ['Doce de morango em calda', ['400 g'], 'vidro', 15, 7, 1], ['Morango desidratado', ['100 g', '250 g'], 'pacote', 22, 12, 1], ['Bombom de morango', ['caixa com 6', 'caixa com 12'], 'caixa', 24, 12, 1], ['Torta de morango', ['pequena', 'grande'], 'unidade', 45, 22, 1], ['Brigadeiro de morango', ['caixa com 10', 'caixa com 20'], 'caixa', 28, 13, 1], ['Mousse de morango', ['pote 150 g'], 'pote', 8, 3.5, 1], ['Sorvete de morango', ['500 ml', '1 L'], 'pote', 19, 9, 1], ['Morango com chocolate', ['6 unidades', '12 unidades'], 'caixa', 30, 15, 1], ['Cesta de morangos', ['pequena', 'média', 'grande'], 'cesta', 55, 30, 0], ['Caixa de morango miúdo', ['1 kg', '2 kg'], 'caixa', 26, 14, 0], ['Muda de morangueiro', ['unidade', 'kit com 6'], 'muda', 6, 2.5, 0]];
+    const PVAR = ['', ' com limão', ' com maracujá', ' com mel', ' sem açúcar', ' orgânico', ' com gengibre', ' artesanal', ' premium', ' com hortelã', ' com chocolate branco'];
+    const combos = [];
+    PVAR.forEach((v, vi) => PTIPO.forEach(([nm, tams, un, pr, cu, usaVar]) => { if (!usaVar && vi) return; tams.forEach((tam, ti) => combos.push({ nome: `${nm}${v} ${tam}`, un, preco: n2(pr * (1 + ti * .75) * (1 + (vi ? .08 : 0))), custo: n2(cu * (1 + ti * .75)) })); }));
+    const nPro = falta('produtos'), PG = [];
+    for (let i = 0; i < nPro; i++) {
+      const r = rng('pro', i), c = combos[i % combos.length] || combos[0], k = 'pg' + i;
+      prod[k] = { nome: c.nome, preco: c.preco, custo: c.custo }; PG.push(k);
+      X('produtos', k, { nome: c.nome, unidade: c.un, descricao: 'Feito com morango da roça', preco: c.preco, custo: c.custo, estoque: between(r, 0, 60), ativo: true, ordem: 10 + i });
+    }
+    const POOL = ['cx1', 'bd', 'cx1', 'bd', 'cx4', 'geleia', ...PG.slice(0, 12)];
+
+    // ---- vendas: app, chat e avulsas, sempre com cliente, itens e valores que combinam ----
+    const FORMAS = { app: [['pix', 45], ['credito', 15], ['debito', 10], ['cartao_entrega', 15], ['dinheiro', 15]], chat: [['pix', 55], ['dinheiro', 25], ['fiado', 20]], avulsa: [['fiado', 45], ['pix', 35], ['dinheiro', 20]] };
+    const SIGLA = { app: 'ap', chat: 'ch', avulsa: 'av' }, vendasG = [];
+    for (const origem of ['app', 'chat', 'avulsa']) {
+      const nV = falta('vendas-' + origem);
+      for (let i = 0; i < nV; i++) {
+        const r = rng('v' + origem, i);
+        const semCli = origem === 'avulsa' && r() < .25;
+        const lista = r() < (origem === 'avulsa' ? .75 : .2) ? CKC : CKP;
+        const ck = semCli ? null : pick(r, lista), com = !!ck && CLI[ck][1] === 'comercio';
+        const nl = 1 + (r() < .35 ? 1 : 0) + (r() < .1 ? 1 : 0), ks = [];
+        while (ks.length < nl) { const k = pick(r, POOL); if (!ks.includes(k)) ks.push(k); }
+        const itens = ks.map(k => {
+          const q = k === 'cx4' ? (com ? between(r, 1, 3) : 1) : k === 'cx1' ? (com ? between(r, 3, 8) : between(r, 1, 3)) : k === 'bd' ? (com ? between(r, 6, 20) : between(r, 2, 6)) : between(r, 1, 3);
+          const preco = com && k === 'cx4' ? 135 : com && k === 'cx1' && q >= 4 ? 36 : undefined;
+          return it(k, q, preco);
+        });
+        let forma = pesos(r, FORMAS[origem]);
+        if (forma === 'fiado' && !com && ck) forma = 'pix';
+        if (!ck) forma = pick(r, ['dinheiro', 'dinheiro', 'pix']);
+        const dia = between(r, 1, 75), ts = T(dia, hm(r)), cancel = r() < .07;
+        const pago = cancel ? false : forma === 'fiado' ? (dia > 8 && r() < .8) : true;
+        const extra = {};
+        if (cancel) extra.obs = 'Cliente desistiu';
+        else if (forma === 'dinheiro' && origem === 'app' && r() < .5) extra.obs = 'Troco para R$ 50,00';
+        else if (origem === 'chat') extra.obs = 'Pedido pelo chat';
+        else if (forma === 'fiado') extra.obs = 'Paga na sexta';
+        if (!ck) extra.nome = pick(r, ['Feira de sábado', 'Venda na porteira', 'Cliente da feira']);
+        if (pago && forma === 'fiado') extra.pagoTs = Math.min(now - H, ts + between(r, 3, 12) * D);
+        if (!cancel && pago && r() < .04) { const l = itens[0]; extra.estornos = [{ id: 'eg' + origem[0] + i, ts: ts + 5 * H, valor: l.preco, parcial: true, motivo: pick(r, ['Um item chegou amassado', 'Cliente recebeu a menos', 'Produto avariado no transporte']), caixa: true, forma, estoque: false, itens: [{ produtoId: l.produtoId, nome: l.nome, qtd: 1, preco: l.preco }] }]; }
+        V('g' + SIGLA[origem] + i, ts, ck, itens, forma, pago, origem, cancel ? 'cancelado' : 'entregue', extra);
+        vendasG.push('v-g' + SIGLA[origem] + i);
+      }
+    }
+
+    // ---- histórico do cliente de teste ----
+    const nHis = falta('historico');
+    for (let i = 0; i < nHis; i++) {
+      const r = rng('his', i), k1 = pick(r, ['cx1', 'bd', 'cx1', 'geleia', 'cx4']), itens = [it(k1, k1 === 'bd' ? between(r, 2, 6) : between(r, 1, 3))];
+      if (r() < .25) itens.push(it(pick(r, ['bd', 'geleia', ...PG.slice(0, 6)]), between(r, 1, 3)));
+      const forma = pesos(r, [['pix', 50], ['dinheiro', 20], ['credito', 15], ['cartao_entrega', 15]]), origem = pesos(r, [['app', 80], ['chat', 15], ['avulsa', 5]]), cancel = r() < .05;
+      VT('g' + i, T(3 + i, hm(r)), itens, forma, !cancel, origem, cancel ? 'cancelado' : 'entregue', cancel ? { obs: 'Cliente desistiu', pagoTs: null } : forma === 'dinheiro' && r() < .4 ? { obs: 'Troco para R$ 100,00' } : {});
+    }
+
+    // ---- compras na roça (fornecedores produtores, custo perto do custo do produto) ----
+    const nCom = falta('compras');
+    for (let i = 0; i < nCom; i++) {
+      const r = rng('com', i), fk = pick(r, FKP), nl = 1 + (r() < .4 ? 1 : 0), ks = [];
+      while (ks.length < nl) { const k = pick(r, ['cx1', 'bd', 'cx4', 'geleia', 'cx1', 'bd']); if (!ks.includes(k)) ks.push(k); }
+      const itens = ks.map(k => [k, k === 'cx1' ? between(r, 6, 16) : k === 'bd' ? between(r, 10, 30) : k === 'cx4' ? between(r, 2, 6) : between(r, 6, 14), n2(Math.round(prod[k].custo * (.92 + r() * .16) * 2) / 2)]);
+      const dia = 1 + Math.floor(i * .47), forma = pesos(r, [['pix', 55], ['dinheiro', 20], ['fiado', 25]]), pago = forma === 'fiado' ? dia > 14 : true;
+      C('g' + i, T(dia, hm(r, 6, 8)), fk, itens, forma, pago, forma === 'fiado' && !pago ? 'Pagar em 15 dias' : '');
+    }
+
+    // ---- despesas ----
+    const DSP = [['combustivel', 30, 85, 150, ['Gasolina da entrega', 'Diesel da Saveiro', 'Gasolina das entregas em Votorantim', 'Abastecimento da van']], ['pessoal', 25, 90, 130, ['Ajudante na entrega (diária)', 'Ajudante na feira (diária)', 'Ajudante na colheita (diária)', 'Motorista de reforço (diária)']], ['embalagem', 20, 60, 280, ['Bandejas e etiquetas (Embalagens Piedade)', 'Caixas de papelão 1 kg (100 un.)', 'Filme PVC e sacolas', 'Etiquetas adesivas', 'Caixas de 4 kg (50 un.)']], ['manutencao', 8, 90, 650, ['Troca de óleo da Saveiro', 'Pneu novo', 'Revisão da van', 'Lavagem e revisão do baú', 'Conserto do freio']], ['outros', 17, 25, 180, ['Gelo e caixas térmicas', 'Luvas e toucas', 'Lona para a barraca da feira', 'Taxa da feira', 'Material de limpeza', 'Conta de celular', 'Tarifa da maquininha']]];
+    const nDes = falta('despesas');
+    for (let i = 0; i < nDes; i++) {
+      const r = rng('des', i), [cat, , lo, hi, nomes] = DSP[pesos(r, DSP.map((d, j) => [j, d[1]]))];
+      Dp('g' + i, T(1 + Math.floor(i * .5), hm(r, 7, 18)), pick(r, nomes), cat, n2(Math.round((lo + r() * (hi - lo)) * 2) / 2));
+    }
+
+    // ---- notícias do banner (antigas, desligadas; só a original continua no ar) ----
+    const FEST = ['Dia das Mães', 'Páscoa', 'Dia dos Namorados', 'Festa Junina', 'Dia dos Pais', 'Natal', 'Ano Novo', 'Dia das Crianças'];
+    const NKIND = [
+      ['fresco', '🍓', 'Fresquinho', 'vermelho', 'comprar', r => pick(r, ['Colheita de hoje chegou!', 'Morango fresquinho no app', 'Saiu da roça agora de manhã']), () => 'Morangos colhidos hoje cedo, docinhos e firmes. Garanta o seu antes que acabe.'],
+      ['promo', '🔥', 'Promoção', 'laranja', 'comprar', r => { const n = between(r, 2, 4); return `${n} bandejas por R$ ${Math.round(n * prod.bd.preco * .9)}`; }, r => `Promoção só ${pick(r, ['hoje', 'nesta sexta', 'neste fim de semana'])}, pedindo pelo app ou pelo chat.`],
+      ['entrega', '🚚', 'Entrega', 'ceu', 'pedido', r => `Entregas a partir das ${between(r, 8, 17)}h`, () => 'A rota de hoje já está definida. Acompanhe seu pedido pelo app.'],
+      ['novidade', '✨', 'Novidade', 'uva', 'loja', (r) => `Novidade: ${prod[pick(r, PG.length ? PG : ['geleia'])].nome}`, () => 'Chegou produto novo, direto da roça. Venha conhecer!'],
+      ['aviso', '⚠️', 'Aviso', 'preto', 'chat', r => pick(r, ['Amanhã não teremos entregas', 'Chuva forte: entregas podem atrasar', 'Horário especial no feriado']), () => 'Encomende hoje para garantir o seu morango.'],
+      ['festa', '🎉', 'Especial', 'rosa', 'chat', r => `${pick(r, FEST)}: cestas de morango`, () => 'Cestas de morango para datas especiais. Encomende com antecedência.'],
+    ];
+    const nNot = falta('noticias');
+    for (let i = 0; i < nNot; i++) {
+      const r = rng('not', i), [tipo, emoji, tag, cor, acao, tit, txt] = NKIND[i % NKIND.length];
+      X('noticias', 'n-g' + i, { ts: T(2 + i, hm(r, 7, 10)), titulo: tit(r), texto: txt(r), tipo, tag, emoji, cor, foto: '', acao, acaoProd: '', acaoTxt: '', publico: 'todos', clientes: [], inicio: '', fim: '', fixa: false, ativa: false });
+    }
+
+    // ---- conversas (cada uma com um cliente gerado, preço e endereço de verdade) ----
+    const nConv = falta('conversas'), comConv = new Set(Object.values(out.mensagens).map(m => m.clienteId));
+    const CKV = [...CKG, ...Object.keys(CLI).filter(k => !CKG.includes(k) && !comConv.has(cid(k)))];
+    for (let i = 0; i < nConv; i++) {
+      const r = rng('cnv', i), ck = CKV[i % CKV.length], c = CLI[ck], com = c[1] === 'comercio', nome1 = c[0].split(' ')[0];
+      const pr = com ? 'cx4' : pick(r, ['cx1', 'bd']), q = com ? between(r, 1, 3) : between(r, 1, 4), tot = n2(q * (com ? 135 : prod[pr].preco));
+      const un = pr === 'cx4' ? (q > 1 ? 'caixas de 4 kg' : 'caixa de 4 kg') : pr === 'cx1' ? (q > 1 ? 'caixas de 1 kg' : 'caixa de 1 kg') : (q > 1 ? 'bandejas' : 'bandeja');
+      const pag = com ? pick(r, ['Pode ser fiado até sexta?', 'Acerto na sexta, combinado?']) : pick(r, ['Pago no Pix.', 'Posso pagar na entrega?', 'Pago em dinheiro, preciso de troco para 50.']);
+      const roteiro = [
+        ['c', com ? `Boa tarde! Preciso de ${q} ${un} para a semana.` : `Bom dia! Vocês têm morango hoje? Quero ${q} ${un}.`],
+        ['g', `${com ? 'Boa tarde' : 'Bom dia, ' + nome1}! Temos sim, colhido hoje cedo. ${q} ${un} dão ${money(tot)}.`],
+        ['c', `Perfeito, pode mandar. ${pag}`],
+        ['g', `Anotado! Entrego em ${c[4]}, ${c[5]}. Saio para a rota às 15h 🍓`],
+        ['c', 'Obrigado!'],
+        ['g', 'Entregue! Obrigado pela preferência 🙌'],
+      ].slice(0, between(r, 3, 6));
+      let t = T(1 + (i % 85), hm(r, 8, 16));
+      roteiro.forEach(([quem, texto], j) => {
+        t += between(r, 2, 25) * M;
+        const de = quem === 'c' ? 'cliente' : 'gestao', recente = (1 + (i % 85)) <= 2 && j === roteiro.length - 1 && de === 'cliente';
+        X('mensagens', `m-g${i}-${j}`, { ts: t, clienteId: cid(ck), de, texto, lidaGestao: de === 'gestao' ? true : !recente, lidaCliente: de === 'cliente' ? true : true });
+      });
+    }
+
+    // ---- notificações ligadas às vendas e compras geradas ----
+    const vg = vendasG.map(id => out.vendas[EX_PREFIX + id]), cg = Object.entries(out.compras).filter(([id]) => id.startsWith(EX_PREFIX + 'c-g')).map(([, c]) => c);
+    const vPix = vg.filter(v => v.forma === 'pix' && v.pago && v.status === 'entregue'), vEnt = vg.filter(v => v.status === 'entregue'), vFiado = vg.filter(v => v.forma === 'fiado' && v.pago && v.status === 'entregue'), vCan = vg.filter(v => v.status === 'cancelado');
+    const nNtf = falta('notificacoes');
+    for (let i = 0; i < nNtf; i++) {
+      const j = Math.floor(i / 5), kind = i % 5, id = 'nt-g' + i;
+      const dst = (l, d = vEnt) => (l.length ? l : d)[j % (l.length ? l : d).length];
+      if (kind === 0) { const v = dst(vPix); X('notificacoes', id, { ts: v.ts + 20 * M, tipo: 'aviso', titulo: `Pix recebido: ${v.cliente.nome}`, texto: `${money(v.total)} do pedido${v.origem === 'chat' ? ' pelo chat' : v.origem === 'app' ? ' pelo app' : ''} (${itemsText(v.itens)}).`, act: 'go', v: 'vendas', aid: '', lida: true }); }
+      else if (kind === 1) { const v = dst(vEnt); X('notificacoes', id, { ts: v.entregueTs || v.ts + 3 * H, tipo: 'rota', titulo: `Entrega feita: ${v.cliente.nome}`, texto: `${itemsText(v.itens)}${v.pago ? ', pago' : ', a receber'}.`, act: 'go', v: 'entregas', aid: '', lida: true }); }
+      else if (kind === 2 && cg.length) { const c = cg[j % cg.length]; X('notificacoes', id, { ts: c.ts + M, tipo: 'compra', titulo: `${c.pago ? 'Compra registrada' : 'Compra no fiado'}: ${c.fornecedor}`, texto: `${itemsText(c.itens)}${c.pago ? '. O estoque foi somado.' : '. Pagar em 15 dias.'}`, act: 'go', v: 'compras', aid: '', lida: true }); }
+      else if (kind === 3) { const v = dst(vFiado); X('notificacoes', id, { ts: v.pagoTs || v.ts + 5 * D, tipo: 'aviso', titulo: `Fiado recebido: ${v.cliente.nome}`, texto: `${money(v.total)} da venda de ${fmtDate(v.ts)}.`, act: 'go', v: 'vendas', aid: '', lida: true }); }
+      else { const v = dst(vCan); X('notificacoes', id, { ts: v.ts + 40 * M, tipo: 'pedido', titulo: `Pedido cancelado: ${v.cliente.nome}`, texto: `${v.cliente.nome} desistiu do pedido. O estoque voltou.`, act: 'go', v: 'vendas', aid: '', lida: true }); }
+    }
+  }
   return out;
 }
 
 /* categorias para escolher quais exemplos e quantos de cada */
+const EX_MAX = 20; // limite de cada tipo
 const EX_CATS = [
   { k: 'clientes', nome: 'Clientes', ic: '👤' },
   { k: 'fornecedores', nome: 'Fornecedores', ic: '🚜' },
@@ -2634,11 +2845,13 @@ function contaPorCat(data) {
   }
   return n;
 }
-function filtrarExemplos(data, qtd) {
+// só pega o que ainda não está no app (conversa = um cliente com mensagens)
+function filtrarExemplos(data, qtd, jaTem) {
   const out = {}, usados = {}, convs = [];
   for (const [col, docs] of Object.entries(data)) {
     out[col] = {};
     for (const [id, d] of Object.entries(docs)) {
+      if (jaTem && jaTem(col, id, d)) continue;
       const c = catDoExemplo(col, d);
       if (c === 'conversas') { if (!convs.includes(d.clienteId)) convs.push(d.clienteId); if (convs.indexOf(d.clienteId) < (qtd.conversas || 0)) out[col][id] = d; continue; }
       usados[c] = (usados[c] || 0) + 1;
@@ -2647,39 +2860,139 @@ function filtrarExemplos(data, qtd) {
   }
   return out;
 }
-const exQtdInicial = n => ({ ...n });
-
-async function emLotes(tarefas, tam = 8) {
-  for (let i = 0; i < tarefas.length; i += tam) await Promise.all(tarefas.slice(i, i + tam).map(f => f()));
+// quantos exemplos de cada categoria estão no app agora (conversa = um cliente com mensagens)
+function exNoApp() {
+  const n = Object.fromEntries(EX_CATS.map(c => [c.k, 0])), convs = new Set();
+  for (const col of COLS) for (const d of S[col]) if (ehExemplo(col, d)) { const c = catDoExemplo(col, d); if (c === 'conversas') convs.add(d.clienteId); else if (c in n) n[c]++; }
+  n.conversas = convs.size;
+  return n;
 }
+// conjunto completo (até EX_MAX de cada tipo), montado uma vez ao abrir a janela
+function exUniverso() {
+  const c = exUniverso.c;
+  if (!c || Date.now() - c.t > 6e5) exUniverso.c = { t: Date.now(), data: montarExemplos(true), base: montarExemplos(false) };
+  return exUniverso.c;
+}
+function exJaTem() {
+  const ids = {}; for (const c of COLS) ids[c] = new Set(S[c].map(d => d.id));
+  const convs = new Set(S.mensagens.filter(m => ehExemplo('mensagens', m)).map(m => m.clienteId));
+  return (col, id, d) => col === 'mensagens' ? convs.has(d.clienteId) : ids[col].has(id);
+}
+// quantos ainda cabem em cada tipo: o que falta do conjunto e do limite de EX_MAX
+function exDisponivel(soBasico) {
+  const u = exUniverso(), jaTem = exJaTem(), noApp = exNoApp(), vistos = new Set();
+  const n = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
+  for (const [col, docs] of Object.entries(u.data)) for (const [id, d] of Object.entries(docs)) {
+    if (soBasico && !u.base[col]?.[id]) continue;
+    if (col === 'mensagens') { if (vistos.has(d.clienteId)) continue; vistos.add(d.clienteId); }
+    if (!jaTem(col, id, d)) n[catDoExemplo(col, d)]++;
+  }
+  for (const k in n) n[k] = Math.max(0, Math.min(n[k], EX_MAX - (noApp[k] || 0)));
+  return n;
+}
+const exMsg = (t, txt) => { ui.exMsg = { t, txt }; };
+const exLista = qtd => EX_CATS.filter(c => qtd[c.k]).map(c => `${c.nome} ${qtd[c.k]}`).join(', ');
+
+// grava/apaga de uma vez (no aparelho: uma única gravação; na nuvem: em lotes de 20)
+async function exGravar(itens, onProg) {
+  if (backend === 'db') {
+    for (let i = 0; i < itens.length; i += 20) { await Promise.all(itens.slice(i, i + 20).map(([c, id, b]) => db.collection(c).doc(id).set(b))); onProg && onProg(Math.min(itens.length, i + 20)); }
+    return;
+  }
+  const antes = itens.map(([c, id]) => [c, id, local.data[c][id]]);
+  for (const [c, id, b] of itens) local.data[c][id] = b;
+  try { localStorage.setItem(local.key, JSON.stringify(local.data)); }
+  catch (e) { for (const [c, id, b0] of antes) { if (b0 === undefined) delete local.data[c][id]; else local.data[c][id] = b0; } throw new Error('Não coube na memória do aparelho. Insira menos exemplos de uma vez.'); }
+  new Set(itens.map(x => x[0])).forEach(syncLocal);
+}
+async function exApagar(itens, onProg) {
+  if (backend === 'db') {
+    for (let i = 0; i < itens.length; i += 20) { await Promise.all(itens.slice(i, i + 20).map(([c, id]) => db.collection(c).doc(id).delete())); onProg && onProg(Math.min(itens.length, i + 20)); }
+    return;
+  }
+  for (const [c, id] of itens) delete local.data[c][id];
+  local.persist();
+  new Set(itens.map(x => x[0])).forEach(syncLocal);
+}
+
 async function carregarExemplos() {
   if (!canWrite) { toast('Modo leitura: não dá para criar exemplos.'); return; }
-  ui.exBusy = true; render();
-  const tudo = montarExemplos();
-  const data = ui.exQtd ? filtrarExemplos(tudo, ui.exQtd) : tudo;
-  const tarefas = [];
-  for (const [col, docs] of Object.entries(data)) for (const [id, body] of Object.entries(docs)) tarefas.push(() => put(col, id, body));
-  if (!tarefas.length) { ui.exBusy = false; render(); toast('Escolha ao menos um exemplo.'); return; }
-  const ok = await safe(() => emLotes(tarefas));
+  const disp = exDisponivel(), pedido = {}, cortes = [];
+  for (const c of EX_CATS) {
+    const q = (ui.exQtd && ui.exQtd[c.k]) || 0; if (!q) continue;
+    const cabe = Math.min(q, disp[c.k]); pedido[c.k] = cabe;
+    if (cabe < q) cortes.push(cabe > 0 ? `${c.nome}: você pediu ${q}, mas só cabiam ${cabe}` : `${c.nome}: limite de ${EX_MAX} já atingido`);
+  }
+  const data = filtrarExemplos(exUniverso().data, pedido, exJaTem());
+  const itens = [];
+  for (const [col, docs] of Object.entries(data)) for (const [id, body] of Object.entries(docs)) itens.push([col, id, body]);
+  if (!itens.length) {
+    exMsg('aviso', cortes.length ? `Nada foi inserido. ${cortes.join('. ')}. Apague alguns exemplos desse tipo para abrir espaço.` : 'Nada foi inserido: escolha ao menos um exemplo.');
+    render(); return;
+  }
+  ui.exBusy = true; ui.exProg = `0/${itens.length}`; render();
+  const entra = contaPorCat(data);
+  let erro = '';
+  const ok = await (async () => { try { await exGravar(itens, n => { ui.exProg = `${n}/${itens.length}`; const b = document.querySelector('[data-act="ex-carregar"]'); if (b) b.textContent = `Inserindo… ${ui.exProg}`; }); return true; } catch (e) { console.error(e); erro = e.message || ''; return false; } })();
+  ui.exBusy = false; ui.exProg = '';
+  if (!ok) { exMsg('aviso', `Não deu para inserir. ${erro || 'Tente de novo em instantes.'}`); render(); return; }
+  exUniverso.c = null;
   // pedido de exemplo no app do cliente, para ver o acompanhamento da rota
   const meu = EX_PREFIX + 'v-h3';
-  if (ok && data.vendas && data.vendas[meu] && !myOrders.includes(meu)) { myOrders = [meu, ...myOrders].slice(0, 30); ls.set('mmr-meus-pedidos', myOrders); }
-  ui.exBusy = false; ui.sheet = null; render();
-  if (ok && backend === 'local') ls.set(AUTO_EX_KEY, { manual: true, dia: dayKey(Date.now()) });
-  if (ok) toast(`Exemplos carregados: ${tarefas.length} registros.`);
+  if (data.vendas && data.vendas[meu] && !myOrders.includes(meu)) { myOrders = [meu, ...myOrders].slice(0, 30); ls.set('mmr-meus-pedidos', myOrders); }
+  if (backend === 'local') ls.set(AUTO_EX_KEY, { manual: true, dia: dayKey(Date.now()) });
+  const tot = Object.values(entra).reduce((s, n) => s + n, 0);
+  ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); ui.exAviso = null;
+  exMsg(cortes.length ? 'aviso' : 'ok', `${cortes.length ? 'Inseri só parte: ' : 'Inseridos: '}${exLista(entra)} (${itens.length} registros). ${cortes.length ? cortes.join('. ') + '.' : ''}`.trim());
+  render();
+  toast(`${tot} ${tot === 1 ? 'exemplo inserido' : 'exemplos inseridos'}.`);
 }
 async function removerExemplos() {
   if (!canWrite) { toast('Modo leitura: não dá para apagar.'); return; }
   ui.exBusy = true; render();
-  const tarefas = [];
-  for (const c of COLS) for (const d of S[c]) if (ehExemplo(c, d)) tarefas.push(() => del(c, d.id));
-  const ok = await safe(() => emLotes(tarefas));
+  const itens = [];
+  for (const c of COLS) for (const d of S[c]) if (ehExemplo(c, d)) itens.push([c, d.id]);
+  let ok = true; try { await exApagar(itens); } catch (e) { console.error(e); ok = false; }
   myOrders = myOrders.filter(id => !String(id).startsWith(EX_PREFIX)); ls.set('mmr-meus-pedidos', myOrders);
   if (String(ui.conv || '').startsWith(EX_PREFIX)) ui.conv = null;
-  ui.exBusy = false; ui.sheet = null; render();
+  ui.exBusy = false; ui.sheet = null; exUniverso.c = null; render();
   if (ok && backend === 'local') ls.set(AUTO_EX_KEY, { removidos: true });
-  if (ok) toast(`Exemplos removidos (${tarefas.length}). Seus dados reais continuam.`);
+  toast(ok ? `Exemplos removidos (${itens.length}). Seus dados reais continuam.` : 'Não deu para remover tudo. Tente de novo.');
 }
+
+// apaga só os exemplos de uma categoria; o resto (e os dados reais) continua
+async function removerExemplosCat(k) {
+  if (!canWrite) { toast('Modo leitura: não dá para apagar.'); return; }
+  ui.exBusy = true; render();
+  const itens = [], ids = new Set();
+  for (const c of COLS) for (const d of S[c]) if (ehExemplo(c, d) && catDoExemplo(c, d) === k) { ids.add(d.id); itens.push([c, d.id]); }
+  let ok = true; try { await exApagar(itens); } catch (e) { console.error(e); ok = false; }
+  if (ids.size) { myOrders = myOrders.filter(id => !ids.has(id)); ls.set('mmr-meus-pedidos', myOrders); }
+  if ((k === 'conversas' || k === 'clientes') && String(ui.conv || '').startsWith(EX_PREFIX)) ui.conv = null;
+  ui.exBusy = false; exUniverso.c = null;
+  const nome = EX_CATS.find(c => c.k === k)?.nome || k;
+  exMsg(ok ? 'ok' : 'aviso', ok ? `${nome}: ${itens.length} ${itens.length === 1 ? 'registro apagado' : 'registros apagados'}. O resto continua.` : `${nome}: não deu para apagar tudo. Tente de novo.`);
+  render();
+  if (ok && backend === 'local') ls.set(AUTO_EX_KEY, { manual: true, dia: dayKey(Date.now()) });
+}
+// campo de quantidade: digitar atualiza na hora, sem redesenhar a janela (o teclado não fecha)
+const exAvisoTxt = (k, max, tem) => max <= 0 ? `Limite de ${EX_MAX} atingido: já há ${tem} aqui. Apague alguns para inserir mais.` : (tem <= 0 ? `O máximo por tipo é ${EX_MAX}. Ajustei para ${max}.` : `Só cabem mais ${max} aqui (limite de ${EX_MAX}, já há ${tem} no app). Ajustei para ${max}.`);
+function exQtdDigitada(inp, final) {
+  const k = inp.dataset.exk, max = Number(inp.max) || 0;
+  const bruto = Math.round(Number(String(inp.value).replace(/\D/g, '')) || 0), n = Math.max(0, Math.min(max, bruto));
+  if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
+  ui.exQtd[k] = n; ui.exMsg = null; document.querySelector('.ex-msg')?.remove();
+  if (final || inp.value !== '' && Number(inp.value) !== n) inp.value = n;
+  const row = inp.closest('.ex-row'), av = row && row.querySelector('.ex-aviso');
+  if (av) { if (bruto > max) { av.textContent = exAvisoTxt(k, max, exNoApp()[k] || 0); av.hidden = false; ui.exAviso = { k }; } else if (max > 0) { av.hidden = true; ui.exAviso = null; } }
+  if (row) { const m = row.querySelector('.minus'); if (m) m.disabled = n <= 0; }
+  const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0), b = document.querySelector('[data-act="ex-carregar"]');
+  if (b && !ui.exBusy) { b.disabled = !canWrite || !sel; b.textContent = sel ? `Inserir ${sel} ${sel === 1 ? 'exemplo' : 'exemplos'}` : 'Escolha acima o que inserir'; }
+}
+document.addEventListener('input', e => { if (e.target?.matches?.('.ex-n')) exQtdDigitada(e.target, false); });
+document.addEventListener('change', e => { if (e.target?.matches?.('.ex-n')) exQtdDigitada(e.target, true); });
+document.addEventListener('focusin', e => { if (e.target?.matches?.('.ex-n')) setTimeout(() => { try { e.target.select(); } catch (_) {} }, 0); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target?.matches?.('.ex-n')) { e.preventDefault(); e.target.blur(); } });
 
 /* ---------------- derivados ---------------- */
 const prodById = id => S.produtos.find(p => p.id === id);
@@ -2801,6 +3114,7 @@ const W = () => canWrite ? '' : 'disabled';
 /* ---------------- ícones ---------------- */
 const P = {
   pencil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+  trash: '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   dots: '<circle cx="12" cy="5" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.9" fill="currentColor" stroke="none"/>',
   home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1z"/>',
@@ -2936,7 +3250,14 @@ function render() {
   for (const [k, val] of Object.entries(keep)) { const el = document.getElementById(k); if (!el || !$main.contains(el)) continue; if (el.type === 'radio' || el.type === 'checkbox') el.checked = val; else el.value = val; }
   if (focused) document.getElementById(focused)?.focus({ preventScroll: true });
   document.getElementById('nav-root').innerHTML = nav();
-  document.getElementById('sheet-root').innerHTML = ui.sheet ? sheetHTML() : '';
+  { const $sr = document.getElementById('sheet-root'), bs0 = $sr.querySelector('.bs'), tipo0 = $sr.dataset.tipo || '', top0 = bs0 ? bs0.scrollTop : 0;
+    const foc = $sr.contains(document.activeElement) ? document.activeElement.id : '';
+    $sr.innerHTML = ui.sheet ? sheetHTML() : '';
+    $sr.dataset.tipo = ui.sheet ? ui.sheet.type : '';
+    if (ui.sheet && ui.sheet.type === 'exemplos' && tipo0 === 'exemplos') { // +, −, apagar: a janela fica parada onde estava
+      $sr.querySelector('.bs-scrim')?.classList.add('bs-fica'); const bs = $sr.querySelector('.bs'); if (bs) bs.scrollTop = top0;
+      if (foc) document.getElementById(foc)?.focus({ preventScroll: true });
+    } }
   chatAfterRender();
   newsAfterRender();
   ajudaFiltra();
@@ -4373,14 +4694,16 @@ function sheetHTML() {
     <button class="lt-btn lt-block" data-act="look-reset">Voltar ao padrão (Rosa, Clássico, claro)</button>`);
   if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
   if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
-  if (s.type === 'exemplos') { const nEx = contaExemplos(); const tot = contaPorCat(montarExemplos()); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
-    const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0);
-    return wrap('Dados de exemplo', `<p class="muted" style="margin:0 0 10px;font-size:14px">Escolha o que inserir e quantos de cada. Cada exemplo fica marcado, e ao remover só eles são apagados. Não mexem no estoque dos seus produtos.</p>
-    ${nEx ? `<div class="note" style="margin-bottom:10px">Agora há ${nEx} registros de exemplo no app.</div>` : ''}
-    <div class="acts" style="margin-bottom:8px"><button class="btn small" data-act="ex-todos">Marcar tudo</button><button class="btn small" data-act="ex-zerar">Zerar</button></div>
-    <div style="display:grid;gap:8px;margin-bottom:12px">${EX_CATS.map(c => `<div class="row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:14px;background:var(--surface-2)"><div><b>${c.ic} ${c.nome}</b><div class="muted" style="font-size:12.5px">até ${tot[c.k]}</div></div><span class="stepper"><button class="minus" data-act="ex-qtd" data-k="${c.k}" data-v="-1" ${(ui.exQtd[c.k] || 0) <= 0 ? 'disabled' : ''}>−</button><span style="min-width:28px">${ui.exQtd[c.k] || 0}</span><button data-act="ex-qtd" data-k="${c.k}" data-v="1" ${(ui.exQtd[c.k] || 0) >= tot[c.k] ? 'disabled' : ''}>+</button></span></div>`).join('')}</div>
-    <div class="menu" style="gap:10px;display:grid"><button class="btn primary block" data-act="ex-carregar" ${ui.exBusy || !canWrite || !sel ? 'disabled' : ''}>${ui.exBusy ? 'Aguarde…' : sel ? `Inserir ${sel} exemplos` : 'Escolha o que inserir'}</button>
-    ${nEx ? `<button class="btn block" data-act="ex-remover" ${ui.exBusy || !canWrite ? 'disabled' : ''}>Remover todos os exemplos</button>` : ''}</div>`); }
+  if (s.type === 'exemplos') { const nEx = contaExemplos(), noApp = exNoApp(), disp = exDisponivel(); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
+    for (const c of EX_CATS) ui.exQtd[c.k] = Math.min(ui.exQtd[c.k] || 0, disp[c.k]);
+    const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0), trava = ui.exBusy || !canWrite ? 'disabled' : '';
+    return wrap('Dados de exemplo', `<p class="muted" style="margin:0;font-size:14px">Escolha o que inserir e quantos de cada, até ${EX_MAX} por tipo: toque em + e − ou digite o número. Cada exemplo fica marcado, e ao apagar só eles saem. Não mexem no estoque dos seus produtos.</p>
+    ${ui.exMsg ? `<div class="note ex-msg ${ui.exMsg.t}" role="status">${esc(ui.exMsg.txt)}</div>` : ''}
+    ${nEx ? `<div class="note" style="margin:0">Agora há ${nEx} registros de exemplo no app. Use <b>Apagar</b> em cada item para tirar só aquele tipo.</div>` : ''}
+    <div class="ex-chips"><button class="lt-chip" data-act="ex-todos">Conjunto básico</button><button class="lt-chip" data-act="ex-max">Máximo (${EX_MAX} de cada)</button><button class="lt-chip" data-act="ex-zerar">Zerar</button></div>
+    <div class="ex-lista">${EX_CATS.map(c => { const q = ui.exQtd[c.k] || 0, tem = noApp[c.k] || 0, d = disp[c.k], av = ui.exAviso && ui.exAviso.k === c.k ? exAvisoTxt(c.k, d, tem) : ''; return `<div class="ex-row"><div class="ex-info"><b>${c.ic} ${c.nome}</b><small>${tem} de ${EX_MAX} no app · cabem mais ${d}</small>${tem ? `<button class="ex-apagar" data-act="ex-apagar-cat" data-k="${c.k}" ${trava} aria-label="Apagar os exemplos de ${c.nome}">${ic('trash')}Apagar</button>` : ''}</div><span class="stepper"><button class="minus" data-act="ex-qtd" data-k="${c.k}" data-v="-1" ${q <= 0 ? 'disabled' : ''} aria-label="Menos ${c.nome}">−</button><input class="ex-n" id="ex-n-${c.k}" data-exk="${c.k}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="${d}" value="${q}" ${d <= 0 ? 'disabled' : ''} aria-label="Quantidade de ${c.nome}"><button data-act="ex-qtd" data-k="${c.k}" data-v="1" aria-label="Mais ${c.nome}">+</button></span><div class="ex-aviso" id="ex-av-${c.k}" role="alert" ${av ? '' : 'hidden'}>${esc(av)}</div></div>`; }).join('')}</div>
+    <div class="ex-acts"><button class="lt-btn lt-block" data-act="ex-carregar" ${ui.exBusy || !canWrite || !sel ? 'disabled' : ''}>${ui.exBusy ? `Inserindo… ${ui.exProg || ''}` : sel ? `Inserir ${sel} ${sel === 1 ? 'exemplo' : 'exemplos'}` : 'Escolha acima o que inserir'}</button>
+    ${nEx ? `<button class="ex-rem" data-act="ex-remover" ${trava}>${ic('trash')}Remover todos os exemplos (${nEx})</button>` : ''}</div>`); }
   if (s.type === 'notif-ajustes') { const nn = notifNaoLidas(); const all = notificacoes(true);
     return wrap('Notificações', `<p class="muted" style="margin:0;font-size:13.5px">Escolha o que aparece no sino da tela inicial. Vale para este aparelho.</p>
     <div class="nt-prefs">${Object.entries(NOTIF_TIPOS).map(([k, [icon, l, d]]) => { const q = all.filter(x => x.tipo === k).length; return `<label class="nt-pref" for="np-${k}"><span class="nt-ic t-${k}">${ic(icon)}</span><span class="grow"><b>${l}</b><small>${d}${q ? ` · ${q} agora` : ''}</small></span><input type="checkbox" class="lt-switch" id="np-${k}" data-act="notif-pref" data-k="${k}" ${notifPrefs[k] !== false ? 'checked' : ''}></label>`; }).join('')}</div>
@@ -5218,16 +5541,18 @@ document.addEventListener('click', async e => {
     case 'ver-foto': ui.sheet = { type: 'foto', id }; render(); break;
     case 'chat-rapido': { const ta = document.getElementById('chat-txt'); if (ta) { ta.value = v; ta.focus(); } break; }
     case 'mode': break; /* versão web: somente gestão */
-    case 'sheet': ui.sheet = { type: v }; render(); break;
-    case 'ex-qtd': { const k = t.dataset.k, tot = contaPorCat(montarExemplos()); ui.exQtd[k] = Math.max(0, Math.min(tot[k], (ui.exQtd[k] || 0) + Number(v))); render(); break; }
-    case 'ex-todos': ui.exQtd = exQtdInicial(contaPorCat(montarExemplos())); render(); break;
+    case 'sheet': if (v === 'exemplos') { exUniverso.c = null; ui.exMsg = null; ui.exAviso = null; } ui.sheet = { type: v }; render(); break;
+    case 'ex-qtd': { const k = t.dataset.k, disp = exDisponivel()[k], q = (ui.exQtd[k] || 0) + Number(v); ui.exMsg = null; ui.exAviso = q > disp ? { k } : null; ui.exQtd[k] = Math.max(0, Math.min(disp, q)); render(); break; }
+    case 'ex-todos': ui.exMsg = null; ui.exAviso = null; ui.exQtd = exDisponivel(true); render(); break;
+    case 'ex-max': ui.exMsg = null; ui.exAviso = null; ui.exQtd = exDisponivel(); render(); break;
     case 'wa-salvar': { const d = (document.getElementById('wa-num')?.value || '').replace(/\D/g, ''); if (d && d.length < 10) { toast('Número incompleto. Use DDD e número.'); break; } const num = d && d.length <= 11 ? '55' + d : d; ls.set('mmr-wa-numero', num); ui.sheet = null; render(); toast(num ? 'Número salvo.' : 'Número apagado.'); break; }
     case 'rota-mapa': rotaMapaAbrir(); break;
     case 'rota-cfg-salvar': rotaCfgSalvar(); break;
     case 'rota-gps': rotaGps(); break;
     case 'wa-apagar': ls.set('mmr-wa-numero', ''); ui.sheet = null; render(); toast('Número apagado.'); break;
-    case 'ex-zerar': ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
+    case 'ex-zerar': ui.exMsg = null; ui.exAviso = null; ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
     case 'ex-carregar': carregarExemplos(); break;
+    case 'ex-apagar-cat': { const k = t.dataset.k, c = EX_CATS.find(x => x.k === k), n = exNoApp()[k] || 0; if (!c || !n) break; modalConfirm(`Apagar ${n === 1 ? 'o exemplo' : 'os ' + n + ' exemplos'} de <b>${esc(c.nome)}</b>? Os outros exemplos e seus dados reais continuam.`, 'Apagar', () => { removerExemplosCat(k); }); break; }
     case 'ex-remover': modalConfirm('Remover todos os dados de exemplo? Seus lançamentos reais não são apagados.', 'Remover exemplos', () => { removerExemplos(); }); break;
     case 'close-sheet': ui.sheet = null; render(); break;
     case 'close-all': ui.sheet = null; $modal.innerHTML = ''; render(); break;
