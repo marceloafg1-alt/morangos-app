@@ -770,6 +770,21 @@ small b.iv-bad{color:var(--bad)}small b.iv-warn{color:var(--warn)}small b.iv-ok{
 .lt[data-visual="bento"] .iv-luc .iv-res :is(span,small){color:var(--onT2)}
 .lt[data-visual="bento"] .iv-luc .iv-res.pos b{color:#0E5A36}.lt[data-visual="bento"] .iv-luc .iv-res.neg b{color:#8A1C1C}
 .lt[data-visual="bento"] .iv-luc .iv-bar i.bad{background:#8A1C1C}
+
+/* Vendas × gastos: barras duplas nas cores do card de vendas */
+.iv-gbars{display:flex;align-items:flex-end;gap:6px;height:84px;margin-top:10px}
+.iv-gb{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;gap:2px;padding:0;border:0;background:none;color:inherit;cursor:pointer}
+.iv-gb i{flex:1;display:block;border-radius:4px 4px 2px 2px}
+.iv-gb i.v{background:color-mix(in srgb,currentColor 55%,transparent)}
+.iv-gb i.g{background:color-mix(in srgb,currentColor 24%,transparent)}
+.iv-gb.h i.v{background:currentColor}
+.iv-gb.h i.g{background:color-mix(in srgb,currentColor 50%,transparent)}
+.iv-gb:focus-visible{outline:2px solid currentColor;outline-offset:2px;border-radius:4px}
+.iv-key{display:flex;gap:14px;font-size:11.5px;font-weight:600;margin-top:6px;opacity:.9}
+.iv-key span{display:flex;align-items:center;gap:6px}.iv-key i{width:10px;height:10px;border-radius:3px;display:block}
+.iv-key i.v{background:currentColor}.iv-key i.g{background:color-mix(in srgb,currentColor 40%,transparent)}
+.lt[data-visual="bento"] .iv-luc .iv-gb.h i.v,.lt[data-visual="bento"] .iv-luc .iv-key i.v{background:var(--lime)}
+.lt[data-visual="bento"] .iv-luc .iv-gb.h i.g{background:color-mix(in srgb,var(--lime) 50%,transparent)}
 </style>
 <style>
 /* Layout: app de celular em uma coluna (até 480px), cabeçalho com saudação, cartão destaque em degradê, atalhos em grade, barra inferior flutuante com botão + */
@@ -3080,23 +3095,29 @@ function ivDivisao() {
   </div>`;
 }
 function ivLucro() {
-  /* vendas x gastos do dia escolhido no gráfico (ui.hd) */
-  const sel = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0, ini = startOfDay() - sel * 864e5, fim = ini + 864e5;
-  const dia = ts => ts >= ini && ts < fim;
-  const vendas = vendasValidas().filter(v => dia(v.ts)).reduce((s, v) => s + vLiq(v), 0);
-  const compras = S.compras.filter(c => dia(c.ts)).reduce((s, c) => s + (Number(c.total) || 0), 0);
-  const desp = S.despesas.filter(d => dia(d.ts)).reduce((s, d) => s + (Number(d.valor) || 0), 0);
-  const gastos = compras + desp, res = vendas - gastos, mx = Math.max(vendas, gastos, 1);
-  const margem = vendas > 0 ? Math.round(res / vendas * 100) : 0;
-  const tit = 'Vendas × gastos' + (sel ? ' · ' + new Date(ini).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) : '');
-  const linha = (l, v, c) => `<div class="iv-st"><div class="iv-row"><b>${l}</b><b class="num">${money(v)}</b></div><div class="iv-bar"><i class="${c}" style="width:${v > 0 ? Math.max(4, v / mx * 100) : 0}%"></i></div></div>`;
-  return `<div class="sec-h"><h2>${esc(tit)}</h2><button class="link" data-act="go" data-v="relatorios">Relatórios</button></div>
-  <div class="card iv-est iv-luc">
-    ${linha('Vendas', vendas, 'ok')}
-    ${linha('Gastos', gastos, 'bad')}
-    <div class="iv-res ${res < 0 ? 'neg' : 'pos'}"><span>${res < 0 ? 'Faltou' : 'Sobrou'}</span><b class="num">${money(Math.abs(res))}</b>${vendas > 0 ? `<small>margem de ${margem}%</small>` : ''}</div>
-    <p class="iv-note">Gastos: compras na roça ${money(compras)} + despesas ${money(desp)}.</p>
-  </div>`;
+  /* vendas x gastos dos últimos 7 dias, em barras; o dia escolhido no gráfico de vendas (ui.hd) fica em destaque */
+  const sel = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0, d0 = startOfDay();
+  const DC = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const dias = [];
+  for (let i = 6; i >= 0; i--) {
+    const i0 = d0 - i * 864e5, i1 = i0 + 864e5, na = ts => ts >= i0 && ts < i1;
+    const v = vendasValidas().filter(x => na(x.ts)).reduce((s, x) => s + vLiq(x), 0);
+    const c = S.compras.filter(x => na(x.ts)).reduce((s, x) => s + (Number(x.total) || 0), 0);
+    const d = S.despesas.filter(x => na(x.ts)).reduce((s, x) => s + (Number(x.valor) || 0), 0);
+    dias.push({ i, v, g: c + d, c, d, l: i === 0 ? 'Hoje' : DC[new Date(i0).getDay()], dt: new Date(i0).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) });
+  }
+  const x = dias.find(y => y.i === sel), res = x.v - x.g, mx = Math.max(...dias.map(y => Math.max(y.v, y.g)), 1);
+  const margem = x.v > 0 ? Math.round(res / x.v * 100) : 0;
+  const tit = 'Vendas × gastos' + (sel ? ' · ' + x.dt : '');
+  return `<section class="lt-hero iv-hero iv-luc" aria-label="${esc(tit)}">
+    <div class="lt-hero-head"><span>${esc(tit)}</span><span class="lt-pill-on">${x.v > 0 ? 'margem ' + margem + '%' : 'sem vendas'}</span></div>
+    <div class="mr-big num">${res < 0 ? '− ' : ''}${money(Math.abs(res))}</div>
+    <span class="iv-cmp">${res < 0 ? 'Faltou neste dia' : 'Sobrou neste dia'}</span>
+    <div class="iv-gbars" role="group" aria-label="Vendas e gastos dos últimos 7 dias">${dias.map(y => `<button class="iv-gb ${y.i === sel ? 'h' : ''}" data-act="iv-dia" data-v="${y.i}" aria-pressed="${y.i === sel}" aria-label="${esc(y.dt)}: vendas ${money(y.v)}, gastos ${money(y.g)}"><i class="v" style="height:${y.v > 0 ? Math.max(6, Math.round(y.v / mx * 100)) : 2}%"></i><i class="g" style="height:${y.g > 0 ? Math.max(6, Math.round(y.g / mx * 100)) : 2}%"></i></button>`).join('')}</div>
+    <div class="iv-days">${dias.map(y => `<span class="${y.i === sel ? 'h' : ''}">${y.l}</span>`).join('')}</div>
+    <div class="iv-key"><span><i class="v"></i>Vendas</span><span><i class="g"></i>Gastos</span></div>
+    <div class="iv-mini"><div>Vendas<b class="num">${money(x.v)}</b></div><div>Gastos<b class="num">${money(x.g)}</b></div><div>Compras na roça<b class="num">${money(x.c)}</b></div></div>
+  </section>`;
 }
 function ivRota() {
   const d0 = startOfDay();
