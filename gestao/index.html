@@ -2442,7 +2442,7 @@ function seedLocal() {
 /* HTML offline: já abre com todos os dados de exemplo, com datas relativas ao dia de abertura.
    Num dia novo, os exemplos são recriados com datas recentes (seus dados reais não mudam).
    Se você remover os exemplos, eles não voltam sozinhos; se inserir pela tela de exemplos, ficam como escolheu. */
-const AUTO_EX_KEY = 'mmr-ex-auto';
+const AUTO_EX_KEY = 'mmr-ex-auto-20'; // chave nova: zera uma vez os exemplos antigos e cria 20 de cada tipo
 function autoExemplos() {
   if (backend !== 'local') return;
   const st = ls.get(AUTO_EX_KEY, {}) || {};
@@ -2455,7 +2455,7 @@ function autoExemplos() {
     if (local.data.noticias.n1?.titulo === 'Colheita de hoje!') delete local.data.noticias.n1;
   }
   COLS.forEach(c => { S[c] = Object.entries(local.data[c]).map(([id, v]) => ({ id, ...v })); });
-  const data = montarExemplos();
+  const data = montarExemplos(true);
   for (const [col, docs] of Object.entries(data)) Object.assign(local.data[col], docs);
   local.persist();
   COLS.forEach(syncLocal);
@@ -2723,16 +2723,17 @@ function montarExemplos(extras = false) {
     const FCID = [['Piedade / SP', '18170000', 'Estrada do Ribeirão'], ['Ibiúna / SP', '18150000', 'Estrada dos Mendes'], ['São Roque / SP', '18130000', 'Estrada do Vinho'], ['Mairinque / SP', '18120000', 'Estrada Velha'], ['Votorantim / SP', '18110000', 'Estrada do Tijuco Preto'], ['Salto de Pirapora / SP', '18160000', 'Estrada da Serra']];
     const BANCOS = ['Sicoob', 'Banco do Brasil', 'Caixa', 'Bradesco', 'Itaú', 'Nubank'];
     const FPROD = ['Morango San Andreas', 'Morango Albion', 'Morango Oso Grande', 'Morango orgânico', 'Morango miúdo para geleia', 'Morango Camarosa', 'Morango Festival'];
-    const nFor = falta('fornecedores'), FKP = Object.keys(FORN).filter(k => FORN[k][1] === 'produtor');
+    const nFor = falta('fornecedores'), FKP = Object.keys(FORN).filter(k => FORN[k][1] === 'produtor'), FKG = [], FEMPG = [];
+    const FEM = new Set(['Maria', 'Ana', 'Francisca', 'Luiza', 'Juliana', 'Fernanda', 'Camila', 'Patrícia', 'Aline', 'Renata', 'Sandra', 'Vanessa', 'Cláudia', 'Márcia', 'Simone', 'Tatiana', 'Luciana', 'Priscila', 'Débora', 'Adriana', 'Cristina', 'Elaine', 'Mônica', 'Larissa']);
     for (let i = 0; i < nFor; i++) {
-      const r = rng('for', i), emp = i % 9 === 4, [cidade, cep, estrada] = pick(r, FCID), dono = pick(r, NOMES);
+      const r = rng('for', i), emp = i % 3 === 1, [cidade, cep, estrada] = pick(r, FCID), dono = pick(r, NOMES);
       const k = 'g' + i, tel = `(15) 9${between(r, 6000, 9999)}-${between(r, 1000, 9999)}`;
       let nome, tipo, produtos, pix;
-      if (emp) { const [n, p] = pick(r, FEMP); nome = `${n} ${pick(r, SOBRE)}`; tipo = 'empresa'; produtos = p; pix = `contato@${nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '')}.com.br`; }
-      else { nome = `${pick(r, FTIPO)} ${pick(r, FLUG)} (${r() < .5 ? 'Seu' : 'Dona'} ${dono})`; tipo = 'produtor'; produtos = `${pick(r, FPROD)}${r() < .4 ? ' e ' + pick(r, FPROD).toLowerCase() : ''}`; pix = tel; }
+      if (emp) { const [n, p] = FEMP[FEMPG.length % FEMP.length]; nome = `${n} ${pick(r, SOBRE)}`; tipo = 'empresa'; FEMPG.push([n, nome]); produtos = p; pix = `contato@${nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '')}.com.br`; }
+      else { nome = `${pick(r, FTIPO)} ${pick(r, FLUG)} (${FEM.has(dono) ? 'Dona' : 'Seu'} ${dono})`; tipo = 'produtor'; produtos = `${pick(r, FPROD)}${r() < .4 ? ' e ' + pick(r, FPROD).toLowerCase() : ''}`; pix = tel; }
       FORN[k] = [nome, tipo, tel, produtos, pix, '', '', '', '', estrada, 'km ' + between(r, 1, 14), '', ''];
       X('fornecedores', 'forn-' + k, { nome, tipo, telefone: tel, produtos, pix, banco: pick(r, BANCOS), agencia: String(between(r, 1000, 4999)), conta: `${between(r, 10000, 99999)}-${between(r, 0, 9)}`, tipoConta: 'corrente', titular: emp ? nome : `${dono} ${pick(r, SOBRE)}`, docTitular: '', cep, endereco: estrada, numero: 'km ' + between(r, 1, 14), bairro: 'Zona rural', cidade, referencia: '', obs: emp ? 'Entrega em 2 dias úteis' : pick(r, ['', 'Colhe terça e sexta', 'Aceita Pix na hora', 'Só vende com encomenda', 'Entrega na roça, retirada às 6h']), ts: T(31 + Math.floor(i * 0.9), hm(r, 7, 12)) });
-      if (tipo === 'produtor') FKP.push(k);
+      if (tipo === 'produtor') FKG.push(k);
     }
 
     // ---- produtos extras (derivados de produtos e variações do morango) ----
@@ -2751,15 +2752,18 @@ function montarExemplos(extras = false) {
     // ---- vendas: app, chat e avulsas, sempre com cliente, itens e valores que combinam ----
     const FORMAS = { app: [['pix', 45], ['credito', 15], ['debito', 10], ['cartao_entrega', 15], ['dinheiro', 15]], chat: [['pix', 55], ['dinheiro', 25], ['fiado', 20]], avulsa: [['fiado', 45], ['pix', 35], ['dinheiro', 20]] };
     const SIGLA = { app: 'ap', chat: 'ch', avulsa: 'av' }, vendasG = [];
+    const cliSemVenda = Object.keys(CLI).filter(k => !Object.values(out.vendas).some(v => v.clienteId === cid(k))), proSemVenda = [...PG].reverse();
+    const proxPro = ks => { while (proSemVenda.length) { const k = proSemVenda.shift(); if (!ks.includes(k) && !Object.values(out.vendas).some(v => v.itens.some(x => x.produtoId === pid(k)))) return k; } };
     for (const origem of ['app', 'chat', 'avulsa']) {
       const nV = falta('vendas-' + origem);
       for (let i = 0; i < nV; i++) {
         const r = rng('v' + origem, i);
         const semCli = origem === 'avulsa' && r() < .25;
         const lista = r() < (origem === 'avulsa' ? .75 : .2) ? CKC : CKP;
-        const ck = semCli ? null : pick(r, lista), com = !!ck && CLI[ck][1] === 'comercio';
+        const ck = semCli ? null : (cliSemVenda.shift() || pick(r, lista)), com = !!ck && CLI[ck][1] === 'comercio';
         const nl = 1 + (r() < .35 ? 1 : 0) + (r() < .1 ? 1 : 0), ks = [];
         while (ks.length < nl) { const k = pick(r, POOL); if (!ks.includes(k)) ks.push(k); }
+        if (i % 2 === 0) { const k = proxPro(ks); if (k) ks.push(k); }
         const itens = ks.map(k => {
           const q = k === 'cx4' ? (com ? between(r, 1, 3) : 1) : k === 'cx1' ? (com ? between(r, 3, 8) : between(r, 1, 3)) : k === 'bd' ? (com ? between(r, 6, 20) : between(r, 2, 6)) : between(r, 1, 3);
           const preco = com && k === 'cx4' ? 135 : com && k === 'cx1' && q >= 4 ? 36 : undefined;
@@ -2790,6 +2794,7 @@ function montarExemplos(extras = false) {
       const lista = r() < (origem === 'avulsa' ? .75 : .2) ? CKC : CKP, ck = pick(r, lista), com = CLI[ck][1] === 'comercio';
       const nl = 1 + (r() < .3 ? 1 : 0), ks = [];
       while (ks.length < nl) { const k = pick(r, POOL); if (!ks.includes(k)) ks.push(k); }
+      if (i % 2 === 0) { const k = proxPro(ks); if (k) ks.push(k); }
       const itens = ks.map(k => it(k, k === 'cx4' ? (com ? between(r, 1, 3) : 1) : k === 'cx1' ? (com ? between(r, 3, 6) : between(r, 1, 3)) : k === 'bd' ? (com ? between(r, 6, 16) : between(r, 2, 6)) : between(r, 1, 3), com && k === 'cx4' ? 135 : undefined));
       let forma = pesos(r, FORMAS[origem]); if (forma === 'fiado' && !com) forma = 'pix';
       const status = pesos(r, [['em_rota', 55], ['separado', 25], ['recebido', 20]]);
@@ -2814,7 +2819,7 @@ function montarExemplos(extras = false) {
     // ---- compras na roça (fornecedores produtores, custo perto do custo do produto) ----
     const nCom = falta('compras');
     for (let i = 0; i < nCom; i++) {
-      const r = rng('com', i), fk = pick(r, FKP), nl = 1 + (r() < .4 ? 1 : 0), ks = [];
+      const r = rng('com', i), fk = [...FKG, ...FKP][i % (FKG.length + FKP.length)], nl = 1 + (r() < .4 ? 1 : 0), ks = [];
       while (ks.length < nl) { const k = pick(r, ['cx1', 'bd', 'cx4', 'geleia', 'cx1', 'bd']); if (!ks.includes(k)) ks.push(k); }
       const itens = ks.map(k => [k, k === 'cx1' ? between(r, 6, 16) : k === 'bd' ? between(r, 10, 30) : k === 'cx4' ? between(r, 2, 6) : between(r, 6, 14), n2(Math.round(prod[k].custo * (.92 + r() * .16) * 2) / 2)]);
       const dia = 1 + Math.floor(i * .47), forma = pesos(r, [['pix', 55], ['dinheiro', 20], ['fiado', 25]]), pago = forma === 'fiado' ? dia > 14 : true;
@@ -2826,6 +2831,8 @@ function montarExemplos(extras = false) {
     const nDes = falta('despesas');
     for (let i = 0; i < nDes; i++) {
       const r = rng('des', i), [cat, , lo, hi, nomes] = DSP[pesos(r, DSP.map((d, j) => [j, d[1]]))];
+      if (i < FEMPG.length) { const [tp, nm] = FEMPG[i], [dc, dcat, dlo, dhi] = { 'Embalagens': ['Bandejas e caixas', 'embalagem', 120, 320], 'Insumos Agrícolas': ['Adubo e mudas para os produtores', 'outros', 90, 260], 'Gráfica': ['Etiquetas e sacolas', 'embalagem', 60, 180], 'Transportes': ['Frete refrigerado', 'outros', 80, 220] }[tp];
+        Dp('g' + i, T(1 + Math.floor(i * .5), hm(r, 7, 18)), `${dc} (${nm})`, dcat, n2(Math.round((dlo + r() * (dhi - dlo)) * 2) / 2)); continue; }
       Dp('g' + i, T(1 + Math.floor(i * .5), hm(r, 7, 18)), pick(r, nomes), cat, n2(Math.round((lo + r() * (hi - lo)) * 2) / 2));
     }
 
@@ -3021,6 +3028,29 @@ async function carregarExemplos() {
   render();
   toast(`${tot} ${tot === 1 ? 'exemplo inserido' : 'exemplos inseridos'}.`);
 }
+// apaga todos os exemplos e cria o conjunto completo: EX_MAX de cada tipo, todos ligados entre si
+async function recriarExemplos() {
+  if (!canWrite) { toast('Modo leitura: não dá para criar exemplos.'); return; }
+  ui.exBusy = true; ui.exProg = ''; render();
+  const velhos = [];
+  for (const c of COLS) for (const d of S[c]) if (ehExemplo(c, d)) velhos.push([c, d.id]);
+  const data = montarExemplos(true), itens = [];
+  for (const [col, docs] of Object.entries(data)) for (const [id, body] of Object.entries(docs)) itens.push([col, id, body]);
+  let erro = '';
+  const ok = await (async () => { try {
+    await exApagar(velhos);
+    await exGravar(itens, n => { const b = document.querySelector('[data-act="ex-recriar"]'); if (b) b.textContent = `Criando… ${n}/${itens.length}`; });
+    return true; } catch (e) { console.error(e); erro = e.message || ''; return false; } })();
+  myOrders = myOrders.filter(id => !String(id).startsWith(EX_PREFIX));
+  const meu = EX_PREFIX + 'v-h3'; if (ok && data.vendas[meu]) myOrders = [meu, ...myOrders].slice(0, 30);
+  ls.set('mmr-meus-pedidos', myOrders);
+  if (String(ui.conv || '').startsWith(EX_PREFIX)) ui.conv = null;
+  ui.exBusy = false; exUniverso.c = null; ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); ui.exAviso = null;
+  if (ok && backend === 'local') ls.set(AUTO_EX_KEY, { dia: dayKey(Date.now()) }); // num dia novo, recria com datas recentes
+  exMsg(ok ? 'ok' : 'aviso', ok ? `Pronto: ${EX_MAX} de cada tipo, ligados entre si (${itens.length} registros).` : `Não deu para criar tudo. ${erro || 'Tente de novo em instantes.'}`);
+  render();
+  if (ok) toast(`Exemplos recriados: ${EX_MAX} de cada tipo.`);
+}
 async function removerExemplos() {
   if (!canWrite) { toast('Modo leitura: não dá para apagar.'); return; }
   ui.exBusy = true; render();
@@ -3178,8 +3208,11 @@ function notifIr(x) {
 }
 
 /* ---------------- estado da interface ---------------- */
+// A tela aberta fica guardada só nesta sessão: recarregar a página volta nela, mas fechar o app e abrir de novo começa no Início.
+const telaSessao = { get(k) { try { return sessionStorage.getItem('mmr-tela-' + k) || 'inicio'; } catch { return 'inicio'; } }, set(k, v) { try { sessionStorage.setItem('mmr-tela-' + k, v); } catch {} } };
+try { localStorage.removeItem('mmr-tela-g'); localStorage.removeItem('mmr-tela-c'); } catch {}
 const ui = {
-  mode: 'gestao', g: ls.get('mmr-tela-g', 'inicio'), c: 'inicio',
+  mode: 'gestao', g: telaSessao.get('g'), c: 'inicio',
   vt: 'todas', vf: 'todas', vp: 'hoje', vDe: '', vAte: '', cp: 'hoje', cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', ep: 'hoje', eDe: '', eAte: '', kp: 'hoje', kDe: '', kAte: '', rp: 'hoje', rDe: '', rAte: '', cart: {}, banner: 0, track: null, sheet: null,
 };
 let myOrders = ls.get('mmr-meus-pedidos', []);
@@ -3319,13 +3352,25 @@ function statusNote() {
   else if (!canWrite) msg = 'Modo leitura: só o dono e editores podem alterar os dados.';
   return msg ? `<div class="note" role="status">${esc(msg)}</div>` : '';
 }
-/* períodos: toda página abre em "Hoje". Ao sair de uma página, o período dela volta para Hoje
-   (atalhos que já abrem a página com outro período, como "A receber", continuam valendo). */
-const PER_PAG = { vendas: ['vp', 'vDe', 'vAte'], caixa: ['cp', 'cDe', 'cAte'], entregas: ['ep', 'eDe', 'eAte'], compras: ['kp', 'kDe', 'kAte'], relatorios: ['rp', 'rDe', 'rAte'] };
+/* filtros: toda tela abre no padrão (período Hoje, tipo e situação Todas etc.). Ao sair de uma tela,
+   tudo o que foi mudado nela (período, tipo, pedido, forma de pagamento, visão...) volta ao padrão.
+   Atalhos que já abrem a tela com outro filtro, como "A receber", continuam valendo. */
+const FILTROS_PAG = {
+  vendas: { vp: 'hoje', vDe: '', vAte: '', vt: 'todas', vf: 'todas' },
+  caixa: { cp: 'hoje', cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov' },
+  entregas: { ep: 'hoje', eDe: '', eAte: '' },
+  compras: { kp: 'hoje', kDe: '', kAte: '' },
+  relatorios: { rp: 'hoje', rDe: '', rAte: '' },
+  conversas: { cf: 'todas' },
+};
 let pagAnterior = null;
 function periodoNaTroca() {
   const atual = ui.mode === 'gestao' ? 'g:' + ui.g : 'c:' + ui.c;
-  if (pagAnterior && pagAnterior !== atual) { const ks = PER_PAG[pagAnterior.slice(2)]; if (pagAnterior[0] === 'g' && ks) { ui[ks[0]] = 'hoje'; if (ks[1]) { ui[ks[1]] = ''; ui[ks[2]] = ''; } } }
+  if (pagAnterior && pagAnterior !== atual) {
+    const pad = FILTROS_PAG[pagAnterior.slice(2)];
+    if (pad) Object.assign(ui, pad);
+    ui.hist = null; ui.emo = false; ui.emoCat = undefined; /* histórico de cliente e painel de emojis voltam fechados */
+  }
   pagAnterior = atual;
 }
 function render() {
@@ -3351,7 +3396,7 @@ function render() {
   newsAfterRender();
   ajudaFiltra();
   navSync();
-  ls.set('mmr-tela-g', ui.g); ls.set('mmr-tela-c', ui.c); // lembra a tela aberta para voltar nela ao recarregar
+  telaSessao.set('g', ui.g); telaSessao.set('c', ui.c); // lembra a tela só ao recarregar; ao fechar o app, abre no Início
   cabecalhoFixo();
 }
 /* cabeçalho fixo: sombra ao rolar e espaço para rolagens automáticas não pararem atrás dele */
@@ -4462,7 +4507,7 @@ const AJ_G = [
     ['Como cadastrar um fornecedor?', 'Em <b>Configurações → Fornecedores</b>, toque no <b>+</b>. Dá para guardar o que ele fornece, a <b>chave Pix</b>, os dados bancários, o endereço da roça e observações como dias de colheita. Toque no nome na lista para ver as compras e o que está a pagar.', [['Novo fornecedor', 'novo-fornecedor'], ['Abrir Fornecedores', 'go-cfg', 'fornecedores']]],
   ]],
   ['Configurações do aparelho', [
-    ['Como mudar as cores ou usar o modo escuro?', 'Em <b>Configurações → Aparência</b>: escolha o visual (Clássico, Aurora ou Bento), o modo (igual ao celular, claro ou escuro) e a cor.', [['Abrir Aparência', 'sheet', 'ajustes']]],
+    ['Como mudar as cores ou usar o modo escuro?', 'Em <b>Configurações → Aparência</b>: escolha o visual (Clássico, Aurora ou Bento), o modo (sistema, claro ou escuro) e a cor.', [['Abrir Aparência', 'sheet', 'ajustes']]],
     ['Como escolher os botões da barra de baixo?', 'Em <b>Configurações → Menu inferior</b>, ligue até 5 botões. Os outros ficam no <b>Mais (⋮)</b>.', [['Abrir Menu inferior', 'sheet', 'menu-cfg']]],
     ['O que são os dados de exemplo?', 'Clientes, vendas e conversas de mentira para você conhecer o app. Antes de usar de verdade, vá em <b>Configurações → Dados de exemplo → Remover todos os exemplos</b>. Seus lançamentos reais não são apagados.', [['Abrir Dados de exemplo', 'sheet', 'exemplos']]],
     ['Posso usar no computador?', 'Sim, pela <b>Gestão web</b> (endereço do app terminado em <b>/gestao/</b>). Ela tem as mesmas telas, com menu na lateral.'],
@@ -4779,9 +4824,8 @@ function sheetHTML() {
     ${menuBtn('bag', 'Loja do cliente', 'Comprar morangos e acompanhar a entrega', 'mode', 'cliente', ui.mode === 'cliente')}</div>`);
   if (s.type === 'ajustes') return wrap('Aparência', `
     <div class="ap-sec"><span class="ap-l">Visual</span><div class="ap-vis">${[['classico', 'Clássico', 'Degradê suave da cor'], ['aurora', 'Aurora', 'Cartões brancos sobre fundo escuro'], ['bento', 'Bento', 'Blocos coloridos, preto e lima']].map(([k, l, d]) => `<button class="ap-opt" data-act="look" data-k="visual" data-v="${k}" aria-pressed="${look.visual === k}"><b>${l}</b><small>${d}</small></button>`).join('')}</div></div>
-    <div class="ap-sec"><span class="ap-l">Modo</span><div class="lt-chips">${[['sistema', 'Igual ao celular'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button class="lt-chip ${look.modo === k ? 'on' : ''}" data-act="look" data-k="modo" data-v="${k}" aria-pressed="${look.modo === k}" ${look.visual === 'aurora' && k !== 'claro' ? 'disabled' : ''}>${l}</button>`).join('')}</div>${look.visual === 'aurora' ? '<small class="muted">O Aurora só existe no modo claro.</small>' : ''}</div>
-    <div class="ap-sec"><span class="ap-l">Cor</span>${look.visual === 'bento' ? '<small class="muted">O Bento usa a paleta própria (preto, lima e tons pastel).</small>' : ''}<div class="ap-cores">${(window.LT_TEMAS || []).map(([k, l, a, b]) => `<button class="ap-cor" style="background:linear-gradient(135deg,${a},${b})" data-act="look" data-k="tema" data-v="${k}" aria-label="${l}" aria-pressed="${look.tema === k}" title="${l}" ${look.visual === 'bento' ? 'disabled' : ''}>${look.tema === k ? icOwn('check') : ''}</button>`).join('')}</div></div>
-    <button class="lt-btn lt-block" data-act="look-reset">Voltar ao padrão (Rosa, Clássico, claro)</button>`);
+    <div class="ap-sec"><span class="ap-l">Modo</span><div class="lt-chips">${[['sistema', 'Sistema'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button class="lt-chip ${look.modo === k ? 'on' : ''}" data-act="look" data-k="modo" data-v="${k}" aria-pressed="${look.modo === k}" ${look.visual === 'aurora' && k !== 'claro' ? 'disabled' : ''}>${l}</button>`).join('')}</div>${look.visual === 'aurora' ? '<small class="muted">O Aurora só existe no modo claro.</small>' : ''}</div>
+    <div class="ap-sec"><span class="ap-l">Cor</span>${look.visual === 'bento' ? '<small class="muted">O Bento usa a paleta própria (preto, lima e tons pastel).</small>' : ''}<div class="ap-cores">${(window.LT_TEMAS || []).map(([k, l, a, b]) => `<button class="ap-cor" style="background:linear-gradient(135deg,${a},${b})" data-act="look" data-k="tema" data-v="${k}" aria-label="${l}" aria-pressed="${look.tema === k}" title="${l}" ${look.visual === 'bento' ? 'disabled' : ''}>${look.tema === k ? icOwn('check') : ''}</button>`).join('')}</div></div>`);
   if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
   if (s.type === 'cat-cfg') return catCfgSheet(wrap);
   if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
@@ -4794,6 +4838,7 @@ function sheetHTML() {
     <div class="ex-chips"><button class="lt-chip" data-act="ex-todos">Conjunto básico</button><button class="lt-chip" data-act="ex-max">Máximo (${EX_MAX} de cada)</button><button class="lt-chip" data-act="ex-zerar">Zerar</button></div>
     <div class="ex-lista">${EX_CATS.map(c => { const q = ui.exQtd[c.k] || 0, tem = noApp[c.k] || 0, d = disp[c.k], av = ui.exAviso && ui.exAviso.k === c.k ? exAvisoTxt(c.k, d, tem) : ''; return `<div class="ex-row"><div class="ex-info"><b>${c.ic} ${c.nome}</b><small>${tem} de ${EX_MAX} no app · cabem mais ${d}</small>${tem ? `<button class="ex-apagar" data-act="ex-apagar-cat" data-k="${c.k}" ${trava} aria-label="Apagar os exemplos de ${c.nome}">${ic('trash')}Apagar</button>` : ''}</div><span class="stepper"><button class="minus" data-act="ex-qtd" data-k="${c.k}" data-v="-1" ${q <= 0 ? 'disabled' : ''} aria-label="Menos ${c.nome}">−</button><input class="ex-n" id="ex-n-${c.k}" data-exk="${c.k}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="${d}" value="${q}" ${d <= 0 ? 'disabled' : ''} aria-label="Quantidade de ${c.nome}"><button data-act="ex-qtd" data-k="${c.k}" data-v="1" aria-label="Mais ${c.nome}">+</button></span><div class="ex-aviso" id="ex-av-${c.k}" role="alert" ${av ? '' : 'hidden'}>${esc(av)}</div></div>`; }).join('')}</div>
     <div class="ex-acts"><button class="lt-btn lt-block" data-act="ex-carregar" ${ui.exBusy || !canWrite || !sel ? 'disabled' : ''}>${ui.exBusy ? `Inserindo… ${ui.exProg || ''}` : sel ? `Inserir ${sel} ${sel === 1 ? 'exemplo' : 'exemplos'}` : 'Escolha acima o que inserir'}</button>
+    <button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor" data-act="ex-recriar" ${ui.exBusy || !canWrite ? 'disabled' : ''}>Zerar e criar ${EX_MAX} de cada (todos ligados)</button>
     ${nEx ? `<button class="ex-rem" data-act="ex-remover" ${trava}>${ic('trash')}Remover todos os exemplos (${nEx})</button>` : ''}</div>`); }
   if (s.type === 'notif-ajustes') { const nn = notifNaoLidas(); const all = notificacoes(true);
     return wrap('Notificações', `<p class="muted" style="margin:0;font-size:13.5px">Escolha o que aparece no sino da tela inicial. Vale para este aparelho.</p>
@@ -5683,7 +5728,8 @@ g.ltAparencia=function(novo,alvo){
 };
 })(window);
 
-const LOOK_DEF = { tema: 'rosa', visual: 'classico', modo: 'claro', rev: 2 };
+/* Primeira vez que o app abre neste aparelho: Bento claro. Depois vale o que a pessoa escolher (fica salvo). */
+const LOOK_DEF = { tema: 'rosa', visual: 'bento', modo: 'claro', rev: 2 };
 const lookSalvo = ls.get('mmr-look', {}) || {};
 let look = Object.assign({}, LOOK_DEF, lookSalvo);
 /* Padrão novo: rosa no modo claro, sem seguir o modo escuro do celular.
@@ -5691,7 +5737,7 @@ let look = Object.assign({}, LOOK_DEF, lookSalvo);
 if (lookSalvo.rev !== 2) { if (look.modo === 'sistema') look.modo = 'claro'; if (look.tema === 'vermelho') look.tema = 'rosa'; look.rev = 2; ls.set('mmr-look', look); }
 document.documentElement.setAttribute('data-theme', look.modo === 'escuro' || (look.modo === 'sistema' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
 let theme = look.modo;
-const lookLabel = () => ({ classico: 'Clássico', aurora: 'Aurora', bento: 'Bento' }[look.visual]) + ' · ' + ((window.LT_TEMAS || []).find(t => t[0] === look.tema)?.[1] || '') + ' · ' + ({ sistema: 'igual ao celular', claro: 'claro', escuro: 'escuro' }[look.modo]);
+const lookLabel = () => ({ classico: 'Clássico', aurora: 'Aurora', bento: 'Bento' }[look.visual]) + ' · ' + ((window.LT_TEMAS || []).find(t => t[0] === look.tema)?.[1] || '') + ' · ' + ({ sistema: 'sistema', claro: 'claro', escuro: 'escuro' }[look.modo]);
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme() {
   const escuro = look.visual !== 'aurora' && (look.modo === 'escuro' || (look.modo === 'sistema' && darkMQ.matches));
@@ -5771,6 +5817,7 @@ document.addEventListener('click', async e => {
     case 'ex-zerar': ui.exMsg = null; ui.exAviso = null; ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
     case 'ex-carregar': carregarExemplos(); break;
     case 'ex-apagar-cat': { const k = t.dataset.k, c = EX_CATS.find(x => x.k === k), n = exNoApp()[k] || 0; if (!c || !n) break; modalConfirm(`Apagar ${n === 1 ? 'o exemplo' : 'os ' + n + ' exemplos'} de <b>${esc(c.nome)}</b>? Os outros exemplos e seus dados reais continuam.`, 'Apagar', () => { removerExemplosCat(k); }); break; }
+    case 'ex-recriar': modalConfirm(`Apagar todos os exemplos e criar ${EX_MAX} de cada tipo, ligados entre si (clientes, vendas, entregas, conversas, compras e fornecedores)? Seus lançamentos reais não são apagados.`, 'Zerar e criar', () => { recriarExemplos(); }); break;
     case 'ex-remover': modalConfirm('Remover todos os dados de exemplo? Seus lançamentos reais não são apagados.', 'Remover exemplos', () => { removerExemplos(); }); break;
     case 'close-sheet': ui.sheet = null; render(); break;
     case 'close-all': ui.sheet = null; $modal.innerHTML = ''; render(); break;
