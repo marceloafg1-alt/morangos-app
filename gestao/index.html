@@ -1994,6 +1994,7 @@ html.rt-lock, html.rt-lock body { overflow: hidden; }
 .rt-eta { font-weight: 800; font-variant-numeric: tabular-nums; }
 .rt-mk { margin-top: 4px; border: 0; background: none; color: #d11a3a; font-weight: 700; padding: 4px 0; cursor: pointer; text-align: left; }
 .rt-pin span { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; background: #d11a3a; color: #fff; border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.rt-pin span.rt-apx { background: #fff; color: #d11a3a; border: 2.5px dashed #d11a3a; }
 .rt-pin.rt-ini span { background: #1f8f4e; font-size: 12px; }
 @media (min-width: 900px) { .rt-ov { flex-direction: row; flex-wrap: wrap; } .rt-top { flex: 0 0 100%; } .rt-map { flex: 1 1 60%; min-height: 0; } .rt-pn { flex: 0 0 380px; } }
 </style>
@@ -2426,13 +2427,13 @@ function montarExemplos() {
     ana: ['Ana Paula Souza', 'pessoa', '(15) 99712-4410', '18010-000', 'Rua Doutor Álvaro Soares', '120', 'Centro', 'Sorocaba / SP', 'Portão branco', 'Prefere Pix'],
     carlos: ['Carlos Eduardo Lima', 'pessoa', '(15) 99803-2271', '18010-000', 'Avenida Afonso Vergueiro', '633', 'Centro', 'Sorocaba / SP', 'Casa de esquina', ''],
     paula: ['Paula Reis', 'pessoa', '(15) 99655-1834', '18010-000', 'Avenida Dom Aguirre', '490', 'Jardim Vergueiro', 'Sorocaba / SP', '', 'Entregar depois das 17h'],
-    rosana: ['Rosana Albuquerque', 'pessoa', '(15) 99124-7765', '18110-000', 'Avenida 31 de Março', '540', 'Centro', 'Votorantim / SP', 'Apto 12, interfone 12', ''],
-    beatriz: ['Beatriz Fontes', 'pessoa', '(15) 99231-0098', '18110-000', 'Rua Rui Barbosa', '311', 'Centro', 'Votorantim / SP', '', 'Faz doces sob encomenda'],
+    rosana: ['Rosana Albuquerque', 'pessoa', '(15) 99124-7765', '18110-000', 'Rua Tiradentes', '540', 'Centro', 'Votorantim / SP', 'Apto 12, interfone 12', ''],
+    beatriz: ['Beatriz Fontes', 'pessoa', '(15) 99231-0098', '18110-000', 'Avenida 31 de Março', '311', 'Centro', 'Votorantim / SP', '', 'Faz doces sob encomenda'],
     jorge: ['Jorge Tanaka', 'pessoa', '(15) 99478-5502', '18010-000', 'Avenida Pereira da Silva', '210', 'Jardim Santa Rosália', 'Sorocaba / SP', 'Portão azul', ''],
     merc: ['Mercadinho Bom Preço', 'comercio', '(15) 3244-1188', '18010-000', 'Avenida Antônio Carlos Comitre', '455', 'Parque Campolim', 'Sorocaba / SP', '', 'Paga fiado toda sexta'],
     pad: ['Padaria Pão de Ouro', 'comercio', '(15) 3244-7720', '18010-000', 'Avenida General Carneiro', '78', 'Centro', 'Sorocaba / SP', 'Entrar pelos fundos', 'Recebe até 7h'],
-    rest: ['Restaurante Sabor da Serra', 'comercio', '(15) 99910-3345', '18110-000', 'Rua Quinze de Novembro', '98', 'Centro', 'Votorantim / SP', '', 'Nota no fim do mês'],
-    doce: ['Doceria Vó Lurdes', 'comercio', '(15) 99387-6612', '18110-000', 'Rua Tiradentes', '205', 'Centro', 'Votorantim / SP', '', ''],
+    rest: ['Restaurante Sabor da Serra', 'comercio', '(15) 99910-3345', '18110-000', 'Avenida 31 de Março', '980', 'Centro', 'Votorantim / SP', '', 'Nota no fim do mês'],
+    doce: ['Doceria Vó Lurdes', 'comercio', '(15) 99387-6612', '18110-000', 'Avenida 31 de Março', '1.450', 'Centro', 'Votorantim / SP', '', ''],
   };
   const cid = k => EX_PREFIX + 'cli-' + k;
   Object.entries(CLI).forEach(([k, [nome, tipo, telefone, cep, endereco, numero, bairro, cidade, referencia, obs]], i) =>
@@ -4905,17 +4906,20 @@ function geocodar(txt) {
   const k = geoK(txt); if (!k) return Promise.resolve(null);
   if (geoCache[k]) return Promise.resolve(geoCache[k]);
   if (geoFalhou.has(k)) return Promise.resolve(null);
+  const guarda = (lat, lon, apx) => { geoCache[k] = { lat: Number(lat), lon: Number(lon), ...(apx ? { apx: 1 } : {}) }; geoSave(); return geoCache[k]; };
+  const pelias = async (q) => { /* geocodificador do OpenRouteService, bom com número de casa */
+    try { const r = await fetch('https://api.heigit.org/openrouteservice/geocode/search?api_key=' + encodeURIComponent(rotaChave()) + '&boundary.country=BR&focus.point.lon=-47.45&focus.point.lat=-23.5&size=1&text=' + encodeURIComponent(q));
+      if (!r.ok) return null; const f = (await r.json()).features?.[0]; return f ? { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], rua: ['address', 'street'].includes(f.properties?.layer) } : null; } catch { return null; } };
+  const nomi = async (q) => {
+    const espera = 1100 - (Date.now() - geoUltimo); if (espera > 0) await rtSleep(espera); geoUltimo = Date.now();
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q));
+    if (!r.ok) throw new Error('geo ' + r.status); const j = await r.json(); return j && j[0] ? { lat: j[0].lat, lon: j[0].lon } : null; };
   const run = async () => {
     if (geoCache[k]) return geoCache[k];
-    const q0 = rtEnd(txt), semNum = q0.replace(/,\s*\d+[A-Za-z]?(?=\s*,|$)/, ''), pt = semNum.split(', '), soRua = pt.length > 3 ? pt[0] + ', ' + pt.slice(-2).join(', ') : semNum;
-    for (const q of [...new Set([q0, semNum, soRua])]) {
-      const espera = 1100 - (Date.now() - geoUltimo); if (espera > 0) await rtSleep(espera);
-      geoUltimo = Date.now();
-      const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q));
-      if (!r.ok) throw new Error('geo ' + r.status);
-      const j = await r.json();
-      if (j && j[0]) { geoCache[k] = { lat: Number(j[0].lat), lon: Number(j[0].lon) }; geoSave(); return geoCache[k]; }
-    }
+    const q0 = rtEnd(txt), semNum = q0.replace(/,\s*[\d.]+[A-Za-z]?(?=\s*,|$)/, ''), pt = semNum.split(', '), area = pt.length > 2 ? pt.slice(1).join(', ') : '';
+    const p = await pelias(q0); if (p && p.rua) return guarda(p.lat, p.lon, false);
+    for (const q of [...new Set([q0, semNum])]) { const n = await nomi(q); if (n) return guarda(n.lat, n.lon, false); }
+    if (area) { const pa = await pelias(area); if (pa) return guarda(pa.lat, pa.lon, true); const na = await nomi(area); if (na) return guarda(na.lat, na.lon, true); }
     geoFalhou.add(k); return null;
   };
   geoFila = geoFila.then(run, run); return geoFila;
@@ -5015,14 +5019,14 @@ function rtDesenha() {
     if (temP) { L.marker([cfg.pLat, cfg.pLon], { icon: L.divIcon({ className: 'rt-pin rt-ini', html: '<span>●</span>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip('Partida').addTo(RT.camada); bounds.push([cfg.pLat, cfg.pLon]); }
     if (RT.calc && RT.calc.assin === rtAssin(RT.ordem) && RT.calc.geom && RT.calc.geom.length) L.polyline(RT.calc.geom, { color: '#d11a3a', weight: 5, opacity: .8 }).addTo(RT.camada);
     ps.forEach((v, i) => { const g = rtGeoDe(v); if (!g) return; bounds.push([g.lat, g.lon]);
-      L.marker([g.lat, g.lon], { icon: L.divIcon({ className: 'rt-pin', html: `<span>${i + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip(esc(v.cliente?.nome || 'Cliente')).addTo(RT.camada); });
+      L.marker([g.lat, g.lon], { icon: L.divIcon({ className: 'rt-pin', html: `<span${g.apx ? ' class="rt-apx"' : ''}>${i + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip(esc(v.cliente?.nome || 'Cliente')).addTo(RT.camada); });
     if (bounds.length) RT.map.fitBounds(bounds, { padding: [34, 34], maxZoom: 16 }); }
   const c = RT.calc && RT.calc.assin === rtAssin(RT.ordem) ? RT.calc : null;
   document.getElementById('rt-sum').innerHTML = !ps.length ? 'Nenhuma entrega na rota. Ponha pedidos na rota para vê-los aqui.'
     : c ? `<b>${ps.length} ${ps.length === 1 ? 'parada' : 'paradas'}</b> · ${rtKm(c.dist)} · ${rtMin(c.dur)} dirigindo${etas ? ' · termina ~' + rtHora(etas.filter(Boolean).pop()) : ''}<small>Tempo estimado sem trânsito ao vivo, com ${cfg.parada || 0} min por parada.${temP ? '' : ' Defina o ponto de partida em Ajustes para contar o primeiro trecho.'}</small>`
     : `<b>${ps.length} ${ps.length === 1 ? 'parada' : 'paradas'}</b><small>Toque em Otimizar rota para ver a melhor ordem, a distância e o tempo.</small>`;
   document.getElementById('rt-list').innerHTML = ps.map((v, i) => { const g = rtGeoDe(v);
-    return `<div class="rt-li"><span class="rt-n">${i + 1}</span><div class="rt-tx"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || 'Sem endereço')}</small>${g ? '' : `<button class="rt-mk" data-rt="marcar" data-id="${v.id}">${RT.marcando === v.id ? 'Toque no mapa…' : 'Não achei o endereço. Marcar no mapa'}</button>`}</div>${etas && etas[i] ? `<span class="rt-eta">~${rtHora(etas[i])}</span>` : ''}</div>`; }).join('');
+    return `<div class="rt-li"><span class="rt-n">${i + 1}</span><div class="rt-tx"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || 'Sem endereço')}</small>${g && !g.apx ? '' : `<button class="rt-mk" data-rt="marcar" data-id="${v.id}">${RT.marcando === v.id ? 'Toque no mapa…' : g ? 'Local aproximado (só o bairro). Ajustar no mapa' : 'Não achei o endereço. Marcar no mapa'}</button>`}</div>${etas && etas[i] ? `<span class="rt-eta">~${rtHora(etas[i])}</span>` : ''}</div>`; }).join('');
 }
 async function rtOtimizar() {
   if (RT.ocupado) return; const ps = rtParadas(); if (ps.length < 2) { toast('Com menos de 2 paradas não há o que reordenar.'); return; }
