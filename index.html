@@ -5375,26 +5375,30 @@ const geoK = t => String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const geoSave = () => ls.set('mmr-geo', geoCache);
 const rtSleep = ms => new Promise(r => setTimeout(r, ms));
 const rtEnd = t => String(t || '').replace(/\s·\s/g, ', ').replace(/\s*\/\s*/g, ', ').replace(/\bCEP\s*/gi, '').replace(/\s+-\s+/g, ', ').replace(/\s+/g, ' ').trim();
-let geoFila = Promise.resolve(), geoUltimo = 0; const geoFalhou = new Set();
+let geoFila = Promise.resolve(), geoUltimo = 0; const geoFalhou = new Set(); let geoErro = {}, geoOsmBloq = 0;
 function geocodar(txt) {
   const k = geoK(txt); if (!k) return Promise.resolve(null);
   if (geoCache[k]) return Promise.resolve(geoCache[k]);
   if (geoFalhou.has(k)) return Promise.resolve(null);
   const guarda = (lat, lon, apx) => { geoCache[k] = { lat: Number(lat), lon: Number(lon), ...(apx ? { apx: 1 } : {}) }; geoSave(); return geoCache[k]; };
+  const EXATO = ['address', 'street', 'venue'], LONGE = ['country', 'region', 'macroregion', 'macrocounty', 'dependency'];
   const pelias = async (q) => { /* geocodificador do OpenRouteService, bom com número de casa */
     try { const r = await fetch('https://api.heigit.org/openrouteservice/geocode/search?api_key=' + encodeURIComponent(rotaChave()) + '&boundary.country=BR&focus.point.lon=-47.45&focus.point.lat=-23.5&size=1&text=' + encodeURIComponent(q));
-      if (!r.ok) return null; const f = (await r.json()).features?.[0]; return f ? { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], rua: ['address', 'street', 'venue'].includes(f.properties?.layer) } : null; } catch { return null; } };
+      if (!r.ok) { geoErro.ors = r.status; return null; } const f = (await r.json()).features?.[0]; if (!f) return null; const ly = f.properties?.layer;
+      return LONGE.includes(ly) ? null : { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], rua: EXATO.includes(ly) }; } catch { geoErro.ors = 'rede'; return null; } };
   const nomi = async (q) => {
+    if (Date.now() < geoOsmBloq) return null;
     const espera = 1100 - (Date.now() - geoUltimo); if (espera > 0) await rtSleep(espera); geoUltimo = Date.now();
-    const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q));
-    if (!r.ok) throw new Error('geo ' + r.status); const j = await r.json(); return j && j[0] ? { lat: j[0].lat, lon: j[0].lon } : null; };
+    try { const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q));
+      if (!r.ok) { geoErro.osm = r.status; geoOsmBloq = Date.now() + 60000; return null; } const j = await r.json(); return j && j[0] ? { lat: j[0].lat, lon: j[0].lon } : null; } catch { geoErro.osm = 'rede'; geoOsmBloq = Date.now() + 60000; return null; } };
   const run = async () => {
     if (geoCache[k]) return geoCache[k];
     const q0 = rtEnd(txt), semNum = q0.replace(/,\s*[\d.]+[A-Za-z]?(?=\s*,|$)/, ''), pt = semNum.split(', '), area = pt.length > 2 ? pt.slice(1).join(', ') : '';
     const p = await pelias(q0); if (p && p.rua) return guarda(p.lat, p.lon, false);
     for (const q of [...new Set([q0, semNum])]) { const n = await nomi(q); if (n) return guarda(n.lat, n.lon, false); }
+    if (p) return guarda(p.lat, p.lon, true);
     if (area) { const pa = await pelias(area); if (pa) return guarda(pa.lat, pa.lon, true); const na = await nomi(area); if (na) return guarda(na.lat, na.lon, true); }
-    geoFalhou.add(k); return null;
+    if (!Object.keys(geoErro).length) geoFalhou.add(k); return null;
   };
   geoFila = geoFila.then(run, run); return geoFila;
 }
@@ -5472,13 +5476,14 @@ function rotaMapaAbrir() {
 }
 function rotaMapaFechar() { document.getElementById('rt-ov')?.remove(); document.documentElement.classList.remove('rt-lock'); try { RT.map && RT.map.remove(); } catch {} RT.map = null; RT.marcando = null; }
 async function rtResolve() { /* busca as coordenadas que faltam, uma por vez */
-  const ps = rtParadas(); let i = 0;
+  const ps = rtParadas(); let i = 0; geoErro = {}; geoOsmBloq = 0;
   for (const v of ps) { i++; if (!document.getElementById('rt-ov')) return; if (rtGeoDe(v) || !(v.cliente?.endereco || '').trim()) continue;
     rtStatus(`Localizando endereços ${i} de ${ps.length}…`);
-    try { await geocodar(v.cliente.endereco); } catch (e) { rtStatus('Sem internet para localizar endereços.'); return; }
+    try { await geocodar(v.cliente.endereco); } catch (e) { geoErro.app = String(e && e.message || e); }
     rtDesenha(); }
   const p = rotaCfg(); if (p.partida && p.pLat == null) { try { const g = await geocodar(p.partida); if (g) ls.set('mmr-rota-cfg', { ...p, pLat: g.lat, pLon: g.lon }); } catch {} }
-  rtStatus(''); rtDesenha();
+  const falta = ps.filter(v => !rtGeoDe(v) && (v.cliente?.endereco || '').trim()).length, er = Object.entries(geoErro).map(([a, c]) => ({ ors: 'OpenRouteService', osm: 'OpenStreetMap', app: 'app' }[a] + ': ' + c)).join(', ');
+  rtStatus(falta && er ? `Localizador indisponível agora (${er}). Tente de novo em instantes.` : ''); rtDesenha();
 }
 function rtEtas() { /* hora estimada de chegada em cada parada, se há cálculo válido */
   const c = RT.calc; if (!c || c.assin !== rtAssin(RT.ordem)) return null;
