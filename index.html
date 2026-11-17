@@ -1515,6 +1515,8 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cx-kpis .kpi .s { display: flex; justify-content: space-between; gap: 6px; }
 .cx-kpis .kpi .s > span:first-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cx-kpis .kpi .s > span:last-child { flex: none; white-space: nowrap; }
+.cx-kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+[data-visual="aurora"] .cx-kpis .kpi .s { font-size: 12px; }
 .cx-kpis .kpi.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 .cx-dia { display: grid; gap: 6px; }
 .cx-dh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 0 4px; color: var(--on-page, var(--ink)); }
