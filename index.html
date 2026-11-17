@@ -2675,6 +2675,25 @@ function montarExemplos(extras = false) {
       }
     }
 
+    // ---- entregas de hoje: pedidos recebidos, separados e na rota, com endereço para o mapa ----
+    const nEnt = falta('entregas');
+    for (let i = 0; i < nEnt; i++) {
+      const r = rng('ent', i), origem = pesos(r, [['app', 55], ['chat', 25], ['avulsa', 20]]);
+      const lista = r() < (origem === 'avulsa' ? .75 : .2) ? CKC : CKP, ck = pick(r, lista), com = CLI[ck][1] === 'comercio';
+      const nl = 1 + (r() < .3 ? 1 : 0), ks = [];
+      while (ks.length < nl) { const k = pick(r, POOL); if (!ks.includes(k)) ks.push(k); }
+      const itens = ks.map(k => it(k, k === 'cx4' ? (com ? between(r, 1, 3) : 1) : k === 'cx1' ? (com ? between(r, 3, 6) : between(r, 1, 3)) : k === 'bd' ? (com ? between(r, 6, 16) : between(r, 2, 6)) : between(r, 1, 3), com && k === 'cx4' ? 135 : undefined));
+      let forma = pesos(r, FORMAS[origem]); if (forma === 'fiado' && !com) forma = 'pix';
+      const status = pesos(r, [['em_rota', 55], ['separado', 25], ['recebido', 20]]);
+      const pago = (forma === 'pix' || forma === 'credito' || forma === 'debito') && status !== 'recebido';
+      const extra = {};
+      if (origem === 'chat') extra.obs = 'Combinado pelo chat';
+      else if (forma === 'dinheiro') extra.obs = 'Troco para R$ 50,00';
+      else if (forma === 'fiado') extra.obs = 'Paga na sexta';
+      if (status === 'recebido' && forma === 'pix') extra.clienteInformouPix = true;
+      V('ge' + i, ago(between(r, 8, 175)), ck, itens, forma, pago, origem, status, extra);
+    }
+
     // ---- histórico do cliente de teste ----
     const nHis = falta('historico');
     for (let i = 0; i < nHis; i++) {
@@ -2768,6 +2787,7 @@ const EX_CATS = [
   { k: 'vendas-app', nome: 'Vendas pelo app', ic: '📱' },
   { k: 'vendas-chat', nome: 'Vendas pelo chat', ic: '💬' },
   { k: 'vendas-avulsa', nome: 'Vendas avulsas', ic: '🧾' },
+  { k: 'entregas', nome: 'Entregas de hoje', ic: '🚚' },
   { k: 'compras', nome: 'Compras na roça', ic: '🌱' },
   { k: 'despesas', nome: 'Despesas', ic: '⛽' },
   { k: 'noticias', nome: 'Notícia no banner', ic: '📰' },
@@ -2777,6 +2797,7 @@ const EX_CATS = [
 ];
 function catDoExemplo(col, d) {
   if (col === 'vendas' && d.clienteId === TESTE_ID) return 'historico';
+  if (col === 'vendas' && ['recebido', 'separado', 'em_rota'].includes(d.status)) return 'entregas';
   if (col === 'vendas') return 'vendas-' + (d.origem === 'chat' ? 'chat' : d.origem === 'avulsa' ? 'avulsa' : 'app');
   if (col === 'mensagens') return 'conversas';
   return col;
