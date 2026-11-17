@@ -2058,6 +2058,8 @@ html.rt-lock, html.rt-lock body { overflow: hidden; }
 .rt-li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line, #ddd); }
 .rt-n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: #d11a3a; color: #fff; }
 .rt-tx { flex: 1; min-width: 0; } .rt-tx b, .rt-tx small { display: block; } .rt-tx small { color: var(--muted, #666); font-size: 13px; }
+.rt-li { cursor: pointer; } .rt-li.rt-sel { background: color-mix(in srgb, #d11a3a 10%, transparent); border-radius: 12px; }
+.rt-ac { color: var(--muted, #666); font-size: 13px; }
 .rt-eta { font-weight: 800; font-variant-numeric: tabular-nums; }
 .rt-mk { margin-top: 4px; border: 0; background: none; color: #d11a3a; font-weight: 700; padding: 4px 0; cursor: pointer; text-align: left; }
 .rt-pin span { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; background: #d11a3a; color: #fff; border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
@@ -5548,13 +5550,13 @@ function rotaMapaAbrir() {
   const ov = document.createElement('div'); ov.id = 'rt-ov'; ov.className = 'rt-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Mapa da rota');
   ov.innerHTML = `<div class="rt-top"><button class="rt-x" data-rt="fechar" aria-label="Fechar">${ic('x')}</button><div><b>Rota de hoje</b><small id="rt-st"></small></div></div>
     <div id="rt-map" class="rt-map"><div class="rt-wait">Carregando o mapa…</div></div>
-    <div class="rt-pn"><div id="rt-sum" class="rt-sum"></div><div class="rt-btns"><button class="btn primary" data-rt="otimizar" ${W()}>Otimizar rota</button><button class="btn" data-rt="maps">Abrir no Google Maps</button><button class="btn ghost" data-rt="cfg">Ajustes</button></div><div id="rt-list" class="rt-list"></div></div>`;
+    <div class="rt-pn"><div id="rt-sum" class="rt-sum"></div><div class="rt-btns"><button class="btn primary" data-rt="otimizar" ${W()}>Otimizar rota</button><button class="btn" data-rt="todas">Ver todas</button><button class="btn" data-rt="maps">Abrir no Google Maps</button><button class="btn ghost" data-rt="cfg">Ajustes</button></div><div id="rt-list" class="rt-list"></div></div>`;
   document.body.appendChild(ov); document.documentElement.classList.add('rt-lock');
   ov.addEventListener('click', rtClick);
   RT.ordem = rota().map(v => v.id); const s = rtSalvo(); RT.calc = s && s.assin === rtAssin(RT.ordem) ? s : null;
   rtLoadLeaflet().then(() => { document.getElementById('rt-map').innerHTML = ''; RT.map = L.map('rt-map', { zoomControl: true }).setView([-15.8, -47.9], 4);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(RT.map); RT.camada = L.layerGroup().addTo(RT.map);
-    RT.map.on('click', e => { if (!RT.marcando) return; const v = S.vendas.find(x => x.id === RT.marcando); RT.marcando = null; if (v) { geoCache[geoK(v.cliente?.endereco)] = { lat: e.latlng.lat, lon: e.latlng.lng }; geoSave(); toast('Local marcado.'); rtDesenha(); } });
+    RT.map.on('click', e => { if (!RT.marcando) return; const v = S.vendas.find(x => x.id === RT.marcando); RT.marcando = null; if (v) rtSetGeo(v, e.latlng.lat, e.latlng.lng); });
     rtResolve();
   }).catch(() => { document.getElementById('rt-map').innerHTML = '<div class="rt-wait">Não deu para carregar o mapa. Confira a internet.</div>'; });
   rtDesenha();
@@ -5565,10 +5567,10 @@ async function rtResolve() { /* busca as coordenadas que faltam, uma por vez */
   for (const v of ps) { i++; if (!document.getElementById('rt-ov')) return; if (rtGeoDe(v) || !(v.cliente?.endereco || '').trim()) continue;
     rtStatus(`Localizando endereços ${i} de ${ps.length}…`);
     try { await geocodar(v.cliente.endereco); } catch (e) { geoErro.app = String(e && e.message || e); }
-    rtDesenha(); }
+    rtDesenha(false); }
   const p = rotaCfg(); if (p.partida && p.pLat == null) { try { const g = await geocodar(p.partida); if (g) ls.set('mmr-rota-cfg', { ...p, pLat: g.lat, pLon: g.lon }); } catch {} }
   const falta = ps.filter(v => !rtGeoDe(v) && (v.cliente?.endereco || '').trim()).length, er = Object.entries(geoErro).map(([a, c]) => ({ ors: 'OpenRouteService', osm: 'OpenStreetMap', app: 'app' }[a] + ': ' + c)).join(', ');
-  rtStatus(falta && er ? `Localizador indisponível agora (${er}). Tente de novo em instantes.` : ''); rtDesenha();
+  rtStatus(falta && er ? `Localizador indisponível agora (${er}). Tente de novo em instantes.` : ''); rtDesenha(true);
 }
 function rtEtas() { /* hora estimada de chegada em cada parada, se há cálculo válido */
   const c = RT.calc; if (!c || c.assin !== rtAssin(RT.ordem)) return null;
@@ -5576,21 +5578,37 @@ function rtEtas() { /* hora estimada de chegada em cada parada, se há cálculo 
   for (let i = 0; i < RT.ordem.length; i++) { const leg = c.legs[i + off]; if (leg) t += leg.dur * 1000; out.push(leg || (i === 0 && !c.temPartida) ? t : null); t += pm * 1000; }
   return out;
 }
-function rtDesenha() {
+function rtSetGeo(v, lat, lon) { /* guarda o local escolhido por você (arrastando o pino ou tocando no mapa) */
+  const k = geoK(v.cliente?.endereco); geoCache[k] = { lat, lon, man: 1 }; geoSave(); geoFalhou.delete(k); RT.calc = null; ls.set('mmr-rota-calc', null);
+  toast('Local atualizado. Toque em Otimizar rota para recalcular.'); rtDesenha(false);
+}
+function rtFoco(id) { /* leva o mapa até a parada */
+  const v = S.vendas.find(x => x.id === id), g = v && rtGeoDe(v), m = RT.mk && RT.mk[id];
+  document.querySelectorAll('.rt-li.rt-sel').forEach(e => e.classList.remove('rt-sel')); document.querySelector(`.rt-li[data-id="${id}"]`)?.classList.add('rt-sel');
+  if (!g || !RT.map) { toast('Esta parada ainda não tem local no mapa.'); return; }
+  RT.map.setView(m ? m.getLatLng() : [g.lat, g.lon], Math.max(RT.map.getZoom(), 15)); m && m.openTooltip();
+}
+function rtDesenha(fit) {
   if (!document.getElementById('rt-ov')) return;
-  const ps = rtParadas(), etas = rtEtas(), cfg = rotaCfg(), temP = cfg.pLat != null;
-  if (RT.map && RT.camada) { RT.camada.clearLayers(); const bounds = [];
+  const ps = rtParadas(), etas = rtEtas(), cfg = rotaCfg(), temP = cfg.pLat != null; RT.mk = {};
+  if (RT.map && RT.camada) { RT.camada.clearLayers(); const bounds = [], usados = {};
     if (temP) { L.marker([cfg.pLat, cfg.pLon], { icon: L.divIcon({ className: 'rt-pin rt-ini', html: '<span>●</span>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip('Partida').addTo(RT.camada); bounds.push([cfg.pLat, cfg.pLon]); }
     if (RT.calc && RT.calc.assin === rtAssin(RT.ordem) && RT.calc.geom && RT.calc.geom.length) L.polyline(RT.calc.geom, { color: '#d11a3a', weight: 5, opacity: .8 }).addTo(RT.camada);
-    ps.forEach((v, i) => { const g = rtGeoDe(v); if (!g) return; bounds.push([g.lat, g.lon]);
-      L.marker([g.lat, g.lon], { icon: L.divIcon({ className: 'rt-pin', html: `<span${g.apx ? ' class="rt-apx"' : ''}>${i + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip(esc(v.cliente?.nome || 'Cliente')).addTo(RT.camada); });
-    if (bounds.length) RT.map.fitBounds(bounds, { padding: [34, 34], maxZoom: 16 }); }
+    ps.forEach((v, i) => { const g = rtGeoDe(v); if (!g) return;
+      const kk = g.lat.toFixed(4) + ',' + g.lon.toFixed(4), n = usados[kk] = (usados[kk] || 0) + 1, d = n > 1 ? 0.0002 * Math.ceil(n / 2) : 0, pos = [g.lat + d * Math.sin(n * 2.4), g.lon + d * Math.cos(n * 2.4)]; /* paradas no mesmo ponto não se escondem */
+      bounds.push(pos);
+      const m = L.marker(pos, { draggable: true, zIndexOffset: 1000 - i, icon: L.divIcon({ className: 'rt-pin', html: `<span${g.apx ? ' class="rt-apx"' : ''}>${i + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip(esc(v.cliente?.nome || 'Cliente'));
+      m.on('dragend', () => { const ll = m.getLatLng(); rtSetGeo(v, ll.lat, ll.lng); }); m.on('click', () => rtFoco(v.id)); m.addTo(RT.camada); RT.mk[v.id] = m; });
+    if (fit && bounds.length) RT.map.fitBounds(bounds, { padding: [34, 34], maxZoom: 16 }); }
   const c = RT.calc && RT.calc.assin === rtAssin(RT.ordem) ? RT.calc : null;
   document.getElementById('rt-sum').innerHTML = !ps.length ? 'Nenhuma entrega na rota. Ponha pedidos na rota para vê-los aqui.'
     : c ? `<b>${ps.length} ${ps.length === 1 ? 'parada' : 'paradas'}</b> · ${rtKm(c.dist)} · ${rtMin(c.dur)} dirigindo${etas ? ' · termina ~' + rtHora(etas.filter(Boolean).pop()) : ''}<small>Tempo estimado sem trânsito ao vivo, com ${cfg.parada || 0} min por parada.${temP ? '' : ' Defina o ponto de partida em Ajustes para contar o primeiro trecho.'}</small>`
     : `<b>${ps.length} ${ps.length === 1 ? 'parada' : 'paradas'}</b><small>Toque em Otimizar rota para ver a melhor ordem, a distância e o tempo.</small>`;
-  document.getElementById('rt-list').innerHTML = ps.map((v, i) => { const g = rtGeoDe(v);
-    return `<div class="rt-li"><span class="rt-n">${i + 1}</span><div class="rt-tx"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || 'Sem endereço')}</small>${g && !g.apx ? '' : `<button class="rt-mk" data-rt="marcar" data-id="${v.id}">${RT.marcando === v.id ? 'Toque no mapa…' : g ? 'Local aproximado (só o bairro). Ajustar no mapa' : 'Não achei o endereço. Marcar no mapa'}</button>`}</div>${etas && etas[i] ? `<span class="rt-eta">~${rtHora(etas[i])}</span>` : ''}</div>`; }).join('');
+  document.getElementById('rt-list').innerHTML = ps.map((v, i) => { const g = rtGeoDe(v), mk = RT.marcando === v.id;
+    const acao = !g ? `<button class="rt-mk" data-rt="marcar" data-id="${v.id}">${mk ? 'Toque no mapa… (toque aqui para cancelar)' : 'Não achei o endereço. Marcar no mapa'}</button>`
+      : g.apx ? `<button class="rt-mk" data-rt="marcar" data-id="${v.id}">${mk ? 'Toque no mapa… (toque aqui para cancelar)' : 'Local aproximado. Arraste o pino ou toque aqui'}</button>`
+      : `<span class="rt-ac">${g.man ? 'Local ajustado por você · ' : ''}<button class="rt-mk" data-rt="marcar" data-id="${v.id}">${mk ? 'Toque no mapa…' : 'Corrigir local'}</button>${g.man ? ` · <button class="rt-mk" data-rt="refazer" data-id="${v.id}">Refazer busca</button>` : ''}</span>`;
+    return `<div class="rt-li" data-rt="foco" data-id="${v.id}"><span class="rt-n">${i + 1}</span><div class="rt-tx"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || 'Sem endereço')}</small>${acao}</div>${etas && etas[i] ? `<span class="rt-eta">~${rtHora(etas[i])}</span>` : ''}</div>`; }).join('');
 }
 async function rtOtimizar() {
   if (RT.ocupado) return; const ps = rtParadas(); if (ps.length < 2) { toast('Com menos de 2 paradas não há o que reordenar.'); return; }
@@ -5611,7 +5629,7 @@ async function rtOtimizar() {
     RT.ordem = ids;
     const legs = tr ? tr.legs : [], dur = legs.reduce((s, l) => s + l.dur, 0), dist = legs.reduce((s, l) => s + l.dist, 0);
     RT.calc = tr ? { assin: rtAssin(ids), geom: tr.geom, legs, dur, dist, saida: Date.now(), temPartida: temP, fonte: m.fonte } : null; if (RT.calc) ls.set('mmr-rota-calc', RT.calc);
-    toast(mudou ? 'Rota otimizada: entregas reordenadas.' : 'A ordem atual já é a melhor.' ); rtDesenha();
+    toast(mudou ? 'Rota otimizada: entregas reordenadas.' : 'A ordem atual já é a melhor.' ); rtDesenha(true);
   } catch (e) { console.error(e); toast('Não deu para calcular agora. Confira a internet e tente de novo.'); }
   finally { RT.ocupado = false; rtStatus(''); const b2 = document.querySelector('[data-rt="otimizar"]'); if (b2 && canWrite) b2.disabled = false; }
 }
@@ -5620,7 +5638,10 @@ function rtClick(e) {
   if (a === 'fechar') rotaMapaFechar();
   else if (a === 'otimizar') rtOtimizar();
   else if (a === 'cfg') { rotaMapaFechar(); ui.sheet = { type: 'rota-cfg' }; render(); }
-  else if (a === 'marcar') { RT.marcando = t.dataset.id; toast('Toque no mapa, no local da entrega.'); rtDesenha(); }
+  else if (a === 'marcar') { RT.marcando = RT.marcando === t.dataset.id ? null : t.dataset.id; if (RT.marcando) { toast('Toque no mapa, no local da entrega. Ou arraste o pino.'); rtFoco(RT.marcando); } rtDesenha(false); }
+  else if (a === 'refazer') { const v = S.vendas.find(x => x.id === t.dataset.id); if (v) { const k = geoK(v.cliente?.endereco); delete geoCache[k]; geoFalhou.delete(k); geoSave(); RT.calc = null; ls.set('mmr-rota-calc', null); rtDesenha(false); rtResolve(); } }
+  else if (a === 'todas') rtDesenha(true);
+  else if (a === 'foco') rtFoco(t.dataset.id);
   else if (a === 'maps') { const ps = rtParadas().filter(v => (v.cliente?.endereco || '').trim()); if (!ps.length) { toast('Nenhuma parada com endereço.'); return; }
     const q = v => { const g = rtGeoDe(v); return g ? g.lat + ',' + g.lon : rtEnd(v.cliente.endereco); }, cfg = rotaCfg();
     const org = cfg.pLat != null ? cfg.pLat + ',' + cfg.pLon : q(ps[0]), rest = cfg.pLat != null ? ps : ps.slice(1), dest = rest[rest.length - 1];
