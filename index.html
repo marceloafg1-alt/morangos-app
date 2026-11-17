@@ -2819,7 +2819,7 @@ function periodoNaTroca() {
 }
 function render() {
   periodoNaTroca();
-  if (ui.mode !== 'gestao' || ui.g !== 'inicio') ui.hd = 0; /* ao sair do Início, volta para Vendas de hoje */
+  if (ui.mode !== 'gestao' || ui.g !== 'inicio') { ui.hd = 0; ui.dv = 'pag'; ui.dp = 'hoje'; } /* ao sair do Início, volta para Vendas de hoje */
   if (backend === 'pending') { $main.innerHTML = '<div class="empty" style="padding-top:120px">Carregando…</div>'; return; }
   ensureTeste();
   const keep = {}; $main.querySelectorAll('input[id],select[id],textarea[id]').forEach(el => { keep[el.id] = el.type === 'radio' || el.type === 'checkbox' ? el.checked : el.value; });
@@ -2991,7 +2991,7 @@ function gPendencias() {
 const IV_ACAO = { Responder: 'Responder', Receber: 'Receber', Pagar: 'Pagar', Entregar: 'Ver', Estoque: 'Repor', Caixa: 'Ver' };
 const IV_CORES = ['var(--iv1)', 'var(--iv2)', 'var(--iv3)', 'var(--iv4)', 'var(--iv5)'];
 function ivDivisao() {
-  const per = ui.dp || '7d', vis = ui.dv || 'pag';
+  const per = ui.dp || 'hoje', vis = ui.dv || 'pag';
   const vs = vendasValidas().filter(v => inPeriod(v.ts, per));
   const m = {};
   const add = (k, x) => { m[k] = (m[k] || 0) + x; };
