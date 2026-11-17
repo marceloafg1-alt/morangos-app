@@ -567,6 +567,8 @@
   .lt-page{max-width:720px;margin:0 auto}
 }
 
+.iv-clk{cursor:pointer}
+.iv-more{padding:6px 0 12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
 /* o app do celular não usa a versão web dos cartões do Início */
 .iv-ct,.iv-w{display:none}
 .iv-btn2{margin-right:6px}
@@ -2438,7 +2440,7 @@ const ehExemplo = (col, d) => !!d && (d.exemplo === true || String(d.id || '').s
 const contaExemplos = () => COLS.reduce((s, c) => s + S[c].filter(d => ehExemplo(c, d)).length, 0);
 const temExemplos = () => contaExemplos() > 0;
 
-function montarExemplos(extras = false) {
+function montarExemplos(extras = false, completo = false) {
   const now = Date.now(), M = 6e4, H = 36e5, D = 864e5, d0 = startOfDay();
   // d = dias atrás, hm = 'HH:MM'. Hoje: nunca depois de agora.
   const T = (d, hm) => { const [h, m] = hm.split(':').map(Number); const t = d0 - d * D + h * H + m * M; return d === 0 ? Math.min(t, now - 5 * M) : t; };
@@ -2674,7 +2676,7 @@ function montarExemplos(extras = false) {
     const pesos = (r, lista) => { let x = r() * lista.reduce((s, [, p]) => s + p, 0); for (const [v, p] of lista) { if ((x -= p) < 0) return v; } return lista[0][0]; };
     const hm = (r, h0 = 7, h1 = 19) => String(between(r, h0, h1)).padStart(2, '0') + ':' + String(between(r, 0, 59)).padStart(2, '0');
     const base = contaPorCat(out);
-    const falta = k => Math.max(0, EX_MAX - base[k]);
+    const falta = k => Math.max(0, exMax(k) - base[k]);
 
     // ---- clientes (pessoas e comércios de Sorocaba e Votorantim) ----
     const NOMES = ['Maria', 'José', 'Ana', 'João', 'Antônio', 'Francisca', 'Carlos', 'Paulo', 'Luiza', 'Pedro', 'Marcos', 'Juliana', 'Fernanda', 'Lucas', 'Rafael', 'Camila', 'Bruno', 'Patrícia', 'Rodrigo', 'Aline', 'Gustavo', 'Renata', 'Diego', 'Sandra', 'Eduardo', 'Vanessa', 'Fábio', 'Cláudia', 'Thiago', 'Márcia', 'Leandro', 'Simone', 'Roberto', 'Tatiana', 'Sérgio', 'Luciana', 'André', 'Priscila', 'Marcelo', 'Débora', 'Felipe', 'Adriana', 'Ricardo', 'Cristina', 'Vinícius', 'Elaine', 'Henrique', 'Mônica', 'Gabriel', 'Larissa'];
@@ -2692,6 +2694,22 @@ function montarExemplos(extras = false) {
       const k = 'g' + i, c = [nome, com ? 'comercio' : 'pessoa', tel, cidade.startsWith('Vot') ? '18110-000' : '18010-000', rua, String(between(r, 12, 1980)), bairro, cidade, pick(r, REF), com && r() < .5 ? 'Paga fiado toda sexta' : pick(r, OBS)];
       CLI[k] = c; CKG.push(k);
       X('clientes', 'cli-' + k, { nome: c[0], tipo: c[1], telefone: c[2], cep: c[3].replace(/\D/g, ''), endereco: c[4], numero: c[5], bairro: c[6], cidade: c[7], referencia: c[8], obs: c[9], ts: T(61 + Math.floor(i * 0.72), hm(r)) });
+    }
+    // ---- clientes sumidos extras (só no conjunto completo): 2 compras antigas cada, 14 dias ou mais sem pedir ----
+    if (completo) {
+      const nSum = falta('sumidos');
+      for (let i = 0; i < nSum; i++) {
+        const r = rng('sum', i), com = i % 4 === 3, [rua, bairro, cidade] = pick(r, RUAS);
+        const nome = com ? `${pick(r, KIND)} ${pick(r, SUF)}` : `${pick(r, NOMES)} ${pick(r, SOBRE)}`;
+        const tel = com ? `(15) 32${between(r, 40, 49)}-${between(r, 1000, 9999)}` : `(15) 9${between(r, 6000, 9999)}-${between(r, 1000, 9999)}`;
+        const k = 'sx' + i, noApp = i % 3 === 0;
+        SUM[k] = [nome, com ? 'comercio' : 'pessoa', tel, cidade.startsWith('Vot') ? '18110-000' : '18010-000', rua, String(between(r, 12, 1980)), bairro, cidade, pick(r, REF), noApp ? 'Cliente do app' : ''];
+        const c = SUM[k];
+        X('clientes', 'cli-' + k, { nome: c[0], tipo: c[1], telefone: c[2], cep: c[3].replace(/\D/g, ''), endereco: c[4], numero: c[5], bairro: c[6], cidade: c[7], referencia: c[8], obs: c[9], ts: T(62 + i, hm(r)), exSumido: true, ...(noApp ? { noApp: true } : {}) });
+        const ult = 15 + i * 3 + between(r, 0, 2), orig = noApp ? 'app' : com ? 'avulsa' : 'chat';
+        V('sx' + i + 'a', T(ult + 20 + between(r, 0, 8), hm(r, 8, 17)), k, [it('cx1', between(r, 1, 3))], pick(r, ['pix', 'dinheiro']), true, orig, 'entregue', { exSumido: true });
+        V('sx' + i + 'b', T(ult, hm(r, 8, 17)), k, [it('bd', between(r, 2, 8))], pick(r, ['pix', 'dinheiro']), true, orig, 'entregue', { exSumido: true });
+      }
     }
     const CKP = Object.keys(CLI).filter(k => CLI[k][1] === 'pessoa'), CKC = Object.keys(CLI).filter(k => CLI[k][1] === 'comercio');
 
@@ -2874,6 +2892,8 @@ function montarExemplos(extras = false) {
 
 /* categorias para escolher quais exemplos e quantos de cada */
 const EX_MAX = 20; // limite de cada tipo
+const EX_MAXCAT = { clientes: 40, sumidos: 20 }; // exceções: 40 clientes e 20 clientes sumidos
+const exMax = k => EX_MAXCAT[k] || EX_MAX;
 const EX_CATS = [
   { k: 'clientes', nome: 'Clientes', ic: '👤' },
   { k: 'sumidos', nome: 'Clientes sumidos', ic: '💤' },
@@ -2935,7 +2955,7 @@ function exNoApp() {
 // conjunto completo (até EX_MAX de cada tipo), montado uma vez ao abrir a janela
 function exUniverso() {
   const c = exUniverso.c;
-  if (!c || Date.now() - c.t > 6e5) exUniverso.c = { t: Date.now(), data: montarExemplos(true), base: montarExemplos(false) };
+  if (!c || Date.now() - c.t > 6e5) exUniverso.c = { t: Date.now(), data: montarExemplos(true, true), base: montarExemplos(false) };
   return exUniverso.c;
 }
 function exJaTem() {
@@ -2952,7 +2972,7 @@ function exDisponivel(soBasico) {
     if (col === 'mensagens') { if (vistos.has(d.clienteId)) continue; vistos.add(d.clienteId); }
     if (!jaTem(col, id, d)) { const c = catDoExemplo(col, d); if (c in n) n[c]++; }
   }
-  for (const k in n) n[k] = Math.max(0, Math.min(n[k], EX_MAX - (noApp[k] || 0)));
+  for (const k in n) n[k] = Math.max(0, Math.min(n[k], exMax(k) - (noApp[k] || 0)));
   return n;
 }
 const exMsg = (t, txt) => { ui.exMsg = { t, txt }; };
@@ -2986,7 +3006,7 @@ async function carregarExemplos() {
   for (const c of EX_CATS) {
     const q = (ui.exQtd && ui.exQtd[c.k]) || 0; if (!q) continue;
     const cabe = Math.min(q, disp[c.k]); pedido[c.k] = cabe;
-    if (cabe < q) cortes.push(cabe > 0 ? `${c.nome}: você pediu ${q}, mas só cabiam ${cabe}` : `${c.nome}: limite de ${EX_MAX} já atingido`);
+    if (cabe < q) cortes.push(cabe > 0 ? `${c.nome}: você pediu ${q}, mas só cabiam ${cabe}` : `${c.nome}: limite de ${exMax(c.k)} já atingido`);
   }
   const data = filtrarExemplos(exUniverso().data, pedido, exJaTem());
   const itens = [];
@@ -3064,7 +3084,7 @@ async function removerExemplosCat(k) {
   if (ok && backend === 'local') ls.set(AUTO_EX_KEY, { manual: true, dia: dayKey(Date.now()) });
 }
 // campo de quantidade: digitar atualiza na hora, sem redesenhar a janela (o teclado não fecha)
-const exAvisoTxt = (k, max, tem) => max <= 0 ? `Limite de ${EX_MAX} atingido: já há ${tem} aqui. Apague alguns para inserir mais.` : (tem <= 0 ? `O máximo por tipo é ${EX_MAX}. Ajustei para ${max}.` : `Só cabem mais ${max} aqui (limite de ${EX_MAX}, já há ${tem} no app). Ajustei para ${max}.`);
+const exAvisoTxt = (k, max, tem, EX_MAX = exMax(k)) => max <= 0 ? `Limite de ${EX_MAX} atingido: já há ${tem} aqui. Apague alguns para inserir mais.` : (tem <= 0 ? `O máximo por tipo é ${EX_MAX}. Ajustei para ${max}.` : `Só cabem mais ${max} aqui (limite de ${EX_MAX}, já há ${tem} no app). Ajustei para ${max}.`);
 function exQtdDigitada(inp, final) {
   const k = inp.dataset.exk, max = Number(inp.max) || 0;
   const bruto = Math.round(Number(String(inp.value).replace(/\D/g, '')) || 0), n = Math.max(0, Math.min(max, bruto));
@@ -3624,7 +3644,7 @@ function modalSumidos() {
 function ivSumidos() {
   const L = sumidosLista();
   return `<div class="sec-h iv-sh"><h2>Clientes sumidos</h2></div>
-  <div class="card iv-sum"><div class="iv-w"><div class="iv-it ${L.length ? 'iv-clk' : ''}" ${L.length ? 'data-act="iv-sum-lista" role="button" tabindex="0" aria-label="Ver os clientes sumidos"' : ''}><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>Clientes sumidos${L.length > 1 ? ` · ${L.length}` : ''}</b><small>${L.length ? esc(L[0].c.nome) + ' · ' + L[0].dias + ' dias sem pedir' + (L.length > 1 ? ' · toque para ver todos' : '') : 'Todo mundo em dia'}</small></span>${L.length ? sumBtns(L[0].c) : ''}</div></div><div class="iv-m">${L.length ? L.slice(0, 3).map(({ c, dias }) => `<div class="iv-it"><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>${esc(c.nome)}</b><small>Já comprou antes · ${dias} dias sem pedir</small></span>${sumBtns(c)}</div>`).join('')
+  <div class="card iv-sum"><div class="iv-w"><div class="iv-it ${L.length ? 'iv-clk' : ''}" ${L.length ? 'data-act="iv-sum-lista" role="button" tabindex="0" aria-label="Ver os clientes sumidos"' : ''}><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>Clientes sumidos${L.length > 1 ? ` · ${L.length}` : ''}</b><small>${L.length ? esc(L[0].c.nome) + ' · ' + L[0].dias + ' dias sem pedir' + (L.length > 1 ? ' · toque para ver todos' : '') : 'Todo mundo em dia'}</small></span>${L.length ? sumBtns(L[0].c) : ''}</div></div><div class="iv-m ${L.length > 3 ? 'iv-clk' : ''}" ${L.length > 3 ? 'data-act="iv-sum-lista" role="button" tabindex="0" aria-label="Ver todos os clientes sumidos"' : ''}>${L.length ? L.slice(0, 3).map(({ c, dias }) => `<div class="iv-it"><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>${esc(c.nome)}</b><small>Já comprou antes · ${dias} dias sem pedir</small></span>${sumBtns(c)}</div>`).join('') + (L.length > 3 ? `<div class="iv-more">+ ${L.length - 3} ${L.length - 3 === 1 ? 'outro' : 'outros'} · toque no cartão para ver todos</div>` : '')
     : `<div class="iv-it"><span class="iv-ic ok">${ic('check')}</span><span class="iv-t"><b>Todo mundo em dia</b><small>Ninguém que já comprou está há mais de 14 dias sem pedir.</small></span></div>`}</div></div>`;
 }
 function gInicio() {
@@ -4893,11 +4913,11 @@ function sheetHTML() {
   if (s.type === 'exemplos') { const nEx = contaExemplos(), noApp = exNoApp(), disp = exDisponivel(); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
     for (const c of EX_CATS) ui.exQtd[c.k] = Math.min(ui.exQtd[c.k] || 0, disp[c.k]);
     const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0), trava = ui.exBusy || !canWrite ? 'disabled' : '';
-    return wrap('Dados de exemplo', `<p class="muted" style="margin:0;font-size:14px">Escolha o que inserir e quantos de cada, até ${EX_MAX} por tipo: toque em + e − ou digite o número. Cada exemplo fica marcado, e ao apagar só eles saem. Não mexem no estoque dos seus produtos.</p>
+    return wrap('Dados de exemplo', `<p class="muted" style="margin:0;font-size:14px">Escolha o que inserir e quantos de cada, até ${EX_MAX} por tipo (clientes: até ${exMax('clientes')}): toque em + e − ou digite o número. Cada exemplo fica marcado, e ao apagar só eles saem. Não mexem no estoque dos seus produtos.</p>
     ${ui.exMsg ? `<div class="note ex-msg ${ui.exMsg.t}" role="status">${esc(ui.exMsg.txt)}</div>` : ''}
     ${nEx ? `<div class="note" style="margin:0">Agora há ${nEx} registros de exemplo no app. Use <b>Apagar</b> em cada item para tirar só aquele tipo.</div>` : ''}
-    <div class="ex-chips"><button class="lt-chip" data-act="ex-todos">Conjunto básico</button><button class="lt-chip" data-act="ex-max">Máximo (${EX_MAX} de cada)</button><button class="lt-chip" data-act="ex-zerar">Zerar</button></div>
-    <div class="ex-lista">${EX_CATS.map(c => { const q = ui.exQtd[c.k] || 0, tem = noApp[c.k] || 0, d = disp[c.k], av = ui.exAviso && ui.exAviso.k === c.k ? exAvisoTxt(c.k, d, tem) : ''; return `<div class="ex-row"><div class="ex-info"><b>${c.ic} ${c.nome}</b><small>${tem} de ${EX_MAX} no app · cabem mais ${d}</small>${tem ? `<button class="ex-apagar" data-act="ex-apagar-cat" data-k="${c.k}" ${trava} aria-label="Apagar os exemplos de ${c.nome}">${ic('trash')}Apagar</button>` : ''}</div><span class="stepper"><button class="minus" data-act="ex-qtd" data-k="${c.k}" data-v="-1" ${q <= 0 ? 'disabled' : ''} aria-label="Menos ${c.nome}">−</button><input class="ex-n" id="ex-n-${c.k}" data-exk="${c.k}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="${d}" value="${q}" ${d <= 0 ? 'disabled' : ''} aria-label="Quantidade de ${c.nome}"><button data-act="ex-qtd" data-k="${c.k}" data-v="1" aria-label="Mais ${c.nome}">+</button></span><div class="ex-aviso" id="ex-av-${c.k}" role="alert" ${av ? '' : 'hidden'}>${esc(av)}</div></div>`; }).join('')}</div>
+    <div class="ex-chips"><button class="lt-chip" data-act="ex-todos">Conjunto básico</button><button class="lt-chip" data-act="ex-max">Máximo (${EX_MAX} de cada, ${exMax('clientes')} clientes)</button><button class="lt-chip" data-act="ex-zerar">Zerar</button></div>
+    <div class="ex-lista">${EX_CATS.map(c => { const q = ui.exQtd[c.k] || 0, tem = noApp[c.k] || 0, d = disp[c.k], av = ui.exAviso && ui.exAviso.k === c.k ? exAvisoTxt(c.k, d, tem) : ''; return `<div class="ex-row"><div class="ex-info"><b>${c.ic} ${c.nome}</b><small>${tem} de ${exMax(c.k)} no app · cabem mais ${d}</small>${tem ? `<button class="ex-apagar" data-act="ex-apagar-cat" data-k="${c.k}" ${trava} aria-label="Apagar os exemplos de ${c.nome}">${ic('trash')}Apagar</button>` : ''}</div><span class="stepper"><button class="minus" data-act="ex-qtd" data-k="${c.k}" data-v="-1" ${q <= 0 ? 'disabled' : ''} aria-label="Menos ${c.nome}">−</button><input class="ex-n" id="ex-n-${c.k}" data-exk="${c.k}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="${d}" value="${q}" ${d <= 0 ? 'disabled' : ''} aria-label="Quantidade de ${c.nome}"><button data-act="ex-qtd" data-k="${c.k}" data-v="1" aria-label="Mais ${c.nome}">+</button></span><div class="ex-aviso" id="ex-av-${c.k}" role="alert" ${av ? '' : 'hidden'}>${esc(av)}</div></div>`; }).join('')}</div>
     <div class="ex-acts"><button class="lt-btn lt-block" data-act="ex-carregar" ${ui.exBusy || !canWrite || !sel ? 'disabled' : ''}>${ui.exBusy ? `Inserindo… ${ui.exProg || ''}` : sel ? `Inserir ${sel} ${sel === 1 ? 'exemplo' : 'exemplos'}` : 'Escolha acima o que inserir'}</button>
     <button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor" data-act="ex-recriar" ${ui.exBusy || !canWrite ? 'disabled' : ''}>Zerar e criar ${EX_MAX} de cada (todos ligados)</button>
     ${nEx ? `<button class="ex-rem" data-act="ex-remover" ${trava}>${ic('trash')}Remover todos os exemplos (${nEx})</button>` : ''}</div>`); }
