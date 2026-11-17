@@ -585,17 +585,8 @@
   .app{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 28px;align-content:start}
   .app>*{grid-column:1/-1;min-width:0;margin-top:0!important;margin-bottom:0!important}
   /* Início */
-  .app:has(>.lt-hero+.pend-btn)>.lt-hero{grid-column:1;grid-row:2}
-  .app:has(>.lt-hero+.pend-btn)>.pend-btn{grid-column:2;grid-row:2;align-self:stretch}
-  /* web: Pendências com a altura do card Vendas de hoje, mostrando os primeiros assuntos que couberem */
-  .app:has(>.lt-hero+.pend-btn)>.pend-btn{display:grid;grid-template-columns:48px minmax(0,1fr) 20px;grid-template-rows:auto minmax(0,1fr);align-items:center;column-gap:14px;row-gap:10px;overflow:hidden;contain:size}
-  .app:has(>.lt-hero+.pend-btn)>.pend-btn .pend-list{display:flex;grid-column:1/-1;align-self:stretch;height:100%;flex-wrap:wrap;overflow:hidden;align-content:flex-start}
-  .app:has(>.lt-hero+.pend-btn)>:nth-child(4){grid-row:3}
-  .app:has(>.lt-hero+.pend-btn)>:nth-child(5){grid-row:4}
-  .app:has(>.lt-hero+.pend-btn)>:nth-child(6){grid-column:1;grid-row:5}
-  .app:has(>.lt-hero+.pend-btn)>:nth-child(7){grid-column:1;grid-row:6;align-self:stretch}
-  .app:has(>.lt-hero+.pend-btn)>:nth-child(8){grid-column:2;grid-row:5}
-  .app:has(>.lt-hero+.pend-btn)>:nth-child(9){grid-column:2;grid-row:6;align-self:stretch}
+  .app:has(>.lt-hero+.iv-need)>.lt-hero{grid-column:1;grid-row:2}
+  .app:has(>.lt-hero+.iv-need)>.iv-need{grid-column:2;grid-row:2;align-self:stretch}
   .now-row{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));overflow:visible!important;gap:12px}
   .now-row>.now{width:auto!important;min-width:0}
   /* Listas e cartões em colunas */
@@ -660,6 +651,71 @@
 .pend-tx{min-width:0;display:grid;gap:2px}.pend-tx b{font-weight:600;font-size:16px}.pend-tx small{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pend-row .ml-v{font-weight:700}
 .ml-ic.pend-red{background:var(--red-soft);color:var(--red)}.ml-ic.pend-warn{background:var(--warn-soft);color:var(--warn)}
+
+/* ===== Início: novo painel de vendas e blocos ===== */
+.iv-hero{gap:6px}
+.iv-cmp{align-self:flex-start;font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:99px;background:color-mix(in srgb,currentColor 20%,transparent)}
+.iv-cmp.down{opacity:.85}
+.iv-ringrow{display:flex;align-items:center;gap:14px;margin-top:6px}
+.iv-ring{--p:0;border-radius:50%;
+  background:conic-gradient(currentColor calc(var(--p)*1%),color-mix(in srgb,currentColor 26%,transparent) 0);
+  -webkit-mask:radial-gradient(circle,transparent 0 55%,#000 57%);mask:radial-gradient(circle,transparent 0 55%,#000 57%)}
+.iv-ringw{position:relative;width:86px;height:86px;flex:none}
+.iv-ringw .iv-ring{position:absolute;inset:0}
+.iv-ringt{position:absolute;inset:0;display:grid;place-content:center;text-align:center;line-height:1.05}
+.iv-ringt b{font-size:17px;font-weight:800}.iv-ringt small{font-size:10px;opacity:.85}
+.iv-leg{flex:1;min-width:0;display:grid;gap:5px}
+.iv-lg{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;color:inherit;padding:2px 0;font-size:13.5px;font-weight:600;text-align:left}
+.iv-lg b{font-weight:800}
+.iv-d{width:10px;height:10px;border-radius:50%;flex:none;background:color-mix(in srgb,currentColor 35%,transparent)}
+.iv-d.on{background:currentColor}.iv-d.lucro{background:transparent;border:2px solid currentColor}
+.iv-bars{display:flex;align-items:flex-end;gap:5px;height:44px;margin-top:8px}
+.iv-b{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;padding:0;border:0;background:none;color:inherit;cursor:pointer}
+.iv-b i{display:block;width:100%;border-radius:4px 4px 2px 2px;background:color-mix(in srgb,currentColor 32%,transparent)}
+.iv-b.h i{background:currentColor}
+.iv-b:focus-visible{outline:2px solid currentColor;outline-offset:2px;border-radius:4px}
+.iv-days{display:flex;gap:5px;font-size:10.5px;opacity:.85}.iv-days span{flex:1;text-align:center}.iv-days span.h{font-weight:800;opacity:1}
+.iv-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.iv-mini div{background:color-mix(in srgb,currentColor 15%,transparent);border-radius:12px;padding:7px 9px;font-size:11.5px}
+.iv-mini b{display:block;font-size:14.5px;font-weight:800;margin-top:1px}
+.lt[data-visual="classico"][data-solido="1"]:not([data-escuro="1"]) .iv-hero .iv-cmp{color:var(--accent)}
+
+.iv-need .card,.iv-list{margin-top:10px}
+.iv-list,.iv-est,.iv-sum,.iv-rota,.iv-div{margin-top:10px}
+.iv-list,.iv-est,.iv-sum,.iv-div{padding:2px 16px}
+.iv-it{display:flex;align-items:center;gap:12px;width:100%;padding:11px 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;color:var(--ink);font:inherit}
+.iv-it:last-child{border-bottom:0}
+.iv-ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--tint);color:var(--accent)}
+.iv-ic svg{width:18px;height:18px}
+.iv-ic.red{background:var(--badBg);color:var(--bad)}.iv-ic.warn{background:var(--warnBg);color:var(--warn)}
+.iv-ic.info{background:var(--infoBg);color:var(--info)}.iv-ic.ok{background:var(--okBg);color:var(--okc)}
+.iv-t{flex:1;min-width:0;display:grid;gap:2px}.iv-t b{font-size:15px;font-weight:700}
+.iv-t small{color:var(--muted);font-size:12.5px}
+.iv-go .iv-t small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iv-btn{font-size:12.5px;font-weight:800;color:var(--accent);background:var(--tint);border:0;border-radius:99px;padding:6px 12px;white-space:nowrap;flex:none}
+.iv-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.iv-chip{border:0;border-radius:99px;padding:6px 12px;font-size:12.5px;font-weight:700;background:var(--fill);color:var(--muted);border:1px solid var(--line)}
+.iv-chip.on{background:var(--accent);color:var(--onA);border-color:transparent}
+.iv-pie{display:flex;align-items:center;gap:16px;padding:14px 0 10px}
+.iv-donut{width:126px;height:126px;border-radius:50%;flex:none;display:grid;place-items:center}
+.iv-donut i{width:88px;height:88px;border-radius:50%;background:var(--card);display:grid;place-items:center;align-content:center;font-style:normal;text-align:center;gap:1px}
+.iv-donut b{font-size:12px;font-weight:800}.iv-donut small{font-size:10.5px;color:var(--muted)}
+.iv-pl{flex:1;min-width:0;display:grid;gap:8px;font-size:13.5px}
+.iv-pl div{display:flex;align-items:center;gap:8px}.iv-pl b{font-weight:800}
+.iv-dot{width:10px;height:10px;border-radius:50%;flex:none}
+.iv-st{padding:11px 0;border-bottom:1px solid var(--line)}.iv-st:last-of-type{border-bottom:0}
+.iv-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.iv-row small{color:var(--muted);font-size:12.5px;text-align:right}
+.iv-row b{font-size:14.5px}
+.iv-bar{height:8px;border-radius:99px;background:var(--fill);border:1px solid var(--line);overflow:hidden;margin-top:7px}
+.iv-bar i{display:block;height:100%;border-radius:99px}
+.iv-bar i.bad{background:var(--bad)}.iv-bar i.warn{background:var(--warn)}.iv-bar i.ok,.iv-seg span.done{background:var(--okc)}
+small b.iv-bad{color:var(--bad)}small b.iv-warn{color:var(--warn)}small b.iv-ok{color:var(--okc)}
+.iv-note{margin:8px 0 6px;font-size:11.5px;color:var(--muted)}
+.iv-rota{padding:14px 16px}
+.iv-seg{display:flex;gap:6px;margin-top:10px}.iv-seg span{flex:1;height:8px;border-radius:99px;background:var(--fill);border:1px solid var(--line)}
+.iv-seg span.done,.iv-seg span.cur{border-color:transparent}
+.iv-seg span.cur{background:var(--accent)}
 </style>
 <style>
 /* Layout: app de celular em uma coluna (até 480px), cabeçalho com saudação, cartão destaque em degradê, atalhos em grade, barra inferior flutuante com botão + */
@@ -2759,6 +2815,7 @@ function periodoNaTroca() {
 }
 function render() {
   periodoNaTroca();
+  if (ui.mode !== 'gestao' || ui.g !== 'inicio') ui.hd = 0; /* ao sair do Início, volta para Vendas de hoje */
   if (backend === 'pending') { $main.innerHTML = '<div class="empty" style="padding-top:120px">Carregando…</div>'; return; }
   ensureTeste();
   const keep = {}; $main.querySelectorAll('input[id],select[id],textarea[id]').forEach(el => { keep[el.id] = el.type === 'radio' || el.type === 'checkbox' ? el.checked : el.value; });
@@ -2807,22 +2864,60 @@ function topHeader(kind) {
       <button class="lt-iconbtn" data-act="go-pedidos" aria-label="Avisos">${ic('bell')}${ord ? '<span class="lt-dot">1</span>' : ''}</button>
     </div>`}</div>
     <div class="mr-sub">${isG ? hojeTxt() : 'Morangos colhidos hoje, entregues na sua casa.'}</div>
-  </header>${statusNote()}${isG ? bandGestao() + pendBtn() : ''}`;
+  </header>${statusNote()}${isG ? bandGestao() : ''}`;
 }
+/* blocos do Início que o usuário pode ligar ou desligar (Configurações > Tela inicial) */
+const INICIO_BLOCOS = [
+  ['hero', 'Vendas de hoje', 'Valor do dia, recebido, lucro e gráfico dos 7 dias', 'receipt'],
+  ['need', 'Precisa de você', 'Os assuntos mais urgentes, com botão de ação', 'bell'],
+  ['div', 'Divisão das vendas', 'Por pagamento, produto ou origem da venda', 'chart'],
+  ['est', 'Estoque em dias', 'Para quantos dias ainda dá cada produto', 'box'],
+  ['rota', 'Rota de hoje', 'Entregas feitas e a próxima parada', 'truck'],
+  ['sum', 'Clientes sumidos', 'Quem já comprou e parou de pedir', 'user'],
+  ['mov', 'Movimentações', 'As últimas entradas e saídas', 'wallet'],
+];
+const inicioCfg = () => ls.get('mmr-inicio', {}) || {};
+const inicioOn = k => inicioCfg()[k] !== false;
 function bandGestao() {
-  /* só vendas de hoje (nada acumulado): vendido, recebido, falta receber e lucro bruto do dia */
-  const t = totals('hoje');
+  if (!inicioOn('hero')) return '';
+  /* vendas do dia escolhido no gráfico (ui.hd = quantos dias atrás; 0 = hoje): vendido, recebido, falta receber, lucro, comparação com a semana anterior */
+  const sel = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0;
+  const d0 = startOfDay(), ini = d0 - sel * 864e5;
+  _rng = [ini, ini + 864e5]; const t = totals('_r'); _rng = null;
   const faltaHoje = t.vs.filter(v => !v.pago).reduce((s, v) => s + vLiq(v), 0);
   const recebidoHoje = Math.max(0, t.vendas - faltaHoje);
   const ticket = t.vs.length ? t.vendas / t.vs.length : 0;
   const pagos = t.vs.filter(v => v.pago).length;
-  return `<section class="lt-hero" aria-label="Vendas de hoje">
-    <div class="lt-hero-head"><span>Vendas de hoje</span><span class="lt-pill-on">${t.vs.length} ${t.vs.length === 1 ? 'pedido' : 'pedidos'}</span></div>
+  const itens = t.vs.reduce((s, v) => s + (v.itens || []).reduce((a, i) => a + (Number(i.qtd) || 0), 0), 0);
+  const pct = t.vendas > 0 ? Math.round(recebidoHoje / t.vendas * 100) : 0;
+  const somaDia = (i0, i1) => vendasValidas().filter(v => v.ts >= i0 && v.ts < i1).reduce((s, v) => s + vLiq(v), 0);
+  const prevIni = ini - 7 * 864e5, prev = somaDia(prevIni, prevIni + (sel === 0 ? Date.now() - d0 + 1 : 864e5));
+  const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'], DC = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const dow = new Date(ini).getDay(), passado = dow === 0 || dow === 6 ? 'passado' : 'passada';
+  let cmp;
+  if (prev > 0) { const dp = Math.round((t.vendas - prev) / prev * 100); cmp = `<span class="iv-cmp ${dp < 0 ? 'down' : ''}">${dp < 0 ? '▼' : '▲'} ${Math.abs(dp)}% vs ${DIAS[dow]} ${passado} (${money(prev)})</span>`; }
+  else cmp = `<span class="iv-cmp">Sem vendas na ${DIAS[dow]} ${passado} para comparar</span>`;
+  const dias = [];
+  for (let i = 6; i >= 0; i--) { const i0 = d0 - i * 864e5; dias.push({ i, v: somaDia(i0, i0 + 864e5), l: i === 0 ? 'Hoje' : DC[new Date(i0).getDay()], d: new Date(i0).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) }); }
+  const mx = Math.max(...dias.map(x => x.v), 1);
+  const titulo = sel === 0 ? 'Vendas de hoje' : 'Vendas · ' + new Date(ini).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+  const aRec = sel === 0 ? 'data-act="go-vendas-hoje"' : 'data-act="iv-vdia" data-v="todas"';
+  const aFal = sel === 0 ? 'data-act="go-vendas-receber-hoje"' : 'data-act="iv-vdia" data-v="receber"';
+  return `<section class="lt-hero iv-hero" aria-label="${esc(titulo)}">
+    <div class="lt-hero-head"><span>${esc(titulo)}</span><span class="lt-pill-on">${t.vs.length} ${t.vs.length === 1 ? 'pedido' : 'pedidos'}</span></div>
     <div class="mr-big num">${money(t.vendas)}</div>
-    <button class="lt-hero-item" data-act="go-vendas-hoje">${ic('cash')}<span class="lt-grow">Recebido hoje</span><small class="num">${money(recebidoHoje)}</small>${ic('right')}</button>
-    <button class="lt-hero-item" data-act="go-vendas-receber-hoje">${ic('wallet')}<span class="lt-grow">Falta receber de hoje</span><small class="num">${money(faltaHoje)}</small>${ic('right')}</button>
-    <button class="lt-hero-item" data-act="go" data-v="relatorios">${ic('chart')}<span class="lt-grow">Lucro bruto de hoje</span><small class="num">${money(t.lucroBruto)}</small>${ic('right')}</button>
-    <div class="lt-hero-foot"><span>Ticket médio: ${money(ticket)}</span><span>${pagos} de ${t.vs.length} pagos</span></div>
+    ${cmp}
+    <div class="iv-ringrow">
+      <div class="iv-ringw"><div class="iv-ring" style="--p:${pct}"></div><div class="iv-ringt"><b>${pct}%</b><small>recebido</small></div></div>
+      <div class="iv-leg">
+        <button class="iv-lg" ${aRec}><span class="iv-d on"></span><span class="lt-grow">Recebido</span><b class="num">${money(recebidoHoje)}</b></button>
+        <button class="iv-lg" ${aFal}><span class="iv-d"></span><span class="lt-grow">Falta receber</span><b class="num">${money(faltaHoje)}</b></button>
+        <button class="iv-lg" data-act="go" data-v="relatorios"><span class="iv-d lucro"></span><span class="lt-grow">Lucro bruto</span><b class="num">${money(t.lucroBruto)}</b></button>
+      </div>
+    </div>
+    <div class="iv-bars" role="group" aria-label="Toque em um dia para ver as vendas dele">${dias.map(x => `<button class="iv-b ${x.i === sel ? 'h' : ''}" data-act="iv-dia" data-v="${x.i}" aria-pressed="${x.i === sel}" aria-label="${esc(x.d)}: ${money(x.v)}" title="${esc(x.d)}: ${money(x.v)}"><i style="height:${Math.max(8, Math.round(x.v / mx * 100))}%"></i></button>`).join('')}</div>
+    <div class="iv-days">${dias.map(x => `<span class="${x.i === sel ? 'h' : ''}">${x.l}</span>`).join('')}</div>
+    <div class="iv-mini"><div>Ticket médio<b class="num">${money(ticket)}</b></div><div>Itens vendidos<b class="num">${fmtNum(itens)}</b></div><div>Pagos<b class="num">${pagos} de ${t.vs.length}</b></div></div>
   </section>`;
 }
 function bandCliente() { return ''; }
@@ -2891,57 +2986,84 @@ function gPendencias() {
   return pageHeader('Pendências') + (grupos.length ? grupos.map(([g, xs]) => `<div class="sec-h"><h2>${g}</h2></div><nav class="card menu-list">${xs.map(row).join('')}</nav>`).join('')
     : `<div class="card calm"><span class="chipico g">${ic('check')}</span><div><b>Tudo em dia</b><small>Nada em aberto: mensagens, vendas, compras, estornos e entregas.</small></div></div>`);
 }
-function gInicio() {
-  const novos = S.vendas.filter(v => v.status === 'recebido');
-  const r = rota();
-  const rec = aReceber();
-  const baixo = S.produtos.filter(x => x.ativo !== false && (x.estoque || 0) <= 5);
-  const pix = S.vendas.filter(v => v.clienteInformouPix && !v.pago && v.status !== 'cancelado');
-  const now = [];
-  if (novos.length) now.push(['red', 'receipt', String(novos.length), novos.length === 1 ? 'pedido novo pelo app' : 'pedidos novos pelo app', novos.map(v => v.cliente?.nome).filter(Boolean).slice(0, 2).join(', '), 'go-vendas-abertas', 'Separar']);
-  const nlC = conversasNaoLidas();
-  if (nlC.length) now.push(['red', 'chat', String(naoLidasG()), naoLidasG() === 1 ? 'mensagem nova' : 'mensagens novas', nlC.map(c => c.nome).slice(0, 2).join(', '), 'go-conversas', 'Responder']);
-  if (r.length) now.push(['dark', 'truck', String(r.length), r.length === 1 ? 'parada na rota' : 'paradas na rota', 'Próxima: ' + (r[0].cliente?.nome || 'cliente'), 'go', 'Abrir rota', 'entregas']);
-  if (pix.length) now.push(['blue', 'cash', String(pix.length), 'Pix para confirmar', pix.map(v => v.cliente?.nome).filter(Boolean).slice(0, 2).join(', '), 'go-vendas-receber', 'Conferir']);
-  if (rec.length) now.push(['green', 'wallet', money(rec.reduce((s, v) => s + vLiq(v), 0)), 'a receber de clientes', `${rec.length} ${rec.length === 1 ? 'venda' : 'vendas'} sem pagamento`, 'go-vendas-receber', 'Cobrar']);
-  const sep = S.vendas.filter(v => v.status === 'separado');
-  if (sep.length) now.push(['warn', 'receipt', String(sep.length), sep.length === 1 ? 'pedido separado' : 'pedidos separados', 'Esperando sair para entrega', 'go', 'Pôr na rota', 'entregas']);
-  const esg = baixo.filter(p => (p.estoque || 0) <= 0), acab = baixo.filter(p => (p.estoque || 0) > 0);
-  if (esg.length) now.push(['red', 'box', String(esg.length), esg.length === 1 ? 'produto esgotado' : 'produtos esgotados', esg.map(p => p.nome).slice(0, 2).join(', '), 'go', 'Comprar', 'compras']);
-  if (acab.length) now.push(['warn', 'box', String(acab.length), acab.length === 1 ? 'produto acabando' : 'produtos acabando', acab.map(p => `${p.nome} (${fmtNum(p.estoque)})`).slice(0, 2).join(', '), 'go', 'Repor', 'compras']);
-  const ap = aPagar();
-  if (ap.length) now.push(['warn', 'basket', money(ap.reduce((s, c) => s + cAberto(c), 0)), 'a pagar na roça', `${ap.length} ${ap.length === 1 ? 'compra' : 'compras'} sem pagamento`, 'go', 'Pagar', 'compras']);
-  const saldo = saldoGeral();
-  if (saldo < 0) now.push(['red', 'wallet', money(saldo), 'caixa no negativo', 'Saiu mais do que entrou', 'go', 'Ver caixa', 'caixa']);
-  // informativos: aparecem depois do que pede ação
+/* Início: "Precisa de você", divisão das vendas, estoque em dias, rota de hoje, clientes sumidos */
+const IV_ACAO = { Responder: 'Responder', Receber: 'Receber', Pagar: 'Pagar', Entregar: 'Ver', Estoque: 'Repor', Caixa: 'Ver' };
+const IV_CORES = ['var(--a2)', 'var(--okc)', 'var(--info)', 'var(--warn)', 'var(--muted2)'];
+function ivDivisao() {
+  const per = ui.dp || '7d', vis = ui.dv || 'pag';
+  const vs = vendasValidas().filter(v => inPeriod(v.ts, per));
+  const m = {};
+  const add = (k, x) => { m[k] = (m[k] || 0) + x; };
+  if (vis === 'pag') vs.forEach(v => add(FORMAS[v.forma] || v.forma || 'Outros', vLiq(v)));
+  else if (vis === 'prod') vs.forEach(v => (v.itens || []).forEach(i => add(i.nome || 'Produto', (Number(i.qtd) || 0) * (Number(i.preco) || 0))));
+  else vs.forEach(v => add(v.origem === 'avulsa' ? 'Venda avulsa' : v.origem === 'chat' ? 'Pelo chat' : 'Pelo app', vLiq(v)));
+  let L = Object.entries(m).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  if (L.length > 5) { const resto = L.slice(4).reduce((s, x) => s + x[1], 0); L = [...L.slice(0, 4), ['Outros', resto]]; }
+  const tot = L.reduce((s, x) => s + x[1], 0);
+  let acc = 0;
+  const grad = L.map(([, val], i) => { const p0 = acc / tot * 100; acc += val; return `${IV_CORES[i]} ${p0.toFixed(2)}% ${(acc / tot * 100).toFixed(2)}%`; }).join(',');
+  const chip = (act, v, cur, l) => `<button class="iv-chip ${cur === v ? 'on' : ''}" data-act="${act}" data-v="${v}">${l}</button>`;
+  return `<div class="sec-h"><h2>Divisão das vendas</h2></div>
+  <div class="card iv-div">
+    <div class="iv-chips">${chip('iv-dv', 'pag', vis, 'Pagamento')}${chip('iv-dv', 'prod', vis, 'Produto')}${chip('iv-dv', 'orig', vis, 'App × Avulsa')}</div>
+    <div class="iv-chips">${chip('iv-dp', 'hoje', per, 'Hoje')}${chip('iv-dp', '7d', per, '7 dias')}${chip('iv-dp', 'mes', per, 'Mês')}</div>
+    ${tot > 0 ? `<div class="iv-pie"><div class="iv-donut" style="background:conic-gradient(${grad})"><i><b class="num">${money(tot)}</b><small>${per === 'hoje' ? 'hoje' : per === '7d' ? '7 dias' : 'no mês'}</small></i></div>
+      <div class="iv-pl">${L.map(([n, val], i) => `<div><span class="iv-dot" style="background:${IV_CORES[i]}"></span><span class="lt-grow">${esc(n)}</span><b class="num">${Math.round(val / tot * 100)}%</b></div>`).join('')}</div></div>`
+      : `<p class="sub" style="margin:12px 0">Nenhuma venda neste período.</p>`}
+  </div>`;
+}
+function ivEstoque() {
+  const ini = startOfDay() - 6 * 864e5, q = {};
+  vendasValidas().filter(v => v.ts >= ini).forEach(v => (v.itens || []).forEach(i => { q[i.produtoId] = (q[i.produtoId] || 0) + (Number(i.qtd) || 0); }));
+  const L = S.produtos.filter(p => p.ativo !== false && q[p.id] > 0).map(p => ({ p, dias: Math.max(0, (p.estoque || 0)) / (q[p.id] / 7) })).sort((a, b) => a.dias - b.dias).slice(0, 3);
+  const fmtD = d => d < 0.5 ? 'acaba hoje' : d < 1.5 ? '~1 dia' : '~' + Math.round(d) + ' dias';
+  return `<div class="sec-h"><h2>Estoque em dias</h2><button class="link" data-act="go" data-v="estoque">Estoque</button></div>
+  <div class="card iv-est">${L.length ? L.map(({ p, dias }) => { const c = dias <= 1.5 ? 'bad' : dias <= 3 ? 'warn' : 'ok'; return `<div class="iv-st"><div class="iv-row"><b>${esc(p.nome)}</b><small><b class="iv-${c}">${fmtD(dias)}</b> · ${fmtNum(p.estoque)} em estoque</small></div><div class="iv-bar"><i class="${c}" style="width:${Math.max(4, Math.min(100, dias / 7 * 100))}%"></i></div></div>`; }).join('')
+    : `<p class="sub" style="margin:12px 0">Sem vendas nos últimos 7 dias para calcular.</p>`}
+    <p class="iv-note">Calculado pela média de vendas dos últimos 7 dias.</p>
+  </div>`;
+}
+function ivRota() {
   const d0 = startOfDay();
-  const ent = S.vendas.filter(v => v.status === 'entregue' && (v.entregueTs || v.ts) >= d0);
-  if (ent.length) now.push(['green', 'check', String(ent.length), ent.length === 1 ? 'entrega feita hoje' : 'entregas feitas hoje', ent.map(v => v.cliente?.nome).filter(Boolean).slice(0, 2).join(', '), 'go', 'Ver entregas', 'entregas']);
-  const saidas = S.compras.filter(c => c.ts >= d0).reduce((s, c) => s + (c.total || 0), 0) + S.despesas.filter(d => d.ts >= d0).reduce((s, d) => s + (d.valor || 0), 0);
-  if (saidas > 0) now.push(['dark', 'cash', money(saidas), 'saídas de hoje', 'Compras e despesas', 'go', 'Ver caixa', 'caixa']);
-  const top = {};
-  for (const v of S.vendas) if (v.status !== 'cancelado' && inPeriod(v.ts, '7d')) for (const i of v.itens || []) top[i.nome] = (top[i.nome] || 0) + (i.qtd || 0);
-  const best = Object.entries(top).sort((a, b) => b[1] - a[1])[0];
-  if (best) now.push(['dark', 'chart', fmtNum(best[1]), best[0], 'O mais vendido em 7 dias', 'go', 'Relatórios', 'relatorios']);
-  const noAr = newsNoAr();
-  if (noAr.length) now.push(['blue', 'megaphone', String(noAr.length), noAr.length === 1 ? 'notícia no app' : 'notícias no app', noAr[0].titulo || '', 'go', 'Ver', 'noticias']);
-  else now.push(['blue', 'megaphone', '0', 'notícias no app', 'Os clientes não veem novidades', 'nova-noticia', 'Publicar']);
-  const hojeVendas = S.vendas.filter(v => inPeriod(v.ts, 'hoje') && v.status !== 'cancelado').length;
-  return topHeader('gestao') + '' +
-  `<div class="sec-h"><h2>Agora</h2><span class="muted" style="font-size:13px">${now.length ? now.length + (now.length === 1 ? ' assunto' : ' assuntos') : ''}</span></div>
-  ${now.length ? `<div class="now-row">${now.map(([c, icon, big, label, sub, act, btn, v]) => `<button class="now ${c}" data-act="${act}" ${v ? `data-v="${v}"` : ''}><span class="now-ic">${ic(icon)}</span><span class="now-big num">${esc(big)}</span><span class="now-l">${esc(label)}</span><span class="now-s">${esc(sub || ' ')}</span><span class="now-btn">${btn} ${ic('right')}</span></button>`).join('')}</div>`
-    : `<div class="card calm"><span class="chipico g">${ic('check')}</span><div><b>Tudo em dia</b><small>Nenhum pedido esperando, nada a cobrar.</small></div></div>`}
-  <div class="sec-h"><h2>Gestão</h2></div>
-  <nav class="card menu-list" aria-label="Seções">
-    ${ml('receipt', 'Vendas', `${hojeVendas} hoje`, 'vendas')}
-    ${ml('truck', 'Entregas', r.length ? `${r.length} na rota` : 'rota vazia', 'entregas')}
-    ${ml('basket', 'Compras na roça', aPagar().length ? `${aPagar().length} a pagar` : 'em dia', 'compras')}
-    ${ml('wallet', 'Fluxo de caixa', money(saldoGeral()), 'caixa')}
-    ${ml('chat', 'Chat', naoLidasG() ? `${naoLidasG()} não ${naoLidasG() === 1 ? 'lida' : 'lidas'}` : 'com clientes', 'conversas')}
-    ${ml('chart', 'Relatórios', 'lucro e vendas', 'relatorios')}
-  </nav>
-  <div class="sec-h"><h2>Movimentações</h2><button class="link" data-act="go" data-v="atividade">Ver todas</button></div>
-  <div class="card feed-card"><div class="feed">${activity().slice(0, 5).map(feedHTML).join('') || '<p class="sub">Nada por aqui ainda.</p>'}</div></div>`;
+  const feitas = S.vendas.filter(v => v.status === 'entregue' && (v.entregueTs || v.ts) >= d0).length;
+  const r = rota(), tot = feitas + r.length;
+  return `<div class="sec-h"><h2>Rota de hoje</h2><button class="link" data-act="go" data-v="entregas">Abrir rota</button></div>
+  <div class="card iv-rota">${tot ? `<div class="iv-row"><b>${feitas} de ${tot} ${tot === 1 ? 'entrega feita' : 'entregas feitas'}</b><small>${r.length ? 'Próxima: ' + esc(r[0].cliente?.nome || 'cliente') : 'Rota concluída'}</small></div>
+    <div class="iv-seg">${Array.from({ length: Math.min(tot, 12) }, (_, i) => `<span class="${i < feitas ? 'done' : i === feitas ? 'cur' : ''}"></span>`).join('')}</div>`
+    : `<p class="sub" style="margin:8px 0">Nenhuma entrega na rota hoje.</p>`}</div>`;
+}
+function ivSumidos() {
+  const now = Date.now(), L = [];
+  for (const c of S.clientes) {
+    const os = vendasValidas().filter(v => v.clienteId === c.id).sort((a, b) => b.ts - a.ts);
+    if (os.length < 2 || soDig(c.telefone).length < 8) continue;
+    const dias = Math.floor((now - os[0].ts) / 864e5);
+    if (dias >= 14) L.push({ c, dias });
+  }
+  L.sort((a, b) => b.dias - a.dias);
+  return `<div class="sec-h"><h2>Clientes sumidos</h2></div>
+  <div class="card iv-sum">${L.length ? L.slice(0, 3).map(({ c, dias }) => `<div class="iv-it"><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>${esc(c.nome)}</b><small>Já comprou antes · ${dias} dias sem pedir</small></span><button class="iv-btn" data-act="iv-wa" data-id="${esc(c.id)}">WhatsApp</button></div>`).join('')
+    : `<div class="iv-it"><span class="iv-ic ok">${ic('check')}</span><span class="iv-t"><b>Todo mundo em dia</b><small>Ninguém que já comprou está há mais de 14 dias sem pedir.</small></span></div>`}</div>`;
+}
+function gInicio() {
+  const p = pendencias().filter(x => x[7] !== 'dark');
+  const ord = { red: 0, warn: 1 };
+  p.sort((a, b) => (ord[a[7]] ?? 1) - (ord[b[7]] ?? 1));
+  const item = ([g, icon, t, d, q, act, v, tom]) => `<button class="iv-it iv-go" data-act="${act}" ${v ? `data-v="${v}"` : ''}><span class="iv-ic ${tom}">${ic(icon)}</span><span class="iv-t"><b>${esc(t)}</b><small>${esc(d || ' ')}</small></span><span class="iv-btn">${act === 'go-vendas-abertas' ? 'Separar' : (IV_ACAO[g] || 'Ver')}</span></button>`;
+  const need = `<div class="iv-need"><div class="sec-h"><h2>Precisa de você</h2>${p.length ? `<button class="link" data-act="go" data-v="pendencias">Ver ${p.length > 3 ? 'as ' + p.length : 'tudo'}</button>` : ''}</div>
+  ${p.length ? `<div class="card iv-list">${p.slice(0, 3).map(item).join('')}</div>`
+    : `<div class="card calm"><span class="chipico g">${ic('check')}</span><div><b>Tudo em dia</b><small>Nenhum pedido esperando, nada a cobrar.</small></div></div>`}</div>`;
+  const mov = `<div class="sec-h"><h2>Movimentações</h2><button class="link" data-act="go" data-v="atividade">Ver todas</button></div>
+  <div class="card feed-card"><div class="feed">${activity().slice(0, 3).map(feedHTML).join('') || '<p class="sub">Nada por aqui ainda.</p>'}</div></div>`;
+  const vazio = INICIO_BLOCOS.every(b => !inicioOn(b[0]));
+  return topHeader('gestao') +
+  (inicioOn('need') ? need : '') +
+  (inicioOn('div') ? ivDivisao() : '') +
+  (inicioOn('est') ? ivEstoque() : '') +
+  (inicioOn('rota') ? ivRota() : '') +
+  (inicioOn('sum') ? ivSumidos() : '') +
+  (inicioOn('mov') ? mov : '') +
+  (vazio ? `<div class="card calm"><span class="chipico g">${ic('gear')}</span><div><b>Início vazio</b><small>Em Configurações, toque em Tela inicial e escolha o que mostrar aqui.</small></div></div>` : '');
 }
 /* ===== CONFIGURAÇÕES ===== */
 const cfgRow = (icon, label, val, act, v, extra = '') => `<button class="ml" data-act="${act}" data-v="${v}" ${extra}><span class="ml-ic">${ic(icon)}</span><span class="ml-l">${label}</span><span class="ml-v num">${esc(val)}</span>${ic('right', 'i chev')}</button>`;
@@ -2961,6 +3083,7 @@ function gConfig() {
   <nav class="card menu-list cfg-list" aria-label="App">
     ${cfgRow('bell', 'Notificações', nn ? `${nn} não ${nn === 1 ? 'lida' : 'lidas'}` : 'em dia', 'sheet', 'notif-ajustes')}
     ${cfgRow('palette', 'Aparência', lookLabel(), 'sheet', 'ajustes')}
+    ${cfgRow('home', 'Tela inicial', INICIO_BLOCOS.filter(b => inicioOn(b[0])).length + ' de ' + INICIO_BLOCOS.length + ' blocos', 'sheet', 'inicio-cfg')}
     ${cfgRow('dots', 'Menu inferior', menuNaBarra().length + ' na barra', 'sheet', 'menu-cfg')}
     ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
@@ -4101,6 +4224,9 @@ function sheetHTML() {
     <small class="muted" style="display:block;margin:8px 0 12px">${naBarra.length} de ${MENU_MAX} na barra${cheio ? ' · desligue um botão para escolher outro' : ''}.</small>
     <button class="lt-btn lt-block" data-act="menu-reset">Voltar ao padrão</button>`); }
 
+  if (s.type === 'inicio-cfg') return wrap('Tela inicial', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Escolha o que aparece na tela Início da Gestão. Vale para este aparelho.</p>
+    <div class="nt-prefs">${INICIO_BLOCOS.map(([k, l, d, icon]) => `<label class="nt-pref" for="in-${k}"><span class="nt-ic">${ic(icon)}</span><span class="grow"><b>${l}</b><small>${d}</small></span><input type="checkbox" class="lt-switch" id="in-${k}" data-act="inicio-tgl" data-v="${k}" ${inicioOn(k) ? 'checked' : ''}></label>`).join('')}</div>
+    <button class="lt-btn lt-block" style="margin-top:12px" data-act="inicio-reset">Mostrar tudo</button>`);
   if (s.type === 'modo') return wrap('Qual app abrir?', `<div class="menu">
     ${menuBtn('chart', 'Gestão', 'Para o fornecedor: vendas, caixa, estoque e entregas', 'mode', 'gestao', ui.mode === 'gestao')}
     ${menuBtn('bag', 'Loja do cliente', 'Comprar morangos e acompanhar a entrega', 'mode', 'cliente', ui.mode === 'cliente')}</div>`);
@@ -4727,6 +4853,13 @@ document.addEventListener('click', async e => {
     case 'go-vendas-abertas': ui.vt = 'todas'; ui.vf = 'abertas'; ui.vp = 'tudo'; ui.mode = 'gestao'; go('vendas'); break;
     case 'go-vendas-receber': ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'tudo'; go('vendas'); break;
     case 'go-vendas-receber-hoje': ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'hoje'; go('vendas'); break;
+    case 'inicio-tgl': ls.set('mmr-inicio', { ...inicioCfg(), [v]: t.checked }); render(); break;
+    case 'inicio-reset': ls.set('mmr-inicio', {}); render(); break;
+    case 'iv-dia': ui.hd = ui.hd === Number(v) ? 0 : Number(v); render(); break;
+    case 'iv-vdia': { const dia = ymd(new Date(startOfDay() - (ui.hd || 0) * 864e5)); ui.vt = 'todas'; ui.vf = v; ui.vp = 'custom'; ui.vDe = dia; ui.vAte = dia; go('vendas'); break; }
+    case 'iv-dv': ui.dv = v; render(); break;
+    case 'iv-dp': ui.dp = v; render(); break;
+    case 'iv-wa': { const c = S.clientes.find(x => x.id === id); if (!c) break; let n = soDig(c.telefone); if (n.length <= 11) n = '55' + n; window.open('https://wa.me/' + n + '?text=' + encodeURIComponent('Oi ' + String(c.nome || '').split(' ')[0] + ', tudo bem? Chegaram morangos fresquinhos 🍓 Quer que eu separe um pedido para você?'), '_blank'); break; }
     case 'go-vendas-hoje': ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = 'hoje'; go('vendas'); break;
     case 'go-estoque': go('estoque'); break;
     case 'go-vendas-estornar': ui.vt = 'todas'; ui.vf = 'canceladas'; ui.vp = 'tudo'; go('vendas'); break;
