@@ -585,7 +585,8 @@
   .app{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 28px;align-content:start}
   .app>*{grid-column:1/-1;min-width:0;margin-top:0!important;margin-bottom:0!important}
   /* Início */
-  .app:has(>.lt-hero+.iv-need)>.lt-hero{grid-column:1;grid-row:2}
+  .app:has(>.lt-hero+.iv-need)>.lt-hero:not(.iv-luc){grid-column:1;grid-row:2}
+  .app>.lt-hero.iv-luc{grid-column:1/-1;grid-row:auto}
   .app:has(>.lt-hero+.iv-need)>.iv-need{grid-column:2;grid-row:2;align-self:stretch}
   .now-row{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));overflow:visible!important;gap:12px}
   .now-row>.now{width:auto!important;min-width:0}
