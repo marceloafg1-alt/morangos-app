@@ -1455,6 +1455,18 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .hero { border-radius: var(--r-hero); background: var(--grad); box-shadow: 0 10px 24px var(--glow); }
 .hero.folha { background: linear-gradient(135deg, #3FA182, #1E5E4E 55%, #123F34); }
 .lt[data-visual="classico"] .hero.folha{background:var(--grad);box-shadow:0 10px 24px var(--glow)}
+/* Saldo do período no Clássico: segue o tema; texto escuro nos pastéis, branco nos demais */
+.lt[data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#fff;color:var(--hero-ink)}
+.lt[data-visual="classico"]:not([data-escuro="1"]) .hero.folha :is(span,b,small,div){color:var(--hero-ink)}
+.lt[data-tema="verde-claro"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#14251C}
+.lt[data-tema="azul-claro"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#11202B}
+.lt[data-tema="lilas"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#221B2B}
+.lt[data-tema="rosa-pastel"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#2F1B22}
+.lt[data-tema="vermelho-claro"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#2E1918}
+.lt[data-tema="laranja-claro"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#301E11}
+.lt[data-tema="amarelo"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#2C240D}
+.lt[data-tema="marrom"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#1F1812}
+.lt[data-tema="cinza-claro"][data-visual="classico"]:not([data-escuro="1"]) .hero.folha{--hero-ink:#1E2022}
 .lt[data-visual="bento"] .hero { background: #141416; box-shadow: none; }
 
 /* folhas e janelas */
