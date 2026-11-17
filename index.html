@@ -698,6 +698,15 @@ small b.iv-bad{color:var(--bad)}small b.iv-warn{color:var(--warn)}small b.iv-ok{
 .lt[data-visual="bento"] :is(.iv-sum,.iv-rota,.iv-est,.iv-div) :is(b,.iv-t b){color:var(--onT)}
 .lt[data-visual="bento"] .iv-need .card.calm{background:var(--lime);color:var(--onT);border:0}
 .lt[data-visual="bento"] .iv-need .card.calm small{color:var(--onT2)}
+
+.iv-res{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:12px 0 4px;border-top:1px solid var(--line)}
+.iv-res span{font-size:13px;font-weight:700;color:var(--muted)}.iv-res b{font-size:22px;font-weight:800}
+.iv-res small{font-size:12.5px;color:var(--muted)}
+.iv-res.pos b{color:var(--okc)}.iv-res.neg b{color:var(--bad)}
+.lt[data-visual="bento"] .iv-luc .iv-res{border-color:rgba(20,20,22,.12)}
+.lt[data-visual="bento"] .iv-luc .iv-res :is(span,small){color:var(--onT2)}
+.lt[data-visual="bento"] .iv-luc .iv-res.pos b{color:#0E5A36}.lt[data-visual="bento"] .iv-luc .iv-res.neg b{color:#8A1C1C}
+.lt[data-visual="bento"] .iv-luc .iv-bar i.bad{background:#8A1C1C}
 </style>
 <style>
 /* Layout: app de celular em uma coluna (até 480px), cabeçalho com saudação, cartão destaque em degradê, atalhos em grade, barra inferior flutuante com botão + */
@@ -2875,7 +2884,7 @@ const INICIO_BLOCOS = [
   ['hero', 'Vendas de hoje', 'Valor do dia, recebido, lucro e gráfico dos 7 dias', 'receipt'],
   ['need', 'Precisa de você', 'Os assuntos mais urgentes, com botão de ação', 'bell'],
   ['div', 'Divisão das vendas', 'Por pagamento, produto ou origem da venda', 'chart'],
-  ['est', 'Estoque em dias', 'Para quantos dias ainda dá cada produto', 'box'],
+  ['luc', 'Vendas × gastos', 'Quanto entrou, quanto saiu e o que sobrou no dia', 'cash'],
   ['rota', 'Rota de hoje', 'Entregas feitas e a próxima parada', 'truck'],
   ['sum', 'Clientes sumidos', 'Quem já comprou e parou de pedir', 'user'],
   ['mov', 'Movimentações', 'As últimas entradas e saídas', 'wallet'],
@@ -3013,15 +3022,23 @@ function ivDivisao() {
       : `<p class="sub" style="margin:12px 0">Nenhuma venda neste período.</p>`}
   </div>`;
 }
-function ivEstoque() {
-  const ini = startOfDay() - 6 * 864e5, q = {};
-  vendasValidas().filter(v => v.ts >= ini).forEach(v => (v.itens || []).forEach(i => { q[i.produtoId] = (q[i.produtoId] || 0) + (Number(i.qtd) || 0); }));
-  const L = S.produtos.filter(p => p.ativo !== false && q[p.id] > 0).map(p => ({ p, dias: Math.max(0, (p.estoque || 0)) / (q[p.id] / 7) })).sort((a, b) => a.dias - b.dias).slice(0, 3);
-  const fmtD = d => d < 0.5 ? 'acaba hoje' : d < 1.5 ? '~1 dia' : '~' + Math.round(d) + ' dias';
-  return `<div class="sec-h"><h2>Estoque em dias</h2><button class="link" data-act="go" data-v="estoque">Estoque</button></div>
-  <div class="card iv-est">${L.length ? L.map(({ p, dias }) => { const c = dias <= 1.5 ? 'bad' : dias <= 3 ? 'warn' : 'ok'; return `<div class="iv-st"><div class="iv-row"><b>${esc(p.nome)}</b><small><b class="iv-${c}">${fmtD(dias)}</b> · ${fmtNum(p.estoque)} em estoque</small></div><div class="iv-bar"><i class="${c}" style="width:${Math.max(4, Math.min(100, dias / 7 * 100))}%"></i></div></div>`; }).join('')
-    : `<p class="sub" style="margin:12px 0">Sem vendas nos últimos 7 dias para calcular.</p>`}
-    <p class="iv-note">Calculado pela média de vendas dos últimos 7 dias.</p>
+function ivLucro() {
+  /* vendas x gastos do dia escolhido no gráfico (ui.hd) */
+  const sel = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0, ini = startOfDay() - sel * 864e5, fim = ini + 864e5;
+  const dia = ts => ts >= ini && ts < fim;
+  const vendas = vendasValidas().filter(v => dia(v.ts)).reduce((s, v) => s + vLiq(v), 0);
+  const compras = S.compras.filter(c => dia(c.ts)).reduce((s, c) => s + (Number(c.total) || 0), 0);
+  const desp = S.despesas.filter(d => dia(d.ts)).reduce((s, d) => s + (Number(d.valor) || 0), 0);
+  const gastos = compras + desp, res = vendas - gastos, mx = Math.max(vendas, gastos, 1);
+  const margem = vendas > 0 ? Math.round(res / vendas * 100) : 0;
+  const tit = 'Vendas × gastos' + (sel ? ' · ' + new Date(ini).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) : '');
+  const linha = (l, v, c) => `<div class="iv-st"><div class="iv-row"><b>${l}</b><b class="num">${money(v)}</b></div><div class="iv-bar"><i class="${c}" style="width:${v > 0 ? Math.max(4, v / mx * 100) : 0}%"></i></div></div>`;
+  return `<div class="sec-h"><h2>${esc(tit)}</h2><button class="link" data-act="go" data-v="relatorios">Relatórios</button></div>
+  <div class="card iv-est iv-luc">
+    ${linha('Vendas', vendas, 'ok')}
+    ${linha('Gastos', gastos, 'bad')}
+    <div class="iv-res ${res < 0 ? 'neg' : 'pos'}"><span>${res < 0 ? 'Faltou' : 'Sobrou'}</span><b class="num">${money(Math.abs(res))}</b>${vendas > 0 ? `<small>margem de ${margem}%</small>` : ''}</div>
+    <p class="iv-note">Gastos: compras na roça ${money(compras)} + despesas ${money(desp)}.</p>
   </div>`;
 }
 function ivRota() {
@@ -3062,7 +3079,7 @@ function gInicio() {
   return topHeader('gestao') +
   (inicioOn('need') ? need : '') +
   (inicioOn('div') ? ivDivisao() : '') +
-  (inicioOn('est') ? ivEstoque() : '') +
+  (inicioOn('luc') ? ivLucro() : '') +
   (inicioOn('rota') ? ivRota() : '') +
   (inicioOn('sum') ? ivSumidos() : '') +
   (inicioOn('mov') ? mov : '') +
