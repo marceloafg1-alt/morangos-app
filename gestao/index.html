@@ -2516,7 +2516,7 @@ function montarExemplos(extras = false) {
     jorge: ['Jorge Tanaka', 'pessoa', '(15) 99478-5502', '18010-000', 'Avenida Antônio Carlos Comitre', '295', 'Parque Campolim', 'Sorocaba / SP', 'Portão azul', ''],
     merc: ['Mercadinho Bom Preço', 'comercio', '(15) 3244-1188', '18010-000', 'Rua Ministro Coqueijo Costa', '61', 'Boa Vista', 'Sorocaba / SP', '', 'Paga fiado toda sexta'],
     pad: ['Padaria Pão de Ouro', 'comercio', '(15) 3244-7720', '18010-000', 'Rua Professor Dirceu Ferreira da Silva', '111', 'Alto da Boa Vista', 'Sorocaba / SP', 'Entrar pelos fundos', 'Recebe até 7h'],
-    rest: ['Restaurante Sabor da Serra', 'comercio', '(15) 99910-3345', '18110-000', 'Avenida Newton Vieira Soares', '465', 'Centro', 'Votorantim / SP', '', 'Nota no fim do mês'],
+    rest: ['Restaurante Sabor da Serra', 'comercio', '(15) 99910-3345', '18110-000', 'Avenida Vereador Newton Vieira Soares', '465', 'Centro', 'Votorantim / SP', '', 'Nota no fim do mês'],
     doce: ['Doceria Vó Lurdes', 'comercio', '(15) 99387-6612', '18110-000', 'Avenida São João', '578', 'Parque Bela Vista', 'Votorantim / SP', '', ''],
     c11: ['Marcos Vinícius Prado', 'pessoa', '(15) 99701-2203', '18010-000', 'Rua Doutor Nogueira Martins', '141', 'Centro', 'Sorocaba / SP', '', ''],
     c12: ['Helena Barros', 'pessoa', '(15) 99822-4417', '18010-000', 'Avenida General Carneiro', '1032', 'Cerrado', 'Sorocaba / SP', 'Portão cinza', 'Entregar na portaria'],
@@ -5447,28 +5447,42 @@ const geoSave = () => ls.set('mmr-geo', geoCache);
 const rtSleep = ms => new Promise(r => setTimeout(r, ms));
 const rtEnd = t => String(t || '').replace(/\s·\s/g, ', ').replace(/\s*\/\s*/g, ', ').replace(/\bCEP\s*/gi, '').replace(/\s+-\s+/g, ', ').replace(/\s+/g, ' ').trim();
 let geoFila = Promise.resolve(), geoUltimo = 0; const geoFalhou = new Set(); let geoErro = {}, geoOsmBloq = 0;
+const rtNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const rtExt = n => { const u = ['', 'Um', 'Dois', 'Três', 'Quatro', 'Cinco', 'Seis', 'Sete', 'Oito', 'Nove', 'Dez', 'Onze', 'Doze', 'Treze', 'Quatorze', 'Quinze', 'Dezesseis', 'Dezessete', 'Dezoito', 'Dezenove']; return n < 20 ? u[n] : n < 30 ? 'Vinte' + (n % 10 ? ' e ' + u[n % 10] : '') : n === 30 ? 'Trinta' : 'Trinta e Um'; };
+/* no OpenStreetMap os números aparecem por extenso (ex.: "Rua Vinte e Oito de Outubro") e sem títulos; tenta as variantes */
+const rtNomes = rua => { const v = [rua], m = rua.match(/\b(\d{1,2})\b(?= de [^\d,]+)/); if (m && +m[1] >= 1 && +m[1] <= 31) v.push(rua.replace(m[1], rtExt(+m[1])));
+  const sem = rua.replace(/^(Rua|Avenida|Av\.|Travessa|Praça|Estrada|Rodovia)\s+(Professora?|Prof\.|Doutora?|Dr\.|Dra\.|Ministro|Vereador|Engenheiro|Coronel|General|Comendador|Padre|Capitão|Major|Presidente|Senador|Deputado)\s+/i, '$1 '); if (sem !== rua) v.push(sem); return [...new Set(v)]; };
+const rtPartes = txt => { const q0 = rtEnd(txt), pt = q0.split(', ').map(s => s.trim()).filter(Boolean); let uf = ''; if (pt.length > 2 && /^[A-Za-z]{2}$/.test(pt[pt.length - 1])) uf = pt.pop().toUpperCase();
+  const cidade = pt.length > 1 ? pt.pop() : ''; const rua = pt.shift() || '', num = pt.length && /^(\d[\d.]*[A-Za-z]?|km\s*[\d,.]+|s\/?n)$/i.test(pt[0]) ? pt.shift() : ''; return { q0, rua, num: /^s\/?n$/i.test(num) ? '' : num, bairro: pt.join(', '), cidade, uf }; };
 function geocodar(txt) {
   const k = geoK(txt); if (!k) return Promise.resolve(null);
   if (geoCache[k]) return Promise.resolve(geoCache[k]);
   if (geoFalhou.has(k)) return Promise.resolve(null);
   const guarda = (lat, lon, apx) => { geoCache[k] = { lat: Number(lat), lon: Number(lon), ...(apx ? { apx: 1 } : {}) }; geoSave(); return geoCache[k]; };
-  const EXATO = ['address', 'street', 'venue'], LONGE = ['country', 'region', 'macroregion', 'macrocounty', 'dependency'];
-  const pelias = async (q) => { /* geocodificador do OpenRouteService, bom com número de casa */
-    try { const r = await fetch('https://api.heigit.org/openrouteservice/geocode/search?api_key=' + encodeURIComponent(rotaChave()) + '&boundary.country=BR&focus.point.lon=-47.45&focus.point.lat=-23.5&size=1&text=' + encodeURIComponent(q));
-      if (!r.ok) { geoErro.ors = r.status; return null; } const f = (await r.json()).features?.[0]; if (!f) return null; const ly = f.properties?.layer;
-      return LONGE.includes(ly) ? null : { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], rua: EXATO.includes(ly) }; } catch { geoErro.ors = 'rede'; return null; } };
-  const nomi = async (q) => {
+  const pelias = async (q, camadas, cidade) => { /* geocodificador do OpenRouteService, bom com número de casa */
+    try { const r = await fetch('https://api.heigit.org/openrouteservice/geocode/search?api_key=' + encodeURIComponent(rotaChave()) + '&boundary.country=BR&focus.point.lon=-47.45&focus.point.lat=-23.5&size=3&layers=' + camadas + '&text=' + encodeURIComponent(q));
+      if (!r.ok) { geoErro.ors = r.status; return null; }
+      for (const f of (await r.json()).features || []) { const pr = f.properties || {}, nomes = [pr.locality, pr.localadmin, pr.county, pr.macrocounty].filter(Boolean).map(rtNorm);
+        if (cidade && nomes.length && !nomes.some(n => n.includes(rtNorm(cidade)))) continue; /* achou em outra cidade: ignora */
+        return { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] }; } return null; } catch { geoErro.ors = 'rede'; return null; } };
+  const nomi = async (params) => {
     if (Date.now() < geoOsmBloq) return null;
     const espera = 1100 - (Date.now() - geoUltimo); if (espera > 0) await rtSleep(espera); geoUltimo = Date.now();
-    try { const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q));
+    try { const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&' + params);
       if (!r.ok) { geoErro.osm = r.status; geoOsmBloq = Date.now() + 60000; return null; } const j = await r.json(); return j && j[0] ? { lat: j[0].lat, lon: j[0].lon } : null; } catch { geoErro.osm = 'rede'; geoOsmBloq = Date.now() + 60000; return null; } };
   const run = async () => {
     if (geoCache[k]) return geoCache[k];
-    const q0 = rtEnd(txt), semNum = q0.replace(/,\s*[\d.]+[A-Za-z]?(?=\s*,|$)/, ''), pt = semNum.split(', '), area = pt.length > 2 ? pt.slice(1).join(', ') : '';
-    const p = await pelias(q0); if (p && p.rua) return guarda(p.lat, p.lon, false);
-    for (const q of [...new Set([q0, semNum])]) { const n = await nomi(q); if (n) return guarda(n.lat, n.lon, false); }
-    if (p) return guarda(p.lat, p.lon, true);
-    if (area) { const pa = await pelias(area); if (pa) return guarda(pa.lat, pa.lon, true); const na = await nomi(area); if (na) return guarda(na.lat, na.lon, true); }
+    const p = rtPartes(txt), nomes = rtNomes(p.rua), local = [p.cidade, p.uf].filter(Boolean), EX = 'address,street,venue', enc = encodeURIComponent;
+    for (const nm of nomes) { /* 1) OpenRouteService: rua com número, depois só a rua */
+      if (p.num) { const r = await pelias([nm, p.num, ...local].join(', '), EX, p.cidade); if (r) return guarda(r.lat, r.lon, false); }
+      const r2 = await pelias([nm, ...local].join(', '), EX, p.cidade); if (r2) return guarda(r2.lat, r2.lon, false); }
+    const estado = p.uf === 'SP' ? 'São Paulo' : p.uf;
+    for (const nm of nomes.slice(0, 2)) { /* 2) OpenStreetMap: busca estruturada, com e sem número */
+      if (p.cidade) { if (p.num) { const n = await nomi('street=' + enc(p.num + ' ' + nm) + '&city=' + enc(p.cidade) + (estado ? '&state=' + enc(estado) : '')); if (n) return guarda(n.lat, n.lon, false); }
+        const n2 = await nomi('street=' + enc(nm) + '&city=' + enc(p.cidade) + (estado ? '&state=' + enc(estado) : '')); if (n2) return guarda(n2.lat, n2.lon, false); }
+      const n3 = await nomi('q=' + enc([nm, ...local].join(', '))); if (n3) return guarda(n3.lat, n3.lon, false); }
+    if (p.bairro) { const a = await pelias([p.bairro, ...local].join(', '), 'neighbourhood,locality,localadmin', p.cidade); if (a) return guarda(a.lat, a.lon, true); }
+    if (p.cidade) { const c = await pelias(local.join(', '), 'locality,localadmin', ''); if (c) return guarda(c.lat, c.lon, true); const n = await nomi('q=' + enc(local.join(', '))); if (n) return guarda(n.lat, n.lon, true); }
     if (!Object.keys(geoErro).length) geoFalhou.add(k); return null;
   };
   geoFila = geoFila.then(run, run); return geoFila;
