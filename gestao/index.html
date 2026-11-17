@@ -1599,6 +1599,8 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cx-agora { font-size: 13.5px; opacity: .9; margin-top: -2px; }
 .cx-kpis button.kpi { font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .cx-kpis .kpi .s { display: flex; justify-content: space-between; gap: 6px; }
+.cx-kpis .kpi .s > span:first-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cx-kpis .kpi .s > span:last-child { flex: none; white-space: nowrap; }
 .cx-kpis .kpi.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 .cx-dia { display: grid; gap: 6px; }
 .cx-dh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 0 4px; color: var(--on-page, var(--ink)); }
