@@ -3111,8 +3111,10 @@ function gInicio() {
   const need = `<div class="iv-need"><div class="sec-h"><h2>Precisa de você</h2>${p.length ? `<button class="link" data-act="go" data-v="pendencias">Ver ${p.length > 3 ? 'as ' + p.length : 'tudo'}</button>` : ''}</div>
   ${p.length ? `<div class="card iv-list">${p.slice(0, 3).map(item).join('')}</div>`
     : `<div class="card calm"><span class="chipico g">${ic('check')}</span><div><b>Tudo em dia</b><small>Nenhum pedido esperando, nada a cobrar.</small></div></div>`}</div>`;
-  const mov = `<div class="sec-h"><h2>Movimentações</h2><button class="link" data-act="go" data-v="atividade">Ver todas</button></div>
-  <div class="card feed-card iv-mov"><div class="feed">${activity().slice(0, 3).map(feedHTML).join('') || '<p class="sub">Nada por aqui ainda.</p>'}</div></div>`;
+  const selD = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0, iniD = startOfDay() - selD * 864e5;
+  const movs = activity().filter(x => x.ts >= iniD && x.ts < iniD + 864e5);
+  const mov = `<div class="sec-h"><h2>Movimentações${selD ? ' · ' + new Date(iniD).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) : ''}</h2><button class="link" data-act="go" data-v="atividade">Ver todas</button></div>
+  <div class="card feed-card iv-mov"><div class="feed">${movs.map(feedHTML).join('') || `<p class="sub" style="padding:14px 0;margin:0">Nenhuma movimentação ${selD ? 'neste dia' : 'hoje'}.</p>`}</div></div>`;
   const vazio = INICIO_BLOCOS.every(b => !inicioOn(b[0]));
   return topHeader('gestao') +
   (inicioOn('need') ? need : '') +
