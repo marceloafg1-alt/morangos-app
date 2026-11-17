@@ -3913,19 +3913,19 @@ function modalEstorno(col, id, opts = {}) {
   const formas = ['pix', 'dinheiro', 'debito', 'credito']; if (x.forma && x.forma !== 'fiado' && !formas.includes(x.forma)) formas.push(x.forma);
   const forma0 = x.forma && x.forma !== 'fiado' && x.forma !== 'cartao_entrega' ? x.forma : 'pix';
   const estoque0 = col === 'compras' ? true : !['entregue'].includes(x.status);
-  const nota = opts.cancelar ? `<p class="cx-note">Esta venda já foi paga. Para cancelar, registre o estorno: o valor sai do caixa como devolução ao cliente e a venda fica no histórico.</p>`
+  const nota = opts.cancelar ? `<p class="cx-note">Esta venda já foi paga. Ao cancelar, o valor todo sai do caixa como devolução ao cliente e a venda deixa de contar nas vendas, no lucro e nos relatórios. Ela fica no histórico como cancelada.</p>`
     : !pago ? `<p class="cx-note">${col === 'vendas' ? 'Esta venda ainda não foi paga. O estorno abate do que o cliente deve e não mexe no caixa.' : 'Esta compra ainda não foi paga. O estorno abate do que você deve ao produtor e não mexe no caixa.'}</p>` : '';
-  const titulo = { vendas: 'Estornar venda', compras: 'Estornar compra', despesas: 'Estornar despesa' }[col];
+  const titulo = opts.cancelar ? 'Cancelar venda paga' : { vendas: 'Estornar venda', compras: 'Estornar compra', despesas: 'Estornar despesa' }[col];
   openModal(titulo, `${nota}<div class="fgrid">
     <div class="f full"><div class="cx-box cx-dl">${[['Lançamento', esc(nome) + ' · ' + fmtDT(x.ts)], ['Valor original', money(orig)], ...(ja ? [['Já estornado', '− ' + money(ja)]] : []), ['Pode estornar até', money(rest)]].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div></div>
-    <div class="f full"><span class="lbl">Quanto estornar</span><div class="opts"><label class="opt"><input type="radio" name="modo" value="total" id="e-total" ${opts.cancelar || !itens.length ? 'checked' : ''}><span>${ja ? 'Todo o restante' : 'Tudo'}</span></label><label class="opt"><input type="radio" name="modo" value="parcial" id="e-parcial" ${opts.cancelar || !itens.length ? '' : 'checked'}><span>Só uma parte</span></label></div></div>
+    <div class="f full"><span class="lbl">Quanto estornar</span><div class="opts"><label class="opt"><input type="radio" name="modo" value="total" id="e-total" ${opts.cancelar || !itens.length ? 'checked' : ''}><span>${ja ? 'Todo o restante' : 'Tudo'}</span></label>${opts.cancelar ? '' : `<label class="opt"><input type="radio" name="modo" value="parcial" id="e-parcial" ${!itens.length ? '' : 'checked'}><span>Só uma parte</span></label>`}</div></div>
     ${itens.length ? `<div class="f full" id="e-its-box"><span class="lbl">${col === 'vendas' ? 'Itens devolvidos' : 'Itens estornados'}</span><div class="est-its">${itens.map((i, k) => `<label class="est-it" for="e-q-${k}"><span>${esc(i.nome)}<small>até ${fmtNum(i.max)} · ${money(i.unit)} cada</small></span><input type="number" id="e-q-${k}" name="q${k}" min="0" max="${i.max}" step="any" inputmode="decimal" value="${opts.cancelar ? i.max : 0}"></label>`).join('')}</div></div>
     <div class="f full"><label class="switch" for="e-est"><input type="checkbox" id="e-est" name="estoque" ${estoque0 ? 'checked' : ''}> ${col === 'compras' ? 'Tirar estes itens do estoque (voltaram ao produtor)' : 'Devolver estes itens ao estoque'}</label><small class="muted" style="font-size:12.5px">${col === 'compras' ? '' : 'Desmarque se o morango voltou estragado e não dá para vender de novo.'}</small></div>` : ''}
     <div class="f"><label for="e-val">Valor do estorno (R$)</label><input type="number" id="e-val" name="valor" min="0.01" max="${rest}" step="0.01" inputmode="decimal" value="${rest}"></div>
     <div class="f"><label for="e-data-b">Data</label>${dateField('e-data', 'data', todayInput(), 'Data do estorno')}</div>
     ${pago ? `<div class="f full"><span class="lbl">${col === 'vendas' ? 'Como o dinheiro voltou ao cliente' : 'Como o dinheiro voltou para você'}</span>${formaOpts('forma', formas, forma0)}</div>` : ''}
     <div class="f full"><label for="e-mot">Motivo</label><input type="text" id="e-mot" name="motivo" list="e-mots" maxlength="120" placeholder="Ex.: ${esc(MOTIVOS[col][0])}" value="${opts.cancelar ? 'Venda cancelada' : ''}"><datalist id="e-mots">${MOTIVOS[col].map(m => `<option value="${esc(m)}">`).join('')}</datalist></div>
-  </div><div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary" id="e-ok">Estornar ${money(rest)}</button></div>`,
+  </div><div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary" id="e-ok">${opts.cancelar ? 'Cancelar e devolver' : 'Estornar'} ${money(rest)}</button></div>`,
   async f => {
     const fd = new FormData(f);
     const total = fd.get('modo') === 'total';
@@ -3940,11 +3940,13 @@ function modalEstorno(col, id, opts = {}) {
     if (pago) e.forma = fd.get('forma') || forma0;
     const body = { estornos: [...estornos(x), e] };
     const zerou = rest - valor <= 0.005;
-    if (col === 'vendas' && zerou && ['recebido', 'separado', 'em_rota'].includes(x.status)) { body.status = 'cancelado'; body.ordemRota = null; }
+    const cancela = col === 'vendas' && zerou && (opts.cancelar || ['recebido', 'separado', 'em_rota'].includes(x.status));
+    if (cancela) { body.status = 'cancelado'; body.ordemRota = null; }
     return safe(async () => {
       await patch(col, id, body);
       if (voltaEst) await adjustStock(its.filter(i => prodById(i.produtoId)), col === 'compras' ? -1 : 1);
-    }, col === 'vendas' ? (pago ? `Estorno de ${money(valor)} registrado. A venda continua no histórico.` : `Abatido ${money(valor)} do que o cliente deve.`) : `Estorno de ${money(valor)} registrado.`);
+      if (cancela && x.status === 'em_rota') rtSemParada(id);
+    }, cancela ? (pago ? `Venda cancelada. ${money(valor)} saiu do caixa como devolução${x.status === 'em_rota' ? ' e a rota foi refeita' : ''}.` : `Venda cancelada.${x.status === 'em_rota' ? ' Rota refeita sem esta entrega.' : ''}`) : col === 'vendas' ? (pago ? `Estorno de ${money(valor)} registrado. A venda continua no histórico.` : `Abatido ${money(valor)} do que o cliente deve.`) : `Estorno de ${money(valor)} registrado.`);
   }, f => {
     const val = f.querySelector('#e-val'), ok = f.querySelector('#e-ok'), box = f.querySelector('#e-its-box');
     let manual = false;
@@ -3954,7 +3956,7 @@ function modalEstorno(col, id, opts = {}) {
       if (box) { box.classList.toggle('is-off', total); box.querySelectorAll('input').forEach((inp, k) => { if (total) inp.value = itens[k].max; inp.readOnly = total; }); }
       if (total) { val.value = rest; manual = false; }
       else if (box && !manual) { const s = itens.reduce((a, i, k) => a + Math.min(i.max, Math.max(0, Number(f.querySelector('#e-q-' + k).value) || 0)) * i.unit, 0); val.value = n2(Math.min(rest, s)) || ''; }
-      ok.textContent = 'Estornar ' + money(Number(val.value) || 0);
+      ok.textContent = (opts.cancelar ? 'Cancelar e devolver ' : 'Estornar ') + money(Number(val.value) || 0);
     };
     f.addEventListener('change', e => { if (e.target.name === 'modo') { if (e.target.value === 'parcial' && box) box.querySelectorAll('input').forEach(inp => { inp.value = 0; }); sync(); } });
     f.addEventListener('input', e => { if (e.target === val) { manual = true; ok.textContent = 'Estornar ' + money(Number(val.value) || 0); } else if (/^e-q-/.test(e.target.id)) { manual = false; sync(); } });
@@ -4476,7 +4478,7 @@ const AJ_G = [
     ['O cliente disse que pagou no Pix. E agora?', 'A venda fica com a etiqueta <b>Cliente diz que pagou</b> e aparece em <b>Pix para confirmar</b>. Confira no banco se o dinheiro caiu e só então toque em <b>Marcar pago</b>.', [['Ver vendas a receber', 'go-vendas-receber']]],
     ['Como vender fiado (a prazo)?', 'Na venda, escolha <b>Fiado (a prazo)</b>. O <b>Já foi pago</b> desmarca sozinho e a venda fica <b>A receber</b>, aparecendo em Pendências e no Caixa até ser paga.', [['Lançar venda avulsa', 'nova-venda'], ['Ver vendas a receber', 'go-vendas-receber']]],
     ['Como corrigir uma venda lançada errada?', 'Toque no cartão da venda (<b>Editar</b>) e mude o que precisar: cliente, itens, preços, pagamento, entrega, data ou observação. O estoque é corrigido sozinho.', [['Abrir Vendas', 'go', 'vendas']]],
-    ['Como cancelar uma venda?', 'Toque em <b>Cancelar</b> no cartão (aparece em pedidos não entregues e não pagos). Os itens voltam ao estoque. Se a venda já foi paga, o app abre o <b>estorno</b> para registrar a devolução do dinheiro.', [['Abrir Vendas', 'go', 'vendas']]],
+    ['Como cancelar uma venda?', 'Toque em <b>Cancelar</b> no cartão (aparece em pedidos não entregues e não pagos). Os itens voltam ao estoque. Se a venda já foi paga, o app registra a devolução: o valor todo sai do caixa e a venda deixa de contar nas vendas, no lucro e nos relatórios. Se o pedido estava na rota, a rota é refeita sem ele.', [['Abrir Vendas', 'go', 'vendas']]],
     ['Como usar os filtros de Vendas?', 'No topo: <b>Tipo de venda</b> (pelo app, pelo chat, avulsas), <b>Pedido</b> (em andamento, a receber, entregues, cancelados) e <b>Período</b>. Abaixo aparece quantas vendas e a soma.', [['Abrir Vendas', 'go', 'vendas']]],
   ]],
   ['Entregas e rota', [
@@ -5002,6 +5004,8 @@ function modalVenda(cliId, editId, titulo) {
     const total = n2(itens.reduce((s, i) => s + i.qtd * i.preco, 0));
     if (ed) {
       const ts = fd.get('data') === dataOrig ? ed.ts : tsFromDate(fd.get('data'));
+      if (ed.pago && !pago && estornos(ed).some(e => e.caixa !== false)) { toast('Esta venda tem devolução registrada no caixa. Não dá para desmarcar o pagamento.'); return false; }
+      if (cancelada && pago !== !!ed.pago) { toast('Venda cancelada: o pagamento não muda mais.'); return false; }
       const body = { ts, cliente, itens, total, forma: fd.get('forma'), pago, pagoTs: pago ? (ed.pago ? ed.pagoTs || ts : Date.now()) : null, status, obs: String(fd.get('obs') || '').trim() };
       if (!pago) body.clienteInformouPix = false;
       if (cl) body.clienteId = cl.id;
@@ -5545,6 +5549,25 @@ const rtParadas = () => (RT.ordem.length ? RT.ordem : rota().map(v => v.id)).map
 const rtGeoDe = v => geoCache[geoK(v.cliente?.endereco)] || null;
 const rtStatus = t => { const e = document.getElementById('rt-st'); if (e) e.textContent = t || ''; };
 
+/* uma parada saiu da rota (venda cancelada): renumera as que ficaram e refaz o traçado, a distância e o tempo na mesma ordem */
+async function rtRetracar(ids) {
+  const vs = ids.map(id => S.vendas.find(v => v.id === id)).filter(Boolean), cfg = rotaCfg(), temP = cfg.pLat != null;
+  if (!vs.length || vs.some(v => !rtGeoDe(v))) { ls.set('mmr-rota-calc', null); return null; }
+  const pts = (temP ? [{ lat: cfg.pLat, lon: cfg.pLon }] : []).concat(vs.map(v => ({ lat: rtGeoDe(v).lat, lon: rtGeoDe(v).lon })));
+  if (pts.length < 2) { ls.set('mmr-rota-calc', null); return null; }
+  try {
+    const tr = await rtTraco(pts), legs = tr.legs;
+    const calc = { assin: rtAssin(ids), geom: tr.geom, legs, dur: legs.reduce((s, l) => s + l.dur, 0), dist: legs.reduce((s, l) => s + l.dist, 0), saida: Date.now(), temPartida: temP };
+    ls.set('mmr-rota-calc', calc); return calc;
+  } catch (e) { console.warn('refazer rota', e); ls.set('mmr-rota-calc', null); return null; }
+}
+async function rtSemParada(id) {
+  const ids = rota().map(v => v.id).filter(x => x !== id);
+  await safe(async () => { for (let k = 0; k < ids.length; k++) { const v = S.vendas.find(x => x.id === ids[k]); if (v && v.ordemRota !== k + 1) await patch('vendas', ids[k], { ordemRota: k + 1 }); } });
+  const s = rtSalvo(); if (!s) return;
+  const calc = await rtRetracar(ids);
+  if (document.getElementById('rt-ov')) { RT.ordem = ids; RT.calc = calc; rtDesenha(true); }
+}
 function rotaMapaAbrir() {
   if (document.getElementById('rt-ov')) return;
   const ov = document.createElement('div'); ov.id = 'rt-ov'; ov.className = 'rt-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Mapa da rota');
@@ -5554,6 +5577,9 @@ function rotaMapaAbrir() {
   document.body.appendChild(ov); document.documentElement.classList.add('rt-lock');
   ov.addEventListener('click', rtClick);
   RT.ordem = rota().map(v => v.id); const s = rtSalvo(); RT.calc = s && s.assin === rtAssin(RT.ordem) ? s : null;
+  if (s && !RT.calc && RT.ordem.length && s.assin.split('|').filter(id => RT.ordem.includes(id)).join('|') === rtAssin(RT.ordem)) {
+    rtStatus('Refazendo a rota sem as entregas canceladas…'); const ids = [...RT.ordem];
+    rtRetracar(ids).then(c => { if (!document.getElementById('rt-ov') || rtAssin(RT.ordem) !== rtAssin(ids)) return; RT.calc = c; rtStatus(''); rtDesenha(false); }); }
   rtLoadLeaflet().then(() => { document.getElementById('rt-map').innerHTML = ''; RT.map = L.map('rt-map', { zoomControl: true }).setView([-15.8, -47.9], 4);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(RT.map); RT.camada = L.layerGroup().addTo(RT.map);
     RT.map.on('click', e => { if (!RT.marcando) return; const v = S.vendas.find(x => x.id === RT.marcando); RT.marcando = null; if (v) rtSetGeo(v, e.latlng.lat, e.latlng.lng); });
@@ -5934,7 +5960,7 @@ document.addEventListener('click', async e => {
     case 'escolher-estorno': { ui.sheet = null; render(); if (!canWrite) { toast('Modo leitura: não dá para estornar.'); break; } ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = '30d'; go('vendas'); toast('Toque em Estornar na venda que quer devolver.'); break; }
     case 'cx-ver': ui.sheet = null; ui.cxv = v; render(); window.scrollTo(0, 0); break;
     case 'cx-limpar': ui.ct = 'tudo'; ui.cfp = 'todas'; render(); break;
-    case 'cancelar': { const vd = S.vendas.find(x => x.id === id); if (vd && vd.pago) { if ($modal.innerHTML) closeModal(); modalEstorno('vendas', id, { cancelar: true }); break; } const volta = (vd?.itens || []).map(i => ({ produtoId: i.produtoId, qtd: n2(i.qtd - estQtd(vd, i.produtoId, true)) })).filter(i => i.qtd > 0); modalConfirm(`Cancelar a venda de <b>${esc(vd?.cliente?.nome || 'cliente avulso')}</b>? Os itens voltam para o estoque.`, 'Cancelar venda', () => safe(async () => { await patch('vendas', id, { status: 'cancelado', pago: false, pagoTs: null }); await adjustStock(volta, 1); }, 'Venda cancelada.')); break; }
+    case 'cancelar': { const vd = S.vendas.find(x => x.id === id); if (vd && vd.pago) { if ($modal.innerHTML) closeModal(); modalEstorno('vendas', id, { cancelar: true }); break; } const volta = (vd?.itens || []).map(i => ({ produtoId: i.produtoId, qtd: n2(i.qtd - estQtd(vd, i.produtoId, true)) })).filter(i => i.qtd > 0); const naRota = vd?.status === 'em_rota'; modalConfirm(`Cancelar a venda de <b>${esc(vd?.cliente?.nome || 'cliente avulso')}</b>? Os itens voltam para o estoque${naRota ? ' e a rota de entrega é refeita sem esta parada' : ''}.`, 'Cancelar venda', () => safe(async () => { await patch('vendas', id, { status: 'cancelado', pago: false, pagoTs: null, clienteInformouPix: false, ordemRota: null }); await adjustStock(volta, 1); if (naRota) rtSemParada(id); }, naRota ? 'Venda cancelada. Rota refeita sem esta entrega.' : 'Venda cancelada.')); break; }
     case 'apagar': { const r0 = S[t.dataset.col]?.find(x => x.id === id); if (r0 && estornos(r0).length) { toast('Este lançamento tem estorno e fica no histórico. Não dá para apagar.'); break; } } modalConfirm('Apagar este registro? Isso não pode ser desfeito.', 'Apagar', () => safe(() => del(t.dataset.col, id), 'Apagado.')); break;
     case 'apagar-compra': { const c = S.compras.find(x => x.id === id); if (c && estornos(c).length) { toast('Esta compra tem estorno e fica no histórico. Não dá para apagar.'); break; } modalConfirm('Apagar esta compra? Os itens saem do estoque e o valor sai do caixa.', 'Apagar compra', () => safe(async () => { await del('compras', id); await adjustStock(c.itens || [], -1); }, 'Compra apagada.')); break; }
     case 'compra-paga': await safe(() => patch('compras', id, { pago: true, pagoTs: Date.now() }), 'Compra marcada como paga.'); break;
