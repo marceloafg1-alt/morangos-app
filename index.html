@@ -525,7 +525,7 @@
 .lt[data-visual="bento"] .lt-tabbar:not(.lt-plana) .lt-tab.on{flex:0 0 94px;width:94px;min-width:0;padding:0 4px;background:var(--lime);color:#141416;font-size:11.5px;font-weight:800}
 .lt[data-visual="bento"] .lt-tabbar:not(.lt-plana) .lt-tab svg{width:20px;height:20px}
 .lt[data-visual="bento"] .lt-tabbar:not(.lt-plana) .lt-fab{width:46px;height:46px;margin:0 2px;border-radius:16px;background:#fff;color:#141416;box-shadow:none}
-.lt[data-visual="bento"][data-escuro="1"] .lt-tabbar:not(.lt-plana) .lt-fab{background:var(--lime)}
+.lt[data-visual="bento"] .lt-tabbar:not(.lt-plana) .lt-fab.on{background:var(--lime)}
 
 /* ---------- Variante plana (tela larga / navegador) ---------- */
 .lt-tabbar.lt-plana{left:0;right:0;bottom:0;border-radius:0;gap:0;justify-content:space-around;padding:10px 6px calc(8px + env(safe-area-inset-bottom,0px));
@@ -1030,7 +1030,7 @@ body::before { background: var(--band); }
 .qa:first-child .qa-ic { background: var(--red); color: var(--on-red); box-shadow: 0 6px 14px rgb(227 23 10 / .3); }
 .qa:hover .qa-ic { filter: brightness(.97); }
 
-.now-row { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -18px; padding: 2px 18px 6px; scrollbar-width: none; }
+.now-row { scroll-padding-inline: 18px; display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -18px; padding: 2px 18px 6px; scrollbar-width: none; }
 .now-row::-webkit-scrollbar { display: none; }
 .now { scroll-snap-align: start; flex: 0 0 min(230px, 70%); border: 0; text-align: left; border-radius: 22px; padding: 14px; display: grid; gap: 2px; color: inherit; min-height: 168px; align-content: start; }
 .now-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 8px; background: rgb(255 255 255 / .18); }
@@ -1063,7 +1063,7 @@ body::before { background: var(--band); }
 .ml .chev { width: 18px; height: 18px; }
 .feed-card { padding: 0 16px; }
 
-.news-row { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: -56px -18px 0; padding: 0 18px 6px; scrollbar-width: none; position: relative; }
+.news-row { scroll-padding-inline: 18px; display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: -56px -18px 0; padding: 0 18px 6px; scrollbar-width: none; position: relative; }
 .news-row::-webkit-scrollbar { display: none; }
 .news { scroll-snap-align: start; flex: 0 0 min(400px, 86%); position: relative; overflow: hidden; border-radius: 24px; padding: 16px 18px 18px; color: #fff; min-height: 150px; display: grid; align-content: start; gap: 4px; background: linear-gradient(155deg, #F2463B, #E3170A 55%, #B80F08); box-shadow: 0 12px 26px rgb(0 0 0 / .2); }
 .news:only-child { flex-basis: 100%; }
@@ -2104,6 +2104,19 @@ span.news-cta { padding-right: 13px; }
 .aj-a ol{margin:4px 0;padding-left:20px}
 .aj-a li{margin:3px 0}
 .aj-sec[hidden],.aj-q[hidden],.aj-nada[hidden]{display:none!important}
+
+.cad-cnt { margin: 0 0 4px; }
+.cad-list { background: var(--card, #fff); border-radius: 28px; padding: 6px 0; margin-top: 8px; }
+.cad-row { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: none; border: 0; padding: 14px 18px; cursor: pointer; color: var(--ink, #141416); font: inherit; }
+.cad-row:focus-visible { outline: 3px solid var(--accent, var(--red)); outline-offset: -3px; border-radius: 22px; }
+.cad-av { flex: none; width: 52px; height: 52px; border-radius: 50%; background: #cfc2fb; color: #141416; display: grid; place-items: center; font-weight: 800; font-size: 15px; }
+.cad-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cad-tx b { font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cad-tx small { color: var(--muted, #6b6b70); font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cad-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #e0452f; }
+.cad-ch { flex: none; color: var(--muted, #6b6b70); display: grid; }
+.cad-ch svg { width: 22px; height: 22px; }
+.cad-modal .item { box-shadow: none; margin: 0; }
 </style>
 <div id="toast-root"></div>
 
@@ -4216,7 +4229,7 @@ function nav() {
     const fabLbl = fabOn ? 'Fechar' : convCli ? 'Nova venda ou novo chat' : ui.g === 'conversas' ? 'Novo chat' : ui.g === 'vendas' ? 'Nova venda avulsa' : fabPag ? fabPag[1] : 'Lançar';
     return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', 'Mais', '', 'sheet', maisOn)}</nav>`;
   }
-  return `${bar}<nav class="lt-tabbar" aria-label="Loja">${t('inicio', 'home', 'Loja')}${t('pedidos', 'truck', 'Pedidos', activeOrder() ? cnt(1) : '')}<button class="lt-fab" data-act="go" data-v="sacola" aria-label="Sacola${n ? ', ' + n + ' itens' : ''}">${ic('bag')}${cnt(n)}</button>${t('novidades', 'news', 'Novidades')}${t('chat', 'chat', 'Chat', cnt(naoLidasC()))}${t('perfil', 'user', 'Perfil')}</nav>`;
+  return `${bar}<nav class="lt-tabbar" aria-label="Loja">${t('inicio', 'home', 'Loja')}${t('pedidos', 'truck', 'Pedidos', activeOrder() ? cnt(1) : '')}<button class="lt-fab${ui.c === 'sacola' ? ' on' : ''}" data-act="go" data-v="sacola" aria-label="Sacola${n ? ', ' + n + ' itens' : ''}">${ic('bag')}${cnt(n)}</button>${t('chat', 'chat', 'Chat', cnt(naoLidasC()))}${t('perfil', 'user', 'Perfil')}</nav>`;
 }
 function sheetHTML() {
   const s = ui.sheet;
@@ -4731,30 +4744,38 @@ function modalFornecedor(id) {
   wireCep);
 }
 const gClientes = () => gCadastros('c'), gFornecedores = () => gCadastros('f');
-function gCadastros(k) {
-  const cs = sortedClientes(), fs = sortedFornecedores();
+function cadBuild() {
   const vsH = c => S.vendas.filter(v => v.clienteId === c.id || (v.cliente?.nome || '').trim().toLowerCase() === (c.nome || '').trim().toLowerCase()).sort((a, b) => b.ts - a.ts);
   const cardCli = c => { const vs = cliVendas(c); const tot = vs.reduce((s, v) => s + (v.total || 0), 0); const dev = vs.filter(v => !v.pago).reduce((s, v) => s + (v.total || 0), 0); const ult = vs.reduce((m, v) => Math.max(m, v.ts), 0);
-    const aberto = ui.hist === c.id;
+    const aberto = true;
     const hist = aberto ? `<div class="c-hist" data-act="noop"><div class="c-hist-h"><b>Histórico de compras</b><span class="muted num">${vsH(c).length}</span></div>${vsH(c).map(v => `<div class="c-hist-r"><div class="c-hist-t"><b>${fmtDT(v.ts)}</b><span class="num">${money(v.total)}</span></div><small>${esc(itemsText(v.itens))}</small><div class="pills">${statusPill(v.status)}${v.status === 'cancelado' ? '' : pagoPill(v)}${formaPill(v.forma)}<span class="pill p-gray">${origemTxt(v)}</span></div></div>`).join('') || '<p class="sub" style="margin:0">Nenhuma compra ainda.</p>'}</div>` : '';
-    return `<article class="item c-cli ${aberto ? 'open' : ''}" data-act="cli-hist" data-id="${c.id}" tabindex="0" aria-expanded="${aberto}" aria-label="${esc(c.nome)}: tocar para ver o histórico de compras"><div style="display:flex;gap:12px;align-items:center"><span class="chipico">${ic('user')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
+    return `<article class="item c-cli open"><div style="display:flex;gap:12px;align-items:center"><span class="chipico">${ic('user')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
     <div class="pills"><span class="pill p-gray">Cliente</span><span class="pill p-gray">${c.tipo === 'comercio' ? 'Comércio' : 'Pessoa'}</span>${dev > 0 ? `<span class="pill p-no">Deve ${money(dev)}</span>` : vs.length ? '<span class="pill p-ok">Em dia</span>' : ''}</div>
     <div class="kv"><span>Compras</span><b class="num">${vs.length}</b><span>Total comprado</span><span class="num">${money(tot)}</span><span>Última compra</span><span>${ult ? fmtDT(ult) : '—'}</span></div>
     ${c.referencia || c.obs ? `<small>${esc([c.referencia, c.obs].filter(Boolean).join(' · '))}</small>` : ''}
-    <small class="c-hist-tg">${aberto ? 'Toque para recolher' : 'Toque para ver o histórico de compras'}</small>${hist}
-    <div class="acts" data-act="noop"><button class="btn small" data-act="venda-cliente" data-id="${c.id}" ${W()}>Nova venda</button><button class="btn small" data-act="abrir-conversa" data-id="${c.id}">Mensagem${naoLidasG(c.id) ? ' (' + naoLidasG(c.id) + ')' : ''}</button><button class="btn small ghost" data-act="editar-cliente" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
+    ${hist}
+    <div class="acts"><button class="btn small" data-act="venda-cliente" data-id="${c.id}" ${W()}>Nova venda</button><button class="btn small" data-act="abrir-conversa-cad" data-id="${c.id}">Mensagem${naoLidasG(c.id) ? ' (' + naoLidasG(c.id) + ')' : ''}</button><button class="btn small ghost" data-act="editar-cliente" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
   const cardForn = c => { const cps = fornCompras(c); const tot = cps.reduce((s, x) => s + (x.total || 0), 0); const ap = cps.filter(x => !x.pago).reduce((s, x) => s + (x.total || 0), 0); const ult = cps.reduce((m, x) => Math.max(m, x.ts), 0);
     return `<article class="item c-forn"><div style="display:flex;gap:12px;align-items:center"><span class="chipico g">${ic('basket')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
     <div class="pills"><span class="pill p-gray">Fornecedor</span><span class="pill p-gray">${c.tipo === 'empresa' ? 'Empresa' : 'Produtor'}</span>${ap > 0 ? `<span class="pill p-no">A pagar ${money(ap)}</span>` : cps.length ? '<span class="pill p-ok">Em dia</span>' : ''}</div>
     <div class="kv"><span>Compras</span><b class="num">${cps.length}</b><span>Total comprado</span><span class="num">${money(tot)}</span><span>Última compra</span><span>${ult ? fmtDT(ult) : '—'}</span>${c.pix ? `<span>Chave Pix</span><span style="overflow-wrap:anywhere">${esc(c.pix)}</span>` : ''}${c.banco || c.agencia || c.conta ? `<span>Banco</span><span style="overflow-wrap:anywhere">${esc([c.banco, c.agencia && 'Ag. ' + c.agencia, c.conta && (c.tipoConta === 'poupanca' ? 'Poup. ' : 'C/C ') + c.conta].filter(Boolean).join(' · '))}</span>` : ''}${c.titular || c.docTitular ? `<span>Titular</span><span style="overflow-wrap:anywhere">${esc([c.titular, c.docTitular].filter(Boolean).join(' · '))}</span>` : ''}</div>
     ${c.produtos || c.referencia || c.obs ? `<small>${esc([c.produtos, c.referencia, c.obs].filter(Boolean).join(' · '))}</small>` : ''}
     <div class="acts"><button class="btn small" data-act="compra-fornecedor" data-id="${c.id}" ${W()}>Nova compra</button><button class="btn small ghost" data-act="editar-fornecedor" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
+  return { cardCli, cardForn };
+}
+const cadAvatar = n => esc(String(n || '?').trim().split(/\s+/).filter(Boolean).map((w, i, a) => (i === 0 || i === a.length - 1) ? w[0] : '').join('').toUpperCase().slice(0, 2) || '?');
+function gCadastros(k) {
+  const cs = sortedClientes(), fs = sortedFornecedores();
+  const { cardCli, cardForn } = cadBuild();
+  const linha = (c, ehC) => { const sub = ehC ? (c.tipo === 'comercio' ? 'Comércio' : 'Pessoa') + (c.telefone ? ' · ' + c.telefone : '') : (c.produtos || (c.tipo === 'empresa' ? 'Empresa' : 'Produtor')); const aberto = ehC ? cliVendas(c).some(v => !v.pago && v.status !== 'cancelado') : fornCompras(c).some(x => !x.pago);
+    return `<button type="button" class="cad-row" data-act="cad-abrir" data-k="${ehC ? 'c' : 'f'}" data-id="${c.id}" aria-label="${esc(c.nome)}: abrir cadastro"><span class="cad-av">${cadAvatar(c.nome)}</span><span class="cad-tx"><b>${esc(c.nome)}</b><small>${esc(sub)}</small></span>${aberto ? `<span class="cad-dot" title="${ehC ? 'Tem valor em aberto' : 'Tem valor a pagar'}"></span>` : ''}<span class="cad-ch">${ic('right')}</span></button>`; };
   const ehC = k === 'c';
   const vazio = ehC ? emptyBox('Nenhum cliente ainda. Cadastre quem compra de você para lançar vendas mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-cliente">Novo cliente</button>' : '')
     : emptyBox('Nenhum fornecedor ainda. Cadastre os produtores de quem você compra para registrar as compras mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-fornecedor">Novo fornecedor</button>' : '');
+  const lista = ehC ? cs : fs;
   return pageHeader(ehC ? 'Clientes' : 'Fornecedores') +
-  `<p class="sub" style="margin:0">${ehC ? 'Quem compra de você. Ao lançar uma venda, escolha o cliente e o telefone e o endereço vêm sozinhos.' : 'De quem você compra. Ao registrar uma compra na roça, escolha o fornecedor na lista.'}</p>
-  <div class="stack">${(ehC ? cs.map(cardCli) : fs.map(cardForn)).join('') || vazio}</div>`;
+  `<p class="sub cad-cnt">${lista.length} ${ehC ? (lista.length === 1 ? 'cliente' : 'clientes') : (lista.length === 1 ? 'fornecedor' : 'fornecedores')}</p>
+  ${lista.length ? `<div class="cad-list">${lista.map(c => linha(c, ehC)).join('')}</div>` : vazio}`;
 }
 
 function modalConfirm(msg, btn, fn) {
@@ -5027,6 +5048,8 @@ document.addEventListener('click', async e => {
     case 'compra-paga': await safe(() => patch('compras', id, { pago: true, pagoTs: Date.now() }), 'Compra marcada como paga.'); break;
     case 'apagar-produto': modalConfirm('Apagar este produto? As vendas antigas continuam nos relatórios.', 'Apagar produto', () => safe(() => del('produtos', id), 'Produto apagado.')); break;
     case 'noticia-ativa': await safe(() => patch('noticias', id, { ativa: v === '1' }), v === '1' ? 'Notícia aparecendo no app.' : 'Notícia tirada do app.'); break;
+    case 'cad-abrir': { const kk = t.dataset.k; const reg = (kk === 'c' ? S.clientes : S.fornecedores).find(x => x.id === id); if (!reg) break; const b = cadBuild(); openModal(esc(reg.nome), `<div class="cad-modal">${kk === 'c' ? b.cardCli(reg) : b.cardForn(reg)}</div>`, () => false); break; }
+    case 'abrir-conversa-cad': closeModal(); ui.conv = id; ui.mode = 'gestao'; ui.g = 'conversas'; ui.sheet = null; render(); break;
     case 'cli-hist': ui.hist = ui.hist === id ? null : id; render(); break;
     case 'track': ui.track = id; ui.mode = 'cliente'; ls.set('mmr-mode', 'cliente'); go('pedidos'); break;
     case 'cart': { const p = prodById(id); const q = Math.max(0, Math.min((ui.cart[id] || 0) + Number(v), p?.estoque || 0)); if (q) ui.cart[id] = q; else delete ui.cart[id]; render(); break; }
