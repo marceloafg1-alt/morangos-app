@@ -3733,7 +3733,7 @@ function modalSumidos() {
 }
 function ivSumidos() {
   const L = sumidosLista();
-  return `<div class="sec-h iv-sh"><h2>Clientes sumidos</h2></div>
+  return `<div class="sec-h iv-sh"><h2>Clientes sumidos</h2>${L.length ? '<button class="link" data-act="iv-sum-lista">Ver todos</button>' : ''}</div>
   <div class="card iv-sum"><div class="iv-w"><div class="iv-it ${L.length ? 'iv-clk' : ''}" ${L.length ? 'data-act="iv-sum-lista" role="button" tabindex="0" aria-label="Ver os clientes sumidos"' : ''}><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>Clientes sumidos${L.length > 1 ? ` · ${L.length}` : ''}</b><small>${L.length ? esc(L[0].c.nome) + ' · ' + L[0].dias + ' dias sem pedir' + (L.length > 1 ? ' · toque para ver todos' : '') : 'Todo mundo em dia'}</small></span>${L.length ? sumBtns(L[0].c) : ''}</div></div><div class="iv-m ${L.length > 3 ? 'iv-clk' : ''}" ${L.length > 3 ? 'data-act="iv-sum-lista" role="button" tabindex="0" aria-label="Ver todos os clientes sumidos"' : ''}>${L.length ? L.slice(0, 3).map(({ c, dias }) => `<div class="iv-it"><span class="iv-ic info">${ic('user')}</span><span class="iv-t"><b>${esc(c.nome)}</b><small>Já comprou antes · ${dias} dias sem pedir</small></span>${sumBtns(c)}</div>`).join('') + (L.length > 3 ? `<div class="iv-more">+ ${L.length - 3} ${L.length - 3 === 1 ? 'outro' : 'outros'} · toque no cartão para ver todos</div>` : '')
     : `<div class="iv-it"><span class="iv-ic ok">${ic('check')}</span><span class="iv-t"><b>Todo mundo em dia</b><small>Ninguém que já comprou está há mais de 14 dias sem pedir.</small></span></div>`}</div></div>`;
 }
