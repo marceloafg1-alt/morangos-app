@@ -1956,6 +1956,26 @@ span.news-cta { padding-right: 13px; }
 .nt-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--badge, var(--accent)); margin-top: 6px; }
 .nt-cfg { color: var(--on-page); }
 .nt-prefs { display: grid; gap: 2px; }
+.cat-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; vertical-align: 1px; }
+.cat-dot.lg { width: 16px; height: 16px; }
+.cat-cores { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.cat-cores label { position: relative; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
+.cat-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+.cat-ic svg { width: 20px; height: 20px; color: inherit !important; stroke: currentColor !important; opacity: 1 !important; }
+.cat-ic.sm { width: 22px; height: 22px; border-radius: 7px; }
+.cat-ic.sm svg { width: 14px; height: 14px; }
+.cat-l { display: inline-flex; align-items: center; gap: 8px; }
+.cat-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; margin-top: 6px; }
+.cat-icones label { position: relative; height: 44px; border-radius: 12px; display: grid; place-items: center; cursor: pointer; background: var(--surface-2); color: var(--ink); }
+.cat-icones label svg { width: 21px; height: 21px; }
+.cat-icones input { position: absolute; opacity: 0; pointer-events: none; }
+.cat-icones label:has(input:checked) { background: var(--ink); color: var(--surface, #fff); }
+.cat-icones label:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.cat-cores label svg { width: 18px; height: 18px; opacity: 0; }
+.cat-cores input { position: absolute; opacity: 0; pointer-events: none; }
+.cat-cores label:has(input:checked) { box-shadow: 0 0 0 3px var(--surface, #fff), 0 0 0 5px var(--ink, #222); }
+.cat-cores label:has(input:checked) svg { opacity: 1; }
+.cat-cores label:has(input:focus-visible) { outline: 2px solid var(--ink, #222); outline-offset: 4px; }
 .nt-pref { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .nt-pref:last-child { border-bottom: 0; }
 .nt-pref .grow { flex: 1; min-width: 0; }
@@ -2276,7 +2296,23 @@ const FORMAS = { pix: 'Pix', dinheiro: 'Dinheiro', debito: 'Cartão de débito',
 const STATUS = { recebido: 'Recebido', separado: 'Separado', em_rota: 'Saiu para entrega', entregue: 'Entregue', cancelado: 'Cancelado' };
 const STATUS_PILL = { recebido: 'p-blue', separado: 'p-gray', em_rota: 'p-red', entregue: 'p-ok', cancelado: 'p-gray' };
 const PERIODOS = { hoje: 'Hoje', '7d': '7 dias', '30d': '30 dias', mes: 'Este mês', tudo: 'Tudo' };
-const CATS = { combustivel: 'Combustível', embalagem: 'Embalagens', manutencao: 'Manutenção', pessoal: 'Ajudante / diárias', outros: 'Outros' };
+/* categorias de despesa: padrão + as criadas/editadas em Configurações (coleção "categorias") */
+const CAT_PADRAO = [['combustivel', 'Transporte', '#f76b15', 'truck'], ['alimentacao', 'Alimentação', '#f5b5d6', 'food'], ['embalagem', 'Embalagens', '#0090ff', 'box'], ['manutencao', 'Manutenção', '#6e56cf', 'wrench'], ['pessoal', 'Ajudante / diárias', '#30a46c', 'user'], ['outros', 'Outros', '#8d8d8d', 'dots']];
+const CAT_CORES = ['#e5484d', '#f76b15', '#ffb224', '#30a46c', '#12a594', '#0090ff', '#6e56cf', '#d6409f', '#a18072', '#8d8d8d',
+  '#f4a6a6', '#f8c4a0', '#f9e19a', '#b7e4c7', '#a8dadc', '#a9c9f5', '#c9b6f2', '#f5b5d6', '#dcc8b8', '#cfd4da'];
+const CAT_ICONES = ['truck', 'car', 'fuel', 'food', 'coffee', 'box', 'bag', 'cart', 'basket', 'wrench', 'gear', 'user', 'home', 'bolt', 'drop', 'snow', 'wifi', 'phone', 'megaphone', 'doc', 'receipt', 'cash', 'wallet', 'tag', 'sprout', 'morango', 'heart', 'calendar', 'pin', 'dots'];
+/* cor do ícone sobre a cor da categoria: escuro nos tons pastel, branco nos fortes */
+const catTinta = hex => { const h = String(hex || '').replace('#', ''); if (h.length !== 6) return '#fff'; const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); return (0.299 * r + 0.587 * g + 0.114 * b) > 170 ? '#2b2b2b' : '#fff'; };
+const catIco = (c, cls = '') => `<span class="cat-ic ${cls}" style="background:${esc(c.cor)};color:${catTinta(c.cor)}">${ic(CAT_ICONES.includes(c.icone) ? c.icone : 'tag')}</span>`;
+function catLista() {
+  const docs = Object.fromEntries((S.categorias || []).map(d => [d.id, d]));
+  const base = CAT_PADRAO.map(([id, nome, cor, icone], i) => ({ id, nome, cor, icone, ordem: i, ts: 0, ...(docs[id] || {}) }));
+  const novas = (S.categorias || []).filter(d => !CAT_PADRAO.some(c => c[0] === d.id)).map(d => ({ ordem: 50, ts: 0, cor: '#8d8d8d', icone: 'tag', ...d }));
+  return [...base, ...novas].filter(c => !c.apagada && c.nome).sort((a, b) => (a.id === 'outros') - (b.id === 'outros') || a.ordem - b.ordem || a.ts - b.ts);
+}
+const catDe = k => catLista().find(c => c.id === k);
+const catNome = k => catDe(k)?.nome;
+const catPorNome = nome => catLista().find(c => c.nome === nome) || { cor: '#8d8d8d', icone: 'tag' };
 const MIN_PER_STOP = 12;
 /* cliente de teste: cadastrado na Gestão e já logado na Loja deste aparelho */
 const TESTE_ID = 'cliente-teste';
@@ -2320,8 +2356,8 @@ function inPeriod(ts, p) {
 }
 
 /* ---------------- dados ---------------- */
-const COLS = ['produtos', 'vendas', 'compras', 'despesas', 'noticias', 'clientes', 'mensagens', 'fornecedores', 'notificacoes'];
-const S = { produtos: [], vendas: [], compras: [], despesas: [], noticias: [], clientes: [], mensagens: [], fornecedores: [], notificacoes: [] };
+const COLS = ['produtos', 'vendas', 'compras', 'despesas', 'noticias', 'clientes', 'mensagens', 'fornecedores', 'notificacoes', 'categorias'];
+const S = { produtos: [], vendas: [], compras: [], despesas: [], noticias: [], clientes: [], mensagens: [], fornecedores: [], notificacoes: [], categorias: [] };
 const loaded = {};
 let backend = 'pending'; // 'db' | 'local'
 let db = null;
@@ -3028,7 +3064,7 @@ function cashMoves(periodo) {
     est('compras', c, c.fornecedor || 'Roça');
   }
   for (const d of S.despesas) {
-    m.push({ ts: d.ts, tipo: 'out', k: 'despesas', desc: d.descricao || 'Despesa', det: CATS[d.categoria] || 'Despesa', forma: d.forma || '', valor: Number(d.valor) || 0, col: 'despesas', id: d.id });
+    m.push({ ts: d.ts, tipo: 'out', k: 'despesas', desc: d.descricao || 'Despesa', det: catNome(d.categoria) || 'Despesa', forma: d.forma || '', valor: Number(d.valor) || 0, col: 'despesas', id: d.id });
     est('despesas', d, d.descricao || 'Despesa');
   }
   return m.filter(x => inPeriod(x.ts, periodo)).sort((a, b) => b.ts - a.ts);
@@ -3146,6 +3182,21 @@ const P = {
   filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   pin: '<path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  food: '<path d="M6 3v7a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M8 3v18"/><path d="M17 21V3c-2 1.5-3 4-3 7v3h3"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 0 5 5L21 10a5.5 5.5 0 0 1-7.4 5.2L7 21.8a2.1 2.1 0 0 1-3-3L10.8 12A5.5 5.5 0 0 1 16 4.6l-1.3 1.7z"/>',
+  fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M7 8h4"/><path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8l-3-3"/>',
+  car: '<path d="M5 17H3v-5l2-5h14l2 5v5h-2"/><path d="M3 12h18"/><circle cx="7.5" cy="17" r="2"/><circle cx="16.5" cy="17" r="2"/><path d="M9.5 17h5"/>',
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  snow: '<path d="M12 2v20M4.2 7l15.6 10M4.2 17 19.8 7"/><path d="m9 4 3 2 3-2M9 20l3-2 3 2"/>',
+  coffee: '<path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17M8 3v3M12 3v3"/>',
+  sprout: '<path d="M12 21v-8"/><path d="M12 13c0-4-3-6-8-6 0 4 3 6 8 6zM12 11c0-4 3-7 8-7 0 4.5-3 7-8 7z"/>',
+  tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/>',
+  doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+  heart: '<path d="M12 20s-8-4.8-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6.2-8 11-8 11z"/>',
+  wifi: '<path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><path d="M12 19.5h.01"/>',
+  cart: '<path d="M3 4h2l2.5 11h11L21 7H6.2"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/>',
 };
 /* ícones do pacote LivTask (mesmo traço); os que o pacote não tem seguem o mesmo estilo */
 /* LivTask · ícones (traço, 24×24, cor = currentColor). Copiados do app.
@@ -3527,6 +3578,7 @@ function gConfig() {
     ${cfgRow('user', 'Clientes', pl(S.clientes.length, 'cliente', 'clientes'), 'go-cfg', 'clientes')}
     ${cfgRow('basket', 'Fornecedores', pl(S.fornecedores.length, 'fornecedor', 'fornecedores'), 'go-cfg', 'fornecedores')}
     ${cfgRow('megaphone', 'Notícias', `${newsNoAr().length} no ar`, 'go-cfg', 'noticias')}
+    ${cfgRow('receipt', 'Categorias de despesa', pl(catLista().length, 'categoria', 'categorias'), 'sheet', 'cat-cfg')}
   </nav>
   <div class="sec-h"><h2>App</h2></div>
   <nav class="card menu-list cfg-list" aria-label="App">
@@ -3567,7 +3619,7 @@ function activity() {
   const a = [];
   for (const v of S.vendas) a.push({ ts: v.ts, k: 'in', av: esc((v.cliente?.nome || 'A')[0]), t: (v.cliente?.nome || 'Cliente avulso'), s: `Venda ${origemTxt(v)} · ${itemsText(v.itens)}`, val: (v.status === 'cancelado' ? '' : '+ ') + money(v.total), cancel: v.status === 'cancelado' });
   for (const c of S.compras) a.push({ ts: c.ts, k: 'out', av: ic('basket'), t: c.fornecedor || 'Compra', s: 'Compra · ' + itemsText(c.itens), val: '− ' + money(c.total) });
-  for (const d of S.despesas) a.push({ ts: d.ts, k: 'out', av: ic('cash'), t: d.descricao || 'Despesa', s: CATS[d.categoria] || 'Despesa', val: '− ' + money(d.valor) });
+  for (const d of S.despesas) a.push({ ts: d.ts, k: 'out', av: ic('cash'), t: d.descricao || 'Despesa', s: catNome(d.categoria) || 'Despesa', val: '− ' + money(d.valor) });
   return a.sort((x, y) => y.ts - x.ts);
 }
 const liHTML = x => `<div class="li"><span class="av ${x.k}">${x.av}</span><span style="min-width:0"><b>${esc(x.t)}</b><small>${esc(x.s)} · ${fmtDT(x.ts)}</small></span><span class="val ${x.cancel ? 'muted' : x.k}">${x.cancel ? 'cancelada' : x.val}</span></div>`;
@@ -3730,12 +3782,12 @@ function modalLanc(col, id, eid) {
     inner = `<div class="cx-big"><small>Estorno de ${tipoNome} · ${e.parcial ? 'parcial' : 'total'}</small><b class="num ${e.caixa === false ? '' : sinalE}">${e.caixa === false ? '' : sinalE === 'out' ? '− ' : '+ '}${money(e.valor)}</b><div class="pills">${e.caixa === false ? '<span class="pill p-gray">Abatido do valor em aberto</span>' : `<span class="pill p-gray">${col === 'vendas' ? 'Saiu do caixa' : 'Voltou para o caixa'}</span>`}${formaPill(e.forma)}</div></div>
     <div class="cx-box cx-dl">${row('Data', fmtDT(e.ts))}${row(col === 'vendas' ? 'Cliente' : col === 'compras' ? 'Fornecedor' : 'Despesa', esc(nome))}${row('Motivo', esc(e.motivo || 'Sem motivo'))}${row('Itens', itensHTML(e.itens, campo))}${(e.itens || []).length ? row('Estoque', e.estoque ? (col === 'compras' ? 'Itens saíram do estoque' : 'Itens voltaram ao estoque') : 'Não mexeu no estoque') : ''}</div>
     <h3 class="cx-h3">Lançamento original</h3>
-    <div class="cx-box cx-dl">${row('Data', fmtDT(x.ts))}${row('Valor', money(orig))}${row('Total estornado', money(est))}${row('Ficou', money(rest))}</div>`;
+    <div class="cx-box cx-dl">${row('Data', fmtDT(x.ts))}${col === 'despesas' ? row('Situação', (x.pago === false ? 'A pagar' : 'Paga') + (x.fixa ? ' · fixa' : ' · variável') + (x.recorrente ? ' · recorrente ' + ({ diaria: 'diária', semanal: 'semanal', mensal: 'mensal' }[x.freq] || 'mensal') : '')) : ''}${col === 'despesas' && x.nfceChave ? row('Cupom', 'NFC-e · CNPJ ' + nfceCNPJ(x.nfceCnpj || '') + (x.nfceUrl ? ' · <a href="' + esc(x.nfceUrl) + '" target="_blank" rel="noopener">ver na SEFAZ</a>' : '')) : ''}${row('Valor', money(orig))}${row('Total estornado', money(est))}${row('Ficou', money(rest))}</div>`;
   } else {
     const sinalO = col === 'vendas' ? 'in' : 'out';
     const pago = col === 'despesas' ? true : !!x.pago;
     const sit = col === 'despesas' ? 'Paga' : col === 'vendas' ? (x.status === 'cancelado' ? 'Cancelada' : pago ? 'Paga' : 'A receber') : (pago ? 'Paga' : 'A pagar');
-    inner = `<div class="cx-big"><small>${col === 'vendas' ? 'Venda ' + origemTxt(x) : col === 'compras' ? 'Compra na roça' : 'Despesa · ' + (CATS[x.categoria] || 'Outros')}</small><b class="num ${pago ? sinalO : ''}">${pago ? (sinalO === 'in' ? '+ ' : '− ') : ''}${money(orig)}</b><div class="pills">${col === 'vendas' ? statusPill(x.status) + (x.status !== 'cancelado' ? pagoPill(x) : '') : pago ? '<span class="pill p-ok">Pago</span>' : '<span class="pill p-no">A pagar</span>'}${estPill(col, x)}${formaPill(x.forma)}</div></div>
+    inner = `<div class="cx-big"><small>${col === 'vendas' ? 'Venda ' + origemTxt(x) : col === 'compras' ? 'Compra na roça' : 'Despesa · ' + (catNome(x.categoria) || 'Outros')}</small><b class="num ${pago ? sinalO : ''}">${pago ? (sinalO === 'in' ? '+ ' : '− ') : ''}${money(orig)}</b><div class="pills">${col === 'vendas' ? statusPill(x.status) + (x.status !== 'cancelado' ? pagoPill(x) : '') : pago ? '<span class="pill p-ok">Pago</span>' : '<span class="pill p-no">A pagar</span>'}${estPill(col, x)}${formaPill(x.forma)}</div></div>
     <div class="cx-box cx-dl">${row(col === 'vendas' ? 'Cliente' : col === 'compras' ? 'Fornecedor' : 'Descrição', esc(nome))}${col === 'vendas' ? row('Endereço', esc(x.cliente?.endereco || '')) : ''}${row('Data', fmtDT(x.ts))}${col !== 'despesas' && pago && (x.pagoTs || x.ts) !== x.ts ? row('Pago em', fmtDT(x.pagoTs)) : ''}${row('Pagamento', x.forma ? esc(FORMAS[x.forma] || x.forma) : col === 'despesas' ? 'Não informada' : '')}${row('Itens', itensHTML(x.itens, campo))}${row('Observação', esc(x.obs || ''))}${est ? row('Valor original', money(orig)) + row('Estornado', '− ' + money(est)) + row(pago ? 'Valor final' : 'Falta ' + (col === 'vendas' ? 'receber' : 'pagar'), money(rest)) : (!pago ? row('Falta ' + (col === 'vendas' ? 'receber' : 'pagar'), money(rest)) : '')}</div>
     ${histEst}`;
   }
@@ -3936,7 +3988,7 @@ function relDados() {
   return { per, t, vs, cs, ds, comprado, compraAPagar, vendaAReceber, resumo, balanco,
     vendas: vs.slice().sort((a, b) => a.ts - b.ts).map(v => [new Date(v.ts).toLocaleString('pt-BR'), v.cliente?.nome || 'Cliente avulso', v.origem === 'app' ? 'App' : v.origem === 'chat' ? 'Chat' : 'Avulsa', FORMAS[v.forma] || v.forma || '', v.pago ? 'Pago' : 'Em aberto', itemsText(v.itens), vLiq(v)]),
     compras: cs.slice().sort((a, b) => a.ts - b.ts).map(c => [new Date(c.ts).toLocaleString('pt-BR'), c.fornecedor || 'Roça', itemsText(c.itens), c.pago ? 'Pago' : 'Em aberto', cAberto(c)]),
-    despesas: ds.slice().sort((a, b) => a.ts - b.ts).map(d => [new Date(d.ts).toLocaleString('pt-BR'), d.descricao || 'Despesa', CATS[d.categoria] || 'Outros', restante('despesas', d)]),
+    despesas: ds.slice().sort((a, b) => a.ts - b.ts).map(d => [new Date(d.ts).toLocaleString('pt-BR'), d.descricao || 'Despesa', catNome(d.categoria) || 'Outros', restante('despesas', d)]),
     produtos: Object.entries(prod).sort((a, b) => b[1].v - a[1].v).map(([n, r]) => [n, r.q, r.v]) };
 }
 function relResumoTexto() {
@@ -4004,8 +4056,8 @@ function gRelatorios() {
     byDow[new Date(v.ts).getDay()] += vLiq(v);
     for (const i of v.itens || []) { byProd[i.nome] = (byProd[i.nome] || 0) + i.qtd * i.preco; byProdQ[i.nome] = (byProdQ[i.nome] || 0) + i.qtd; }
   }
-  const bars = (obj, label = k => k, cls = '', sub) => { const e = Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 6); const max = Math.max(...e.map(x => x[1]), 1); const soma = Object.values(obj).reduce((a, b) => a + b, 0) || 1;
-    return `<div class="card bars">${e.map(([k, v]) => `<div><div class="bar-l"><span>${esc(label(k))}${sub ? ` <small class="muted">· ${sub(k)}</small>` : ''}</span><b>${money(v)} <small class="muted">${Math.round(v / soma * 100)}%</small></b></div><div class="track"><div class="fill ${cls}" style="width:${v / max * 100}%"></div></div></div>`).join('') || '<span class="muted">Sem dados no período.</span>'}</div>`; };
+  const bars = (obj, label = k => k, cls = '', sub, cor) => { const e = Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 6); const max = Math.max(...e.map(x => x[1]), 1); const soma = Object.values(obj).reduce((a, b) => a + b, 0) || 1;
+    return `<div class="card bars">${e.map(([k, v]) => `<div><div class="bar-l"><span${cor ? ' class="cat-l"' : ''}>${cor ? catIco(cor(k), 'sm') : ''}${esc(label(k))}${sub ? ` <small class="muted">· ${sub(k)}</small>` : ''}</span><b>${money(v)} <small class="muted">${Math.round(v / soma * 100)}%</small></b></div><div class="track"><div class="fill ${cls}" style="width:${v / max * 100}%${cor ? ';background:' + cor(k).cor : ''}"></div></div></div>`).join('') || '<span class="muted">Sem dados no período.</span>'}</div>`; };
   const nd = _relDias = relDiasGrafico(); _relDias = nd; const ndias = nd === 30 ? 30 : 15;
   const days = []; for (let i = ndias - 1; i >= 0; i--) { const d = new Date(startOfDay() - i * 864e5); days.push({ k: dayKey(d), lbl: String(d.getDate()), v: 0, d }); }
   for (const v of vendasValidas()) { const d = days.find(x => x.k === dayKey(v.ts)); if (d) d.v += vLiq(v); }
@@ -4013,7 +4065,7 @@ function gRelatorios() {
   const melhorDia = days.reduce((m, d) => d.v > m.v ? d : m, days[0]);
   const DOW = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const maxW = Math.max(...byDow, 1);
-  const byCat = {}; for (const d of D.ds) byCat[CATS[d.categoria] || 'Outros'] = (byCat[CATS[d.categoria] || 'Outros'] || 0) + restante('despesas', d);
+  const byCat = {}; for (const d of D.ds) byCat[catNome(d.categoria) || 'Outros'] = (byCat[catNome(d.categoria) || 'Outros'] || 0) + restante('despesas', d);
   const ar = aReceber(), ap = aPagar();
   const sArec = ar.reduce((s, v) => s + vLiq(v), 0), sApag = ap.reduce((s, c) => s + cAberto(c), 0);
   const pagoVs = vs.filter(v => v.pago).reduce((s, v) => s + vLiq(v), 0);
@@ -4062,7 +4114,7 @@ function gRelatorios() {
   <div class="sec-h"><h2>Por forma de pagamento</h2></div>${bars(byForma, k => FORMAS[k] || k)}
   <div class="sec-h"><h2>App × avulsa</h2></div>${bars(byOrig, k => k, 'g')}
   <div class="sec-h"><h2>Produtos mais vendidos</h2></div>${bars(byProd, k => k, '', k => fmtNum(byProdQ[k]) + ' un')}
-  <div class="sec-h"><h2>Despesas por tipo</h2></div>${bars(byCat, k => k, '')}
+  <div class="sec-h"><h2>Despesas por categoria</h2></div>${bars(byCat, k => k, 'cat', null, catPorNome)}
   <div class="sec-h"><h2>Melhores clientes</h2></div>${bars(byCli, k => k, 'g')}`;
 }
 
@@ -4347,7 +4399,7 @@ const AJ_G = [
   ]],
   ['Caixa, despesas e estornos', [
     ['O que entra no saldo do caixa?', 'Só o dinheiro que entrou ou saiu de verdade: vendas pagas, compras pagas, despesas e estornos. Vendas a receber e compras a pagar só entram quando forem pagas. <b>Em caixa agora</b> soma todo o histórico.', [['Abrir Caixa', 'go', 'caixa']]],
-    ['Como lançar uma despesa?', 'No <b>Caixa</b>, toque no <b>+</b> e em <b>Nova despesa</b>. Escreva a descrição, escolha a categoria (Combustível, Embalagens, Manutenção, Ajudante / diárias, Outros), o valor, a data e com o que pagou.', [['Lançar despesa', 'nova-despesa']]],
+    ['Como lançar uma despesa?', 'No <b>Caixa</b>, toque no <b>+</b> e em <b>Nova despesa</b>. Escreva a descrição, escolha a categoria (você cria, renomeia e apaga categorias em <b>Configurações → Categorias de despesa</b>), o valor, a data e com o que pagou.', [['Lançar despesa', 'nova-despesa']]],
     ['Como ver o que tenho a receber e a pagar?', 'No <b>Caixa</b>, toque nos cartões <b>A receber</b> ou <b>A pagar</b>. Em cada linha, <b>recebido</b> ou <b>paga</b> dá baixa na hora.', [['Ver a receber', 'go-vendas-receber'], ['Ver a pagar', 'go-caixa-pagar']]],
     ['Como devolver dinheiro (estorno)?', '<ol><li>Toque em <b>Estornar</b> na venda, compra ou no lançamento do caixa.</li><li>Escolha <b>Tudo</b> ou <b>Só uma parte</b> (quantos itens voltaram).</li><li>Diga se os itens voltam ao estoque e como o dinheiro foi devolvido.</li><li>Escreva o <b>motivo</b> e confirme.</li></ol>O lançamento original continua no histórico. Se ainda não estava pago, o estorno só abate do valor em aberto.', [['Estornar uma venda', 'escolher-estorno']]],
     ['Por que não consigo apagar um lançamento?', 'Lançamentos com estorno ficam no histórico para o caixa continuar certo. Vendas são canceladas (não apagadas), e só uma venda cancelada sem estorno pode ser apagada.', [['Abrir Caixa', 'go', 'caixa']]],
@@ -4693,6 +4745,7 @@ function sheetHTML() {
     <div class="ap-sec"><span class="ap-l">Cor</span>${look.visual === 'bento' ? '<small class="muted">O Bento usa a paleta própria (preto, lima e tons pastel).</small>' : ''}<div class="ap-cores">${(window.LT_TEMAS || []).map(([k, l, a, b]) => `<button class="ap-cor" style="background:linear-gradient(135deg,${a},${b})" data-act="look" data-k="tema" data-v="${k}" aria-label="${l}" aria-pressed="${look.tema === k}" title="${l}" ${look.visual === 'bento' ? 'disabled' : ''}>${look.tema === k ? icOwn('check') : ''}</button>`).join('')}</div></div>
     <button class="lt-btn lt-block" data-act="look-reset">Voltar ao padrão (Rosa, Clássico, claro)</button>`);
   if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
+  if (s.type === 'cat-cfg') return catCfgSheet(wrap);
   if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
   if (s.type === 'exemplos') { const nEx = contaExemplos(), noApp = exNoApp(), disp = exDisponivel(); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
     for (const c of EX_CATS) ui.exQtd[c.k] = Math.min(ui.exQtd[c.k] || 0, disp[c.k]);
@@ -4918,16 +4971,79 @@ function modalCompra(fornId, editId) {
   }, f => { wireLines(f, 'compra', ed?.itens); f.addEventListener('change', e => { if (e.target.name === 'forma') f.querySelector('#c-pago').checked = e.target.value !== 'fiado'; }); });
 }
 
+/* cupom fiscal NFC-e: a chave de 44 números traz o CNPJ do emissor e o mês/ano da emissão. O valor não vem no QR code. */
+const nfceCNPJ = c => c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+function nfceCampos(fd) {
+  const chave = String(fd.get('nfceChave') || ''); if (!chave) return {};
+  const url = String(fd.get('nfceUrl') || '');
+  return { nfceChave: chave, nfceCnpj: String(fd.get('nfceCnpj') || ''), ...(url ? { nfceUrl: url } : {}) };
+}
+function nfceUsar(txt) {
+  const raw = String(txt || '').trim(), m = raw.replace(/\s/g, '').match(/\d{44}/), st = document.getElementById('d-nfce-st');
+  if (!m) { toast('Não achei a chave de 44 números. Confira o link ou a foto.'); return false; }
+  const chave = m[0], aa = chave.slice(2, 4), mm = chave.slice(4, 6), cnpj = chave.slice(6, 20);
+  if (+mm < 1 || +mm > 12) { toast('Essa chave não parece de nota fiscal.'); return false; }
+  document.getElementById('d-nfce-chave').value = chave;
+  document.getElementById('d-nfce-cnpj').value = cnpj;
+  document.getElementById('d-nfce-url').value = /^https?:\/\//i.test(raw) ? raw : '';
+  if (st) st.textContent = `Cupom lido: emitido em ${mm}/20${aa}, CNPJ ${nfceCNPJ(cnpj)}. Confira o valor e a data, que o QR code não traz.`;
+  toast('Cupom lido.'); return true;
+}
+async function nfceDeFoto(file) {
+  if (!file) return;
+  if (!('BarcodeDetector' in window)) { toast('Este navegador não lê QR code. Cole o link do cupom.'); return; }
+  try {
+    const bmp = await createImageBitmap(file);
+    const r = await new BarcodeDetector({ formats: ['qr_code'] }).detect(bmp);
+    if (!r.length) { toast('Não achei o QR code na foto. Tente de novo, mais perto.'); return; }
+    nfceUsar(r[0].rawValue);
+  } catch { toast('Não consegui ler a foto. Cole o link do cupom.'); }
+}
+
 function modalDespesa() {
   openModal('Lançar despesa', `<div class="fgrid">
-    <div class="f full"><label for="d-desc">Descrição</label><input type="text" id="d-desc" name="descricao" required placeholder="Ex.: Gasolina da entrega"></div>
-    <div class="f"><label for="d-cat">Categoria</label><select id="d-cat" name="categoria">${Object.entries(CATS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+    <div class="f full"><label for="d-desc">Descrição</label>
+      <div style="display:flex;gap:8px;align-items:center"><input type="text" id="d-desc" name="descricao" required placeholder="Ex.: Gasolina da entrega" style="flex:1;min-width:0"><button type="button" class="btn small ghost" data-act="nfce-foto" style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none">${ic('camera')}<span>Ler QR Code</span></button></div>
+      <input type="file" id="d-nfce-foto" accept="image/*" capture="environment" hidden>
+      <small id="d-nfce-st" class="muted" style="display:block;margin-top:6px"></small>
+      <div style="display:flex;gap:8px;margin-top:8px"><input type="text" id="d-nfce-txt" placeholder="ou cole o link do cupom" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1;min-width:0"><button type="button" class="btn small" data-act="nfce-txt">Usar</button></div>
+      <input type="hidden" id="d-nfce-chave" name="nfceChave"><input type="hidden" id="d-nfce-url" name="nfceUrl"><input type="hidden" id="d-nfce-cnpj" name="nfceCnpj">
+    </div>
+    <div class="f"><label for="d-cat">Categoria</label><select id="d-cat" name="categoria">${catLista().map(c => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')}</select></div>
     <div class="f"><label for="d-val">Valor (R$)</label><input type="number" id="d-val" name="valor" min="0" step="0.01" required inputmode="decimal"></div>
-    <div class="f"><label for="d-data-b">Data</label>${dateField('d-data', 'data', todayInput(), 'Data da despesa')}</div>
-    <div class="f full"><span class="lbl">Pago com</span>${formaOpts('forma', ['pix', 'dinheiro', 'debito', 'credito'], 'pix')}</div>
+    <div class="f full"><label for="d-data-b">Data</label>${dateField('d-data', 'data', todayInput(), 'Data da despesa')}</div>
+    <div class="f full nt-prefs">
+      <label class="nt-pref" for="d-pago"><span class="grow"><b>Está pago?</b><small>Desligado: fica como a pagar</small></span><input type="checkbox" class="lt-switch" id="d-pago" name="pago" checked></label>
+      <label class="nt-pref" for="d-fixa"><span class="grow"><b>Despesa fixa?</b><small>Aluguel, internet, contador e similares</small></span><input type="checkbox" class="lt-switch" id="d-fixa" name="fixa"></label>
+      <label class="nt-pref" for="d-rec"><span class="grow"><b>Lançamento recorrente?</b><small>Repete a despesa automaticamente</small></span><input type="checkbox" class="lt-switch" id="d-rec" name="recorrente"></label>
+    </div>
+    <div class="f full" id="rec-box" style="display:none;gap:12px">
+      <div class="f"><label for="d-freq">Repetir</label><select id="d-freq" name="freq"><option value="diaria">Diária</option><option value="semanal">Semanal</option><option value="mensal" selected>Mensal</option></select></div>
+      <div class="f"><label for="d-fim-b">Data final (opcional)</label>${dateField('d-fim', 'fim', '', 'Data final')}</div>
+      <small class="muted">Sem data final, o app lança as despesas por 12 meses a partir da data.</small>
+    </div>
+    <div class="f full" id="forma-box"><span class="lbl">Pago com</span><div class="opts" style="flex-wrap:nowrap;gap:6px;margin-top:6px">${[['pix', 'Pix'], ['dinheiro', 'Dinheiro'], ['debito', 'Débito'], ['credito', 'Crédito']].map(([k, l]) => `<label class="opt" style="flex:1 1 0;min-width:0;padding:8px 2px;justify-content:center;font-size:13px;text-align:center"><input type="radio" name="forma" value="${k}" id="forma-${k}" ${k === 'pix' ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
   </div><div class="form-acts"><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>`,
-  async f => { const fd = new FormData(f); const valor = Number(fd.get('valor')); if (!String(fd.get('descricao')).trim() || !(valor > 0)) { toast('Preencha a descrição e o valor.'); return false; }
-    return safe(() => put('despesas', uid(), { ts: tsFromDate(fd.get('data')), descricao: String(fd.get('descricao')).trim(), categoria: fd.get('categoria'), forma: fd.get('forma') || '', valor: n2(valor) }), 'Despesa lançada.'); });
+  async f => { const fd = new FormData(f); const valor = Number(fd.get('valor')); const desc = String(fd.get('descricao')).trim();
+    if (!desc || !(valor > 0)) { toast('Preencha a descrição e o valor.'); return false; }
+    const paga = fd.get('pago') !== null;
+    const base = { descricao: desc, categoria: fd.get('categoria'), valor: n2(valor), pago: paga, fixa: fd.get('fixa') !== null, forma: paga ? (fd.get('forma') || '') : '', ...nfceCampos(fd) };
+    const ini = tsFromDate(fd.get('data'));
+    if (fd.get('recorrente') === null) return safe(() => put('despesas', uid(), { ...base, ts: ini, recorrente: false }), 'Despesa lançada.');
+    const freq = fd.get('freq') || 'mensal', fimS = fd.get('fim');
+    const d0 = new Date(ini);
+    const limite = fimS ? tsFromDate(fimS) : new Date(d0.getFullYear() + 1, d0.getMonth(), d0.getDate(), 12).getTime();
+    const datas = []; let d = d0;
+    while (d.getTime() <= limite && datas.length < 400) {
+      datas.push(d.getTime()); const n = new Date(d);
+      if (freq === 'diaria') n.setDate(n.getDate() + 1); else if (freq === 'semanal') n.setDate(n.getDate() + 7); else n.setMonth(n.getMonth() + 1);
+      d = n; }
+    const grupo = 'rec-' + uid();
+    return safe(async () => { for (const t of datas) await put('despesas', uid(), { ...base, ts: t, recorrente: true, freq, grupo }); }, datas.length + (datas.length === 1 ? ' despesa lançada.' : ' despesas lançadas.'));
+  },
+  f => { const tog = () => { f.querySelector('#rec-box').style.display = f.querySelector('#d-rec').checked ? 'grid' : 'none'; f.querySelector('#forma-box').style.display = f.querySelector('#d-pago').checked ? '' : 'none'; };
+    f.addEventListener('change', tog); tog();
+    f.querySelector('#d-nfce-foto').addEventListener('change', e => nfceDeFoto(e.target.files && e.target.files[0])); });
 }
 
 function modalProduto(id) {
@@ -5386,6 +5502,46 @@ function rtClick(e) {
     const url = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=' + encodeURIComponent(org) + '&destination=' + encodeURIComponent(q(dest)) + (rest.length > 1 ? '&waypoints=' + encodeURIComponent(rest.slice(0, -1).slice(0, 9).map(q).join('|')) : '');
     window.open(url, '_blank'); }
 }
+/* categorias de despesa: lista, criar, editar e apagar */
+const catUso = id => S.despesas.filter(d => (d.categoria || 'outros') === id).length;
+function catCfgSheet(wrap) {
+  const l = catLista();
+  return wrap('Categorias de despesa', `<p class="muted" style="margin:0 0 10px;font-size:14px">Aparecem ao lançar uma despesa e no relatório de despesas. Toque numa categoria para mudar o nome, a cor ou apagar.</p>
+    <div class="bs-list">${l.map(c => { const n = catUso(c.id); return `<button class="bs-row" data-act="cat-editar" data-id="${esc(c.id)}" ${W()}>${catIco(c)}<span class="grow"><b>${esc(c.nome)}</b><small>${n ? n + (n === 1 ? ' despesa' : ' despesas') : 'nenhuma despesa'}${c.id === 'outros' ? ' · fixa' : ''}</small></span>${ic('right', 'i chev')}</button>`; }).join('')}</div>
+    <div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="cat-nova" ${W()}>Nova categoria</button></div>`);
+}
+function modalCategoria(id) {
+  const c = id ? catDe(id) : null; if (id && !c) return;
+  const usadas = new Set(catLista().map(x => x.cor));
+  const cor0 = c ? c.cor : (CAT_CORES.find(x => !usadas.has(x)) || CAT_CORES[0]);
+  const ico0 = c && CAT_ICONES.includes(c.icone) ? c.icone : 'tag';
+  const n = c ? catUso(c.id) : 0;
+  const voltar = () => { ui.sheet = { type: 'cat-cfg' }; render(); };
+  openModal(c ? 'Editar categoria' : 'Nova categoria', `<div class="fgrid">
+    <div class="f full"><label for="cat-nome">Nome</label><input type="text" id="cat-nome" name="nome" required maxlength="40" value="${esc(c ? c.nome : '')}" placeholder="Ex.: Aluguel da câmara fria" autocomplete="off"></div>
+    <div class="f full"><span class="lbl">Ícone</span><div class="cat-icones">${CAT_ICONES.map(k => `<label title="${k}"><input type="radio" name="icone" value="${k}" ${k === ico0 ? 'checked' : ''} aria-label="Ícone ${k}">${ic(k)}</label>`).join('')}</div></div>
+    <div class="f full"><span class="lbl">Cor</span><div class="cat-cores">${CAT_CORES.map(k => `<label style="background:${k};color:${catTinta(k)}" title="${k}"><input type="radio" name="cor" value="${k}" ${k === cor0 ? 'checked' : ''} aria-label="Cor ${k}">${icOwn('check')}</label>`).join('')}</div></div>
+    ${c && n ? `<small class="muted full" style="grid-column:1/-1">${n} ${n === 1 ? 'despesa usa' : 'despesas usam'} esta categoria. Mudar o nome muda em todas.</small>` : ''}
+  </div><div class="form-acts">${c && c.id !== 'outros' ? `<button type="button" class="btn ghost" data-act="cat-apagar" data-id="${esc(c.id)}" style="margin-right:auto">Apagar</button>` : ''}<button type="button" class="btn" data-act="cat-voltar">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>`,
+  async f => { const fd = new FormData(f); const nome = String(fd.get('nome') || '').trim().replace(/\s+/g, ' '); const cor = String(fd.get('cor') || cor0); const icone = String(fd.get('icone') || ico0);
+    if (!nome) { toast('Escreva o nome da categoria.'); return false; }
+    if (catLista().some(x => x.id !== id && norm(x.nome) === norm(nome))) { toast('Já existe uma categoria com esse nome.'); return false; }
+    const ok = c ? await safe(() => put('categorias', c.id, { ...(S.categorias.find(d => d.id === c.id) || {}), nome, cor, icone, ordem: c.ordem, ts: c.ts }), 'Categoria salva.')
+      : await safe(() => put('categorias', 'cat-' + uid(), { nome, cor, icone, ordem: 50, ts: Date.now() }), 'Categoria criada.');
+    if (ok) setTimeout(voltar, 0); return ok; });
+}
+function catApagar(id) {
+  const c = catDe(id); if (!c || id === 'outros') return;
+  const ds = S.despesas.filter(d => d.categoria === id);
+  modalConfirm(`Apagar a categoria <b>${esc(c.nome)}</b>?${ds.length ? ` ${ds.length === 1 ? 'A despesa que usa ela vai' : 'As ' + ds.length + ' despesas que usam ela vão'} para <b>${esc(catNome('outros') || 'Outros')}</b>.` : ''}`, 'Apagar categoria', async () => {
+    const ok = await safe(async () => {
+      for (const d of ds) await patch('despesas', d.id, { categoria: 'outros' });
+      if (CAT_PADRAO.some(p => p[0] === id)) await put('categorias', id, { ...(S.categorias.find(d => d.id === id) || {}), nome: c.nome, apagada: true, ts: Date.now() });
+      else await del('categorias', id);
+    }, 'Categoria apagada.');
+    if (ok) setTimeout(() => { ui.sheet = { type: 'cat-cfg' }; render(); }, 0); return ok; });
+}
+
 /* ajustes da rota (ponto de partida, tempo por parada, chave) */
 function rotaCfgSheet(wrap) {
   const c = rotaCfg();
@@ -5548,6 +5704,12 @@ document.addEventListener('click', async e => {
     case 'wa-salvar': { const d = (document.getElementById('wa-num')?.value || '').replace(/\D/g, ''); if (d && d.length < 10) { toast('Número incompleto. Use DDD e número.'); break; } const num = d && d.length <= 11 ? '55' + d : d; ls.set('mmr-wa-numero', num); ui.sheet = null; render(); toast(num ? 'Número salvo.' : 'Número apagado.'); break; }
     case 'rota-mapa': rotaMapaAbrir(); break;
     case 'rota-cfg-salvar': rotaCfgSalvar(); break;
+    case 'nfce-foto': document.getElementById('d-nfce-foto')?.click(); break;
+    case 'nfce-txt': nfceUsar(document.getElementById('d-nfce-txt')?.value || ''); break;
+    case 'cat-nova': ui.sheet = null; render(); modalCategoria(); break;
+    case 'cat-editar': ui.sheet = null; render(); modalCategoria(id); break;
+    case 'cat-apagar': catApagar(id); break;
+    case 'cat-voltar': closeModal(); ui.sheet = { type: 'cat-cfg' }; render(); break;
     case 'rota-gps': rotaGps(); break;
     case 'wa-apagar': ls.set('mmr-wa-numero', ''); ui.sheet = null; render(); toast('Número apagado.'); break;
     case 'ex-zerar': ui.exMsg = null; ui.exAviso = null; ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
