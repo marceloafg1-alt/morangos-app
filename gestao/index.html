@@ -1639,6 +1639,31 @@ form .is-off { opacity: .55; }
 .bs .menu button:last-child { border-bottom: 0; }
 .bs .menu button[aria-pressed="true"] { background: none; border-color: var(--line); color: var(--accent); }
 .bs .ap-sec { padding: 4px 0; }
+/* Dados de exemplo */
+.bs-fica, .bs-fica .bs { animation: none; }
+.ex-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.ex-lista { display: grid; gap: 8px; }
+.ex-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 10px 10px 14px; border-radius: 16px; background: color-mix(in srgb, var(--ink) 5%, var(--card)); color: var(--ink); }
+.lt[data-visual="bento"]:not([data-escuro="1"]) .ex-row { background: var(--fill); }
+.lt[data-escuro="1"] .ex-row { background: color-mix(in srgb, var(--ink) 7%, var(--card)); }
+.ex-info { min-width: 0; display: grid; justify-items: start; gap: 2px; }
+.ex-info b { font-size: 15.5px; line-height: 1.25; }
+.ex-info small { color: var(--muted); font-size: 12.5px; }
+.ex-tem { color: var(--ink); font-weight: 700; }
+.ex-apagar { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; height: 30px; padding: 0 12px; border: 1.5px solid color-mix(in srgb, #d93a3a 55%, transparent); border-radius: 15px; background: none; color: #d93a3a; font: inherit; font-size: 13px; font-weight: 700; }
+.lt[data-escuro="1"] .ex-apagar { color: #ff8a80; border-color: color-mix(in srgb, #ff8a80 55%, transparent); }
+.ex-apagar svg.i { width: 15px; height: 15px; }
+.ex-row .stepper { flex: none; }
+.stepper .ex-n { width: 46px; height: 36px; padding: 0 2px; text-align: center; font: inherit; font-size: 16px; font-weight: 800; color: var(--ink); background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; -moz-appearance: textfield; appearance: textfield; }
+.stepper .ex-n::-webkit-outer-spin-button, .stepper .ex-n::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper .ex-n:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ex-acts { display: grid; gap: 10px; margin-top: 4px; }
+.ex-acts .lt-btn { white-space: normal; text-align: center; line-height: 1.2; }
+.ex-acts .lt-btn[disabled] { opacity: .5; box-shadow: none; }
+.ex-rem { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 50px; padding: 10px 18px; border: 1.5px solid color-mix(in srgb, #d93a3a 60%, transparent); border-radius: var(--r-btn, 16px); background: none; color: #d93a3a; font: inherit; font-size: var(--fs-md, 16px); font-weight: 700; text-align: center; line-height: 1.2; }
+.lt[data-escuro="1"] .ex-rem { color: #ff8a80; border-color: color-mix(in srgb, #ff8a80 60%, transparent); }
+.ex-rem svg.i { width: 18px; height: 18px; flex: none; }
+:is(.ex-rem, .ex-apagar)[disabled] { opacity: .45; }
 @keyframes bsUp { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
 @keyframes bsFade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .bs, .bs-scrim { animation: none; } }
@@ -2648,6 +2673,13 @@ function filtrarExemplos(data, qtd) {
   return out;
 }
 const exQtdInicial = n => ({ ...n });
+// quantos exemplos de cada categoria estão no app agora (conversa = um cliente com mensagens)
+function exNoApp() {
+  const n = Object.fromEntries(EX_CATS.map(c => [c.k, 0])), convs = new Set();
+  for (const col of COLS) for (const d of S[col]) if (ehExemplo(col, d)) { const c = catDoExemplo(col, d); if (c === 'conversas') convs.add(d.clienteId); else if (c in n) n[c]++; }
+  n.conversas = convs.size;
+  return n;
+}
 
 async function emLotes(tarefas, tam = 8) {
   for (let i = 0; i < tarefas.length; i += tam) await Promise.all(tarefas.slice(i, i + tam).map(f => f()));
@@ -2680,6 +2712,37 @@ async function removerExemplos() {
   if (ok && backend === 'local') ls.set(AUTO_EX_KEY, { removidos: true });
   if (ok) toast(`Exemplos removidos (${tarefas.length}). Seus dados reais continuam.`);
 }
+
+// apaga só os exemplos de uma categoria; o resto (e os dados reais) continua
+async function removerExemplosCat(k) {
+  if (!canWrite) { toast('Modo leitura: não dá para apagar.'); return; }
+  ui.exBusy = true; render();
+  const tarefas = [], ids = new Set();
+  for (const c of COLS) for (const d of S[c]) if (ehExemplo(c, d) && catDoExemplo(c, d) === k) { ids.add(d.id); tarefas.push(() => del(c, d.id)); }
+  const ok = await safe(() => emLotes(tarefas));
+  if (ids.size) { myOrders = myOrders.filter(id => !ids.has(id)); ls.set('mmr-meus-pedidos', myOrders); }
+  if ((k === 'conversas' || k === 'clientes') && String(ui.conv || '').startsWith(EX_PREFIX)) ui.conv = null;
+  ui.exBusy = false; render();
+  if (ok && backend === 'local') ls.set(AUTO_EX_KEY, { manual: true, dia: dayKey(Date.now()) });
+  const nome = EX_CATS.find(c => c.k === k)?.nome || k;
+  if (ok) toast(`${nome}: ${tarefas.length} ${tarefas.length === 1 ? 'exemplo apagado' : 'exemplos apagados'}. O resto continua.`);
+}
+// campo de quantidade: digitar atualiza na hora, sem redesenhar a janela (o teclado não fecha)
+function exQtdDigitada(inp, final) {
+  const k = inp.dataset.exk, max = Number(inp.max) || 0;
+  let n = Math.round(Number(String(inp.value).replace(/\D/g, '')) || 0); n = Math.max(0, Math.min(max, n));
+  if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
+  ui.exQtd[k] = n;
+  if (final || inp.value !== '' && Number(inp.value) !== n) inp.value = n;
+  const row = inp.closest('.ex-row');
+  if (row) { const m = row.querySelector('.minus'), p = row.querySelector('.stepper button:not(.minus)'); if (m) m.disabled = n <= 0; if (p) p.disabled = n >= max; }
+  const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0), b = document.querySelector('[data-act="ex-carregar"]');
+  if (b && !ui.exBusy) { b.disabled = !canWrite || !sel; b.textContent = sel ? `Inserir ${sel} ${sel === 1 ? 'exemplo' : 'exemplos'}` : 'Escolha acima o que inserir'; }
+}
+document.addEventListener('input', e => { if (e.target?.matches?.('.ex-n')) exQtdDigitada(e.target, false); });
+document.addEventListener('change', e => { if (e.target?.matches?.('.ex-n')) exQtdDigitada(e.target, true); });
+document.addEventListener('focusin', e => { if (e.target?.matches?.('.ex-n')) setTimeout(() => { try { e.target.select(); } catch (_) {} }, 0); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target?.matches?.('.ex-n')) { e.preventDefault(); e.target.blur(); } });
 
 /* ---------------- derivados ---------------- */
 const prodById = id => S.produtos.find(p => p.id === id);
@@ -2801,6 +2864,7 @@ const W = () => canWrite ? '' : 'disabled';
 /* ---------------- ícones ---------------- */
 const P = {
   pencil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+  trash: '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   dots: '<circle cx="12" cy="5" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.9" fill="currentColor" stroke="none"/>',
   home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1z"/>',
@@ -2936,7 +3000,14 @@ function render() {
   for (const [k, val] of Object.entries(keep)) { const el = document.getElementById(k); if (!el || !$main.contains(el)) continue; if (el.type === 'radio' || el.type === 'checkbox') el.checked = val; else el.value = val; }
   if (focused) document.getElementById(focused)?.focus({ preventScroll: true });
   document.getElementById('nav-root').innerHTML = nav();
-  document.getElementById('sheet-root').innerHTML = ui.sheet ? sheetHTML() : '';
+  { const $sr = document.getElementById('sheet-root'), bs0 = $sr.querySelector('.bs'), tipo0 = $sr.dataset.tipo || '', top0 = bs0 ? bs0.scrollTop : 0;
+    const foc = $sr.contains(document.activeElement) ? document.activeElement.id : '';
+    $sr.innerHTML = ui.sheet ? sheetHTML() : '';
+    $sr.dataset.tipo = ui.sheet ? ui.sheet.type : '';
+    if (ui.sheet && ui.sheet.type === 'exemplos' && tipo0 === 'exemplos') { // +, −, apagar: a janela fica parada onde estava
+      $sr.querySelector('.bs-scrim')?.classList.add('bs-fica'); const bs = $sr.querySelector('.bs'); if (bs) bs.scrollTop = top0;
+      if (foc) document.getElementById(foc)?.focus({ preventScroll: true });
+    } }
   chatAfterRender();
   newsAfterRender();
   ajudaFiltra();
@@ -4373,14 +4444,14 @@ function sheetHTML() {
     <button class="lt-btn lt-block" data-act="look-reset">Voltar ao padrão (Rosa, Clássico, claro)</button>`);
   if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
   if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
-  if (s.type === 'exemplos') { const nEx = contaExemplos(); const tot = contaPorCat(montarExemplos()); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
-    const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0);
-    return wrap('Dados de exemplo', `<p class="muted" style="margin:0 0 10px;font-size:14px">Escolha o que inserir e quantos de cada. Cada exemplo fica marcado, e ao remover só eles são apagados. Não mexem no estoque dos seus produtos.</p>
-    ${nEx ? `<div class="note" style="margin-bottom:10px">Agora há ${nEx} registros de exemplo no app.</div>` : ''}
-    <div class="acts" style="margin-bottom:8px"><button class="btn small" data-act="ex-todos">Marcar tudo</button><button class="btn small" data-act="ex-zerar">Zerar</button></div>
-    <div style="display:grid;gap:8px;margin-bottom:12px">${EX_CATS.map(c => `<div class="row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:14px;background:var(--surface-2)"><div><b>${c.ic} ${c.nome}</b><div class="muted" style="font-size:12.5px">até ${tot[c.k]}</div></div><span class="stepper"><button class="minus" data-act="ex-qtd" data-k="${c.k}" data-v="-1" ${(ui.exQtd[c.k] || 0) <= 0 ? 'disabled' : ''}>−</button><span style="min-width:28px">${ui.exQtd[c.k] || 0}</span><button data-act="ex-qtd" data-k="${c.k}" data-v="1" ${(ui.exQtd[c.k] || 0) >= tot[c.k] ? 'disabled' : ''}>+</button></span></div>`).join('')}</div>
-    <div class="menu" style="gap:10px;display:grid"><button class="btn primary block" data-act="ex-carregar" ${ui.exBusy || !canWrite || !sel ? 'disabled' : ''}>${ui.exBusy ? 'Aguarde…' : sel ? `Inserir ${sel} exemplos` : 'Escolha o que inserir'}</button>
-    ${nEx ? `<button class="btn block" data-act="ex-remover" ${ui.exBusy || !canWrite ? 'disabled' : ''}>Remover todos os exemplos</button>` : ''}</div>`); }
+  if (s.type === 'exemplos') { const nEx = contaExemplos(); const tot = contaPorCat(montarExemplos()), noApp = exNoApp(); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
+    const sel = EX_CATS.reduce((a, c) => a + (ui.exQtd[c.k] || 0), 0), trava = ui.exBusy || !canWrite ? 'disabled' : '';
+    return wrap('Dados de exemplo', `<p class="muted" style="margin:0;font-size:14px">Escolha o que inserir e quantos de cada: toque em + e − ou digite o número. Cada exemplo fica marcado, e ao apagar só eles saem. Não mexem no estoque dos seus produtos.</p>
+    ${nEx ? `<div class="note" style="margin:0">Agora há ${nEx} registros de exemplo no app. Use <b>Apagar</b> em cada item para tirar só aquele tipo.</div>` : ''}
+    <div class="ex-chips"><button class="lt-chip" data-act="ex-todos">Marcar tudo</button><button class="lt-chip" data-act="ex-zerar">Zerar</button></div>
+    <div class="ex-lista">${EX_CATS.map(c => { const q = ui.exQtd[c.k] || 0, tem = noApp[c.k] || 0; return `<div class="ex-row"><div class="ex-info"><b>${c.ic} ${c.nome}</b><small>até ${tot[c.k]}${tem ? ` · <span class="ex-tem">${tem} no app</span>` : ''}</small>${tem ? `<button class="ex-apagar" data-act="ex-apagar-cat" data-k="${c.k}" ${trava} aria-label="Apagar os exemplos de ${c.nome}">${ic('trash')}Apagar</button>` : ''}</div><span class="stepper"><button class="minus" data-act="ex-qtd" data-k="${c.k}" data-v="-1" ${q <= 0 ? 'disabled' : ''} aria-label="Menos ${c.nome}">−</button><input class="ex-n" id="ex-n-${c.k}" data-exk="${c.k}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="${tot[c.k]}" value="${q}" aria-label="Quantidade de ${c.nome}"><button data-act="ex-qtd" data-k="${c.k}" data-v="1" ${q >= tot[c.k] ? 'disabled' : ''} aria-label="Mais ${c.nome}">+</button></span></div>`; }).join('')}</div>
+    <div class="ex-acts"><button class="lt-btn lt-block" data-act="ex-carregar" ${ui.exBusy || !canWrite || !sel ? 'disabled' : ''}>${ui.exBusy ? 'Aguarde…' : sel ? `Inserir ${sel} ${sel === 1 ? 'exemplo' : 'exemplos'}` : 'Escolha acima o que inserir'}</button>
+    ${nEx ? `<button class="ex-rem" data-act="ex-remover" ${trava}>${ic('trash')}Remover todos os exemplos (${nEx})</button>` : ''}</div>`); }
   if (s.type === 'notif-ajustes') { const nn = notifNaoLidas(); const all = notificacoes(true);
     return wrap('Notificações', `<p class="muted" style="margin:0;font-size:13.5px">Escolha o que aparece no sino da tela inicial. Vale para este aparelho.</p>
     <div class="nt-prefs">${Object.entries(NOTIF_TIPOS).map(([k, [icon, l, d]]) => { const q = all.filter(x => x.tipo === k).length; return `<label class="nt-pref" for="np-${k}"><span class="nt-ic t-${k}">${ic(icon)}</span><span class="grow"><b>${l}</b><small>${d}${q ? ` · ${q} agora` : ''}</small></span><input type="checkbox" class="lt-switch" id="np-${k}" data-act="notif-pref" data-k="${k}" ${notifPrefs[k] !== false ? 'checked' : ''}></label>`; }).join('')}</div>
@@ -5228,6 +5299,7 @@ document.addEventListener('click', async e => {
     case 'wa-apagar': ls.set('mmr-wa-numero', ''); ui.sheet = null; render(); toast('Número apagado.'); break;
     case 'ex-zerar': ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
     case 'ex-carregar': carregarExemplos(); break;
+    case 'ex-apagar-cat': { const k = t.dataset.k, c = EX_CATS.find(x => x.k === k), n = exNoApp()[k] || 0; if (!c || !n) break; modalConfirm(`Apagar ${n === 1 ? 'o exemplo' : 'os ' + n + ' exemplos'} de <b>${esc(c.nome)}</b>? Os outros exemplos e seus dados reais continuam.`, 'Apagar', () => { removerExemplosCat(k); }); break; }
     case 'ex-remover': modalConfirm('Remover todos os dados de exemplo? Seus lançamentos reais não são apagados.', 'Remover exemplos', () => { removerExemplos(); }); break;
     case 'close-sheet': ui.sheet = null; render(); break;
     case 'close-all': ui.sheet = null; $modal.innerHTML = ''; render(); break;
