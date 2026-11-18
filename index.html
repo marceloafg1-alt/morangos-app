@@ -626,13 +626,13 @@
 
 /* Web com tela baixa: Mais no fim do menu; ao tocar aparecem Compras, Relatórios e Configurações */
 html[data-modo="gestao"][data-visao="web"] .lt-side .side-mais{display:none!important}
-@media (max-height:990px){
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-mais{display:flex!important;order:3}
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-sp{order:1}
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-x{order:2}
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-y{display:none!important}
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side:not(.mais-open) .side-x{display:none!important}
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-brand{padding-bottom:8px}
+@media all{
+  html[data-menu-curto][data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-mais{display:flex!important;order:3}
+  html[data-menu-curto][data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-sp{order:1}
+  html[data-menu-curto][data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-x{order:2}
+  html[data-menu-curto][data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-y{display:none!important}
+  html[data-menu-curto][data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side:not(.mais-open) .side-x{display:none!important}
+  html[data-menu-curto][data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-brand{padding-bottom:8px}
 }
 html[data-modo="gestao"][data-visao="web"] .iv-clk{cursor:pointer}
 html[data-modo="gestao"][data-visao="web"] .iv-more{padding:6px 0 12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
@@ -5114,6 +5114,16 @@ const MENU_MAX = 5;
    O botão em Configurações (Ver como) força uma das duas neste aparelho. */
 const WIDE_MQ = window.matchMedia('(min-width:1000px)');
 const visaoForcada = () => { try { const v = localStorage.getItem('mmr-visao'); return v === 'web' || v === 'celular' ? v : ''; } catch (e) { return ''; } };
+/* Menu lateral (web): se o menu completo não couber na altura, usa o botão Mais */
+function ajustaMenuCurto() {
+  try {
+    const h = document.documentElement, nav = document.querySelector('.lt-tabbar.lt-side');
+    h.removeAttribute('data-menu-curto');
+    if (nav && nav.scrollHeight > nav.clientHeight + 2) h.setAttribute('data-menu-curto', '1');
+  } catch (e) {}
+}
+(() => { let q = 0; const agenda = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; ajustaMenuCurto(); }); };
+  window.addEventListener('resize', agenda); new MutationObserver(agenda).observe(document.body, { childList: true, subtree: true }); agenda(); })();
 const WIDE = { get matches() { const f = visaoForcada(); return f ? f === 'web' : WIDE_MQ.matches && !/Android.*Mobile|iPhone|iPod/i.test(navigator.userAgent); } };
 WIDE_MQ.addEventListener?.('change', () => { try { render(); } catch (e) {} });
 const menuNaBarra = () => { const v = ls.get('mmr-menu', null); const ok = Array.isArray(v) ? v.filter(k => MENU_ITENS.some(i => i.k === k)) : MENU_PADRAO; return MENU_ITENS.filter(i => ok.includes(i.k)).slice(0, MENU_MAX).map(i => i.k); };
