@@ -1011,6 +1011,7 @@ svg.i { width: 22px; height: 22px; flex: none; }
 .kpi .s { font-size: 12.5px; color: var(--muted); }
 .kpi.good b { color: var(--green-ink); } .kpi.bad b { color: var(--red-ink); } .kpi.alert b { color: var(--warn); }
 .kpi.wide { grid-column: 1 / -1; }
+.rel-kpis { align-items: start; }
 
 .bars { display: grid; gap: 12px; padding: 16px; }
 .bar-l { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; margin-bottom: 5px; }
@@ -4331,13 +4332,14 @@ function gRelatorios() {
     <div style="font-size:36px;font-weight:800;letter-spacing:-.02em" class="num">${money(t.resultado)}</div>
     <div class="hero-foot"><small>Vendas − custo dos morangos − despesas${ant && ant.resultado ? ` · ${t.resultado >= ant.resultado ? '▲' : '▼'} ${AL}: ${money(ant.resultado)}` : ''}</small></div></section>
   <div class="acts"><button class="btn small" data-act="rel-exportar">Exportar (PDF, Excel, CSV)</button></div>
-  <div class="kpis">
+  <div class="kpis rel-kpis">
     <div class="kpi"><small>Vendas</small><b>${money(t.vendas)}</b><span class="s">${vs.length} ${vs.length === 1 ? 'pedido' : 'pedidos'}</span>${delta(t.vendas, ant?.vendas)}</div>
+    <div class="kpi good"><small>Lucro bruto</small><b>${money(t.lucroBruto)}</b><span class="s">margem ${margem}%</span>${delta(t.lucroBruto, ant?.lucroBruto)}</div>
     <div class="kpi"><small>Ticket médio</small><b>${money(vs.length ? t.vendas / vs.length : 0)}</b><span class="s">${novos} ${novos === 1 ? 'cliente' : 'clientes'}</span></div>
     <div class="kpi"><small>Custo dos morangos</small><b>${money(t.cmv)}</b>${delta(t.cmv, ant?.cmv, true)}</div>
-    <div class="kpi good"><small>Lucro bruto</small><b>${money(t.lucroBruto)}</b><span class="s">margem ${margem}%</span>${delta(t.lucroBruto, ant?.lucroBruto)}</div>
     <div class="kpi bad"><small>Despesas</small><b>${money(t.despesas)}</b>${delta(t.despesas, ant?.despesas, true)}</div>
     <div class="kpi"><small>Já recebido</small><b>${money(pagoVs)}</b><span class="s">${t.vendas ? Math.round(pagoVs / t.vendas * 100) : 0}% das vendas</span></div>
+  </div>
   </div>
   <div class="sec-h"><h2>Balanço compra × venda</h2><span class="muted" style="font-size:13px">${rPerLabel()}</span></div>
   <div class="card bars">
