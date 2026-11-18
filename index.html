@@ -627,8 +627,7 @@
 /* Web com tela baixa: Mais no fim do menu; ao tocar aparecem Compras, Relatórios e Configurações */
 html[data-modo="gestao"][data-visao="web"] .lt-side .side-mais{display:none!important}
 @media (max-height:990px){
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-mais{display:flex!important;order:3;justify-content:center!important}
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-mais svg{display:none}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-mais{display:flex!important;order:3}
   html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-sp{order:1}
   html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-x{order:2}
   html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-y{display:none!important}
@@ -5143,7 +5142,7 @@ function nav() {
       const SX = h => h.replace('class="lt-tab ', 'class="lt-tab side-x ');
       const sideMaisOn = !!ui.sideMais;
       const cfgOn = ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].includes(cur);
-      return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''} ${sideMaisOn ? 'mais-open' : ''}" aria-label="Gestão"><div class="side-brand"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça · Gestão</small></span></div><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}${sideX.join('')}<span class="side-sp"></span>${SY(t('estoque', 'box', 'Estoque'))}${SY(t('clientes', 'user', 'Clientes'))}${SY(t('fornecedores', 'basket', 'Fornecedores'))}${SY(t('noticias', 'megaphone', 'Notícias'))}${SX(t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'fornecedores', 'noticias'].includes(cur)))}<button class="lt-tab side-mais ${!sideMaisOn && maisOn ? 'on' : ''}" data-act="side-mais" aria-label="Mais" aria-expanded="${sideMaisOn}">${ic(sideMaisOn ? 'x' : 'dots')}${sideMaisOn ? 'Menos' : 'Mais'}</button></nav>`;
+      return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''} ${sideMaisOn ? 'mais-open' : ''}" aria-label="Gestão"><div class="side-brand"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça · Gestão</small></span></div><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}${sideX.join('')}<span class="side-sp"></span>${SY(t('estoque', 'box', 'Estoque'))}${SY(t('clientes', 'user', 'Clientes'))}${SY(t('fornecedores', 'basket', 'Fornecedores'))}${SY(t('noticias', 'megaphone', 'Notícias'))}${SX(t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'fornecedores', 'noticias'].includes(cur)))}<button class="lt-tab side-mais ${!sideMaisOn && maisOn ? 'on' : ''}" data-act="side-mais" aria-label="Mais" aria-expanded="${sideMaisOn}">${ic(sideMaisOn ? 'x' : 'down')}${sideMaisOn ? 'Menos' : 'Mais'}</button></nav>`;
     }
     return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', 'Mais', '', 'sheet', maisOn)}</nav>`;
   }
