@@ -1054,6 +1054,7 @@ svg.i { width: 22px; height: 22px; flex: none; }
 .kpi.good b { color: var(--green-ink); } .kpi.bad b { color: var(--red-ink); } .kpi.alert b { color: var(--warn); }
 .kpi.wide { grid-column: 1 / -1; }
 .rel-kpis { align-items: start; }
+.rel-kpis > :last-child:nth-child(odd) { grid-column: 1 / -1; }
  html[data-modo="gestao"][data-visao="web"] .app>.kpis.rel-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important} 
 
 .bars { display: grid; gap: 12px; padding: 16px; }
@@ -4349,7 +4350,7 @@ function relDados() {
   const compraAPagar = cs.filter(c => !c.pago).reduce((s, c) => s + cAberto(c), 0);
   const vendaAReceber = vs.filter(v => !v.pago).reduce((s, v) => s + vLiq(v), 0);
   const prod = {}; for (const v of vs) for (const i of v.itens || []) { const r = prod[i.nome] || (prod[i.nome] = { q: 0, v: 0 }); r.q += i.qtd; r.v += i.qtd * i.preco; }
-  const resumo = [['Vendas', t.vendas], ['Pedidos', vs.length], ['Ticket médio', vs.length ? t.vendas / vs.length : 0], ['Custo dos morangos vendidos', t.cmv], ['Lucro bruto', t.lucroBruto], ['Despesas', t.despesas], ['Resultado', t.resultado]];
+  const resumo = [['Vendas', t.vendas], ['Pedidos', vs.length], ['Ticket médio', vs.length ? t.vendas / vs.length : 0], ['Custo dos morangos vendidos', t.cmv], ['Compras totais', comprado], ['Lucro bruto', t.lucroBruto], ['Despesas', t.despesas], ['Resultado', t.resultado]];
   const balanco = [['Vendido (receita)', t.vendas], ['Comprado na roça', comprado], ['Vendido − comprado', n2(t.vendas - comprado)], ['Compras ainda a pagar', compraAPagar], ['Vendas ainda a receber', vendaAReceber], ['Entrou no caixa', t.entradas], ['Saiu do caixa', t.saidas], ['Saldo do período no caixa', n2(t.entradas - t.saidas)]];
   return { per, t, vs, cs, ds, comprado, compraAPagar, vendaAReceber, resumo, balanco,
     vendas: vs.slice().sort((a, b) => a.ts - b.ts).map(v => [new Date(v.ts).toLocaleString('pt-BR'), v.cliente?.nome || 'Cliente avulso', v.origem === 'app' ? 'App' : v.origem === 'chat' ? 'Chat' : 'Avulsa', FORMAS[v.forma] || v.forma || '', v.pago ? 'Pago' : 'Em aberto', itemsText(v.itens), vLiq(v)]),
@@ -4456,8 +4457,9 @@ function gRelatorios() {
     <div class="kpi"><small>Ticket médio</small><b>${money(vs.length ? t.vendas / vs.length : 0)}</b><span class="s">${novos} ${novos === 1 ? 'cliente' : 'clientes'}</span></div>
     <button class="kpi bad" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="despesas"><small>Despesas</small><b>${money(t.despesas)}</b>${delta(t.despesas, ant?.despesas, true)}</button>
     <div class="kpi"><small>Já recebido</small><b>${money(pagoVs)}</b><span class="s">${t.vendas ? Math.round(pagoVs / t.vendas * 100) : 0}% das vendas</span></div>
+    <button class="kpi" style="font:inherit;text-align:left" data-act="go-compras-rel" aria-label="Compras totais do período: ${money(t.compras)}. Ver em Compras na roça"><small>Compras totais</small><b>${money(t.compras)}</b><span class="s">${D.cs.length} ${D.cs.length === 1 ? 'compra' : 'compras'}</span>${delta(t.compras, ant?.compras, true)}</button>
   </div>
-  <div class="sec-h"><h2>Balanço compra × venda</h2><span class="muted" style="font-size:13px">${rPerLabel()}</span></div>
+<div class="sec-h"><h2>Balanço compra × venda</h2><span class="muted" style="font-size:13px">${rPerLabel()}</span></div>
   <div class="card bars">
     <div><div class="bar-l"><span>Vendido</span><b>${money(t.vendas)}</b></div><div class="track"><div class="fill g" style="width:${t.vendas / mx * 100}%"></div></div></div>
     <div><div class="bar-l"><span>Comprado na roça</span><b>${money(D.comprado)}</b></div><div class="track"><div class="fill" style="width:${D.comprado / mx * 100}%"></div></div></div>
@@ -4476,7 +4478,7 @@ function gRelatorios() {
   <div class="kpis"><button class="kpi ${sArec ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="receber"><small>A receber</small><b>${money(sArec)}</b><span class="s">${ar.length} ${ar.length === 1 ? 'venda' : 'vendas'} sem pagar</span></button>
     <button class="kpi ${sApag ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="cpagar"><small>Compras a pagar</small><b>${money(sApag)}</b><span class="s">${ap.length} ${ap.length === 1 ? 'compra' : 'compras'}</span></button>
     <button class="kpi ${sDpag ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="dpagar"><small>Despesas a pagar</small><b>${money(sDpag)}</b><span class="s">${dpg.length} ${dpg.length === 1 ? 'despesa' : 'despesas'}</span></button>
-    <button class="kpi good" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="saldo"><small>Saldo do caixa</small><b>${money(saldoGeral())}</b><span class="s">todo o histórico</span></div></button>
+    <button class="kpi good" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="saldo"><small>Saldo do caixa</small><b>${money(saldoGeral())}</b><span class="s">todo o histórico</span></button></div>
   <div class="rel-2col" style="--n:${ndias}">
   <div style="min-width:0;display:grid;gap:14px;grid-template-rows:auto 1fr"><div class="sec-h"><h2>Vendas por dia</h2><span class="muted" style="font-size:13px">últimos ${ndias} dias</span></div>
   <div class="card rel-card"><div class="cols rel-cols">${days.map(d => `<div class="col" title="${d.lbl}: ${money(d.v)}"><i class="${d.v ? '' : 'zero'}" style="height:${d.v / maxD * 100}%"></i></div>`).join('')}</div><div class="col-labels">${days.map(d => `<span>${ndias > 15 ? (d.d.getDate() % 5 === 0 ? d.lbl : '') : d.lbl}</span>`).join('')}</div>
@@ -6311,6 +6313,7 @@ document.addEventListener('click', async e => {
     case 'go-estoque': go('estoque'); break;
     case 'go-vendas-estornar': ui.vt = 'todas'; ui.vf = 'canceladas'; ui.vp = 'tudo'; go('vendas'); break;
     case 'go-compras': go('compras'); break;
+    case 'go-compras-rel': ui.kp = ui.rp; ui.kDe = ui.rDe; ui.kAte = ui.rAte; go('compras'); break;
     case 'go-caixa-pagar': ui.cxv = 'cpagar'; ui.cp = 'tudo'; ui.cDe = ''; ui.cAte = ''; go('caixa'); break;
     case 'go-caixa-aberto': ui.cxv = v || 'mov'; ui.cp = 'tudo'; ui.cDe = ''; ui.cAte = ''; ui.cfp = 'todas'; go('caixa'); break;
     case 'go-caixa-rel': ui.cxv = v || 'mov'; ui.cp = ui.rp; ui.cDe = ui.rDe; ui.cAte = ui.rAte; ui.cfp = 'todas'; go('caixa'); break;
