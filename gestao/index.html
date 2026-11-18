@@ -1617,6 +1617,7 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cx-kpis .kpi .s > span:first-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cx-kpis .kpi .s > span:last-child { flex: none; white-space: nowrap; }
 .cx-kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.cx-kpis > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 [data-visual="aurora"] .cx-kpis .kpi .s { font-size: 12px; }
 .cx-kpis .kpi.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 .cx-dia { display: grid; gap: 6px; }
@@ -3673,7 +3674,7 @@ function pendencias() {
   const ap = aPagar();
   if (ap.length) p.push(['Pagar', 'basket', 'Compras a pagar', money(ap.reduce((s, c) => s + cAberto(c), 0)), ap.length, 'go-compras', '', 'warn']);
   const dpg = despAPagar();
-  if (dpg.length) p.push(['Pagar', 'cash', 'Despesas a pagar', money(dpg.reduce((s, d) => s + restante('despesas', d), 0)), dpg.length, 'go-caixa-pagar', '', 'warn']);
+  if (dpg.length) p.push(['Pagar', 'cash', 'Despesas a pagar', money(dpg.reduce((s, d) => s + restante('despesas', d), 0)), dpg.length, 'go-caixa-aberto', 'dpagar', 'warn']);
   const est = S.vendas.filter(v => v.status === 'cancelado' && v.pago && n2((v.total || 0) - somaE(v)) > 0);
   if (est.length) p.push(['Pagar', 'undo', 'Estornos a fazer', 'Venda cancelada e paga, sem devolução: ' + est.map(v => v.cliente?.nome).filter(Boolean).slice(0, 2).join(', '), est.length, 'go-vendas-estornar', '', 'red']);
   const sep = S.vendas.filter(v => v.status === 'separado');
@@ -3950,7 +3951,7 @@ function gCompras() {
   const tot = list.reduce((s, c) => s + cAberto(c), 0);
   const apT = aPagar();
   return pageHeaderFixo('Compras na roça', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="kp" aria-label="Período das compras: ${kPerLabel()}"><small>Período</small><span><b>${kPerLabel()}</b>${ic('down')}</span></button></div>`) +
-  `<div class="kpis cx-kpis"><div class="kpi"><small>Comprado no período</small><b>${money(tot)}</b></div><button class="kpi ${apT.length ? 'alert' : ''}" data-act="go-caixa-pagar" aria-label="A pagar, todas as compras em aberto: ${money(apT.reduce((s, c) => s + cAberto(c), 0))}. Ver no caixa"><small>A pagar (tudo)</small><b>${money(apT.reduce((s, c) => s + cAberto(c), 0))}</b><span class="s"><span>${apT.length} ${apT.length === 1 ? 'compra' : 'compras'}</span><span>Ver</span></span></button></div>
+  `<div class="kpis cx-kpis"><div class="kpi"><small>Comprado no período</small><b>${money(tot)}</b></div><button class="kpi ${apT.length ? 'alert' : ''}" data-act="go-caixa-pagar" aria-label="Compras a pagar, todas em aberto: ${money(apT.reduce((s, c) => s + cAberto(c), 0))}. Ver no caixa"><small>Compras a pagar</small><b>${money(apT.reduce((s, c) => s + cAberto(c), 0))}</b><span class="s"><span>${apT.length} ${apT.length === 1 ? 'compra' : 'compras'}</span><span>Ver</span></span></button></div>
   <div class="stack">${list.map(c => tcard({ act: 'editar-compra', id: c.id, title: c.fornecedor || 'Roça', val: money(c.total),
     meta: fmtDT(c.ts) + (c.obs ? ' · ' + esc(c.obs) : ''),
     det: esc((c.itens || []).map(i => `${fmtNum(i.qtd)}× ${i.nome} a ${money(i.custo)}`).join(', ')),
@@ -3988,7 +3989,7 @@ function gCaixa() {
   const saldo = n2(ent - sai);
   const rec = aReceber().filter(v => inPeriod(v.ts, per)).sort((a, b) => a.ts - b.ts), pag = aPagar().filter(c => inPeriod(c.ts, per)).sort((a, b) => a.ts - b.ts);
   const dpag = despAPagar().filter(d => inPeriod(d.ts, per)).sort((a, b) => a.ts - b.ts);
-  const recT = rec.reduce((s, v) => s + vLiq(v), 0), pagT = pag.reduce((s, c) => s + cAberto(c), 0) + dpag.reduce((s, d) => s + restante('despesas', d), 0);
+  const recT = rec.reduce((s, v) => s + vLiq(v), 0), pagT = pag.reduce((s, c) => s + cAberto(c), 0), dpagT = dpag.reduce((s, d) => s + restante('despesas', d), 0);
   const filtrado = ui.cfp !== 'todas';
   const sel = [['cfp', 'Forma de pagamento', CFORMAS[ui.cfp]], ['cp', 'Período', cPerLabel()]];
   const head = pageHeaderFixo('Fluxo de caixa', '', `<div class="vsel cx-sel">${sel.map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${k === 'cfp' ? 'Pagamento' : l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`);
@@ -4001,13 +4002,26 @@ function gCaixa() {
     return `<button class="kpi ${on ? 'on' : ''}" data-act="filter" data-k="cxv" data-v="${on ? 'mov' : k}" aria-pressed="${on}"><small>${label}</small><b>${money(tot)}</b><span class="s"><span>${ms.length} ${ms.length === 1 ? 'lançamento' : 'lançamentos'}</span><span>${on ? 'Fechar' : 'Ver'}</span></span></button>`;
   };
   const dtCurta = ts => ts >= startOfDay() ? new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : fmtDT(ts);
+  const somaK = (k, tp) => n2(moves.filter(m => m.k === k && m.tipo === tp).reduce((s, m) => s + m.valor, 0));
+  const saldoLinhas = [['Vendas recebidas', somaK('vendas', 'in'), 'in'], ['Estornos recebidos', somaK('estornos', 'in'), 'in'], ['Compras pagas', somaK('compras', 'out'), 'out'], ['Despesas pagas', somaK('despesas', 'out'), 'out'], ['Estornos devolvidos', somaK('estornos', 'out'), 'out']].filter(l => l[1]);
+  const saldoDet = `<div class="sec-h"><h2>Detalhe do saldo</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Fechar</button></div>
+    <div class="card bars">${saldoLinhas.map(([l, v, tp]) => `<div class="bar-l"><span>${l}</span><b style="color:var(${tp === 'in' ? '--green-ink' : '--red-ink'})">${tp === 'in' ? '+ ' : '− '}${money(v)}</b></div>`).join('') || '<span class="muted">Sem movimentações no período.</span>'}
+      <div class="bar-l" style="border-top:1px solid var(--line);padding-top:10px"><span>Entradas</span><b class="num">${money(ent)}</b></div>
+      <div class="bar-l"><span>Saídas</span><b class="num">${money(sai)}</b></div>
+      <div class="bar-l"><span><b>${filtrado ? 'Saldo do filtro' : 'Saldo do período'}</b></span><b class="${saldo < 0 ? 'neg' : ''}">${sinal(saldo)}</b></div>
+      <div class="bar-l"><span>Em caixa agora</span><b class="num">${money(saldoGeral())}</b></div>
+      <small class="muted">Só dinheiro que entrou ou saiu de verdade, na data do pagamento. Contas a pagar e a receber ficam de fora.</small></div>`;
   let corpo;
+  if (ui.cxv === 'pagar') ui.cxv = 'cpagar';
   if (ui.cxv === 'receber') {
     corpo = `<div class="sec-h"><h2>A receber · ${rec.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
     <div class="card list">${rec.map(v => `<div class="li tc-li" data-act="cx-det" data-col="vendas" data-id="${v.id}" tabindex="0"><span class="av">${esc((v.cliente?.nome || 'A')[0])}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente avulso')}</b><small>${dtCurta(v.ts)} · ${esc(FORMAS[v.forma] || v.forma || '')}${estTot(v) ? ' · com estorno' : ''}</small></span><span class="cx-v"><span class="val">${money(vLiq(v))}</span><button class="link" data-act="pago" data-id="${v.id}" data-v="1" ${W()}>marcar recebido</button></span></div>`).join('') || '<div class="empty">Nada a receber. Todas as vendas estão pagas.</div>'}</div>`;
-  } else if (ui.cxv === 'pagar') {
-    corpo = `<div class="sec-h"><h2>A pagar · ${pag.length + dpag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
-    <div class="card list">${pag.map(c => `<div class="li tc-li" data-act="cx-det" data-col="compras" data-id="${c.id}" tabindex="0"><span class="av out">${ic('basket')}</span><span style="min-width:0"><b>${esc(c.fornecedor || 'Roça')}</b><small>${fmtDT(c.ts)} · ${esc(c.obs || itemsText(c.itens))}</small></span><span class="cx-v"><span class="val">${money(cAberto(c))}</span><button class="link" data-act="compra-paga" data-id="${c.id}" ${W()}>marcar paga</button></span></div>`).join('')}${dpag.map(d => `<div class="li tc-li" data-act="cx-det" data-col="despesas" data-id="${d.id}" tabindex="0"><span class="av out">${ic('cash')}</span><span style="min-width:0"><b>${esc(d.descricao || 'Despesa')}</b><small>${dtCurta(d.ts)} · ${esc(catNome(d.categoria) || 'Despesa')}</small></span><span class="cx-v"><span class="val">${money(restante('despesas', d))}</span><button class="link" data-act="despesa-paga" data-id="${d.id}" ${W()}>marcar paga</button></span></div>`).join('')}${pag.length || dpag.length ? '' : '<div class="empty">Nenhuma conta a pagar.</div>'}</div>`;
+  } else if (ui.cxv === 'cpagar') {
+    corpo = `<div class="sec-h"><h2>Compras a pagar · ${pag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
+    <div class="card list">${pag.map(c => `<div class="li tc-li" data-act="cx-det" data-col="compras" data-id="${c.id}" tabindex="0"><span class="av out">${ic('basket')}</span><span style="min-width:0"><b>${esc(c.fornecedor || 'Roça')}</b><small>${fmtDT(c.ts)} · ${esc(c.obs || itemsText(c.itens))}</small></span><span class="cx-v"><span class="val">${money(cAberto(c))}</span><button class="link" data-act="compra-paga" data-id="${c.id}" ${W()}>marcar paga</button></span></div>`).join('')}${pag.length ? '' : '<div class="empty">Nenhuma compra a pagar.</div>'}</div>`;
+  } else if (ui.cxv === 'dpagar') {
+    corpo = `<div class="sec-h"><h2>Despesas a pagar · ${dpag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
+    <div class="card list">${dpag.map(d => `<div class="li tc-li" data-act="cx-det" data-col="despesas" data-id="${d.id}" tabindex="0"><span class="av out">${ic('cash')}</span><span style="min-width:0"><b>${esc(d.descricao || 'Despesa')}</b><small>${dtCurta(d.ts)} · ${esc(catNome(d.categoria) || 'Despesa')}</small></span><span class="cx-v"><span class="val">${money(restante('despesas', d))}</span><button class="link" data-act="despesa-paga" data-id="${d.id}" ${W()}>marcar paga</button></span></div>`).join('')}${dpag.length ? '' : '<div class="empty">Nenhuma despesa a pagar.</div>'}</div>`;
   } else if (['vendas', 'compras', 'despesas', 'estornos'].includes(ui.cxv)) {
     const lst = cashMoves(per).filter(m => m.k === ui.cxv && (ui.cfp === 'todas' || (ui.cfp === 'sem' ? !m.forma : m.forma === ui.cfp)));
     corpo = `<div class="sec-h"><h2>${CTIPOS[ui.cxv]} · ${lst.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
@@ -4019,12 +4033,14 @@ function gCaixa() {
     ${dias.map(d => { const sd = n2(d.e - d.s), fa = fim[d.k] ?? 0; return `<div class="cx-dia"><div class="cx-dh"><b>${diaLabel(d.ts)}</b><span class="cx-dt">${d.e ? `<span class="in">+ ${money(d.e)}</span>` : ''}${d.s ? `<span class="out">− ${money(d.s)}</span>` : ''}</span></div>
       <div class="card list">${d.ms.map(moveLi).join('')}<div class="cx-df"><span>${filtrado ? 'Saldo do filtro' : 'Saldo do dia'}<b class="${sd < 0 ? 'neg' : ''}">${sinal(sd)}</b></span><span>Em caixa no fim do dia<b class="${fa < 0 ? 'neg' : ''}">${money(fa)}</b></span></div></div></div>`; }).join('') || `<div class="card"><div class="empty">${filtrado ? 'Nenhuma movimentação com esse filtro.' : 'Nenhuma movimentação neste período.'}</div></div>`}`;
   }
+  if (ui.cxv === 'saldo') corpo = saldoDet + corpo;
   return head + `
-  <section class="hero cx-hero ${saldo >= 0 ? 'folha' : ''}" style="min-height:0"><div class="hero-top"><span>${filtrado ? 'Saldo do filtro' : 'Saldo do período'}</span><span class="hero-badge">${cPerLabel()}</span></div>
+  <section class="hero cx-hero ${saldo >= 0 ? 'folha' : ''}" style="min-height:0;cursor:pointer" data-act="filter" data-k="cxv" data-v="${ui.cxv === 'saldo' ? 'mov' : 'saldo'}" role="button" tabindex="0" aria-pressed="${ui.cxv === 'saldo'}"><div class="hero-top"><span>${filtrado ? 'Saldo do filtro' : 'Saldo do período'}</span><span class="hero-badge">${cPerLabel()}</span></div>
     <div class="cx-saldo num">${money(saldo)}</div>
     <div class="cx-agora">Em caixa agora: <b class="num">${money(saldoGeral())}</b></div>
-    <div class="hero-foot"><small>Entradas <b class="num">${money(ent)}</b></small><small>Saídas <b class="num">${money(sai)}</b></small></div></section>
-  <div class="kpis cx-kpis">${kpi('receber', 'A receber', recT, rec.length, recT ? 'alert' : '')}${kpi('pagar', 'A pagar', pagT, pag.length + dpag.length, '')}${tipoKpi('vendas', 'Vendas')}${tipoKpi('compras', 'Compras')}${tipoKpi('despesas', 'Despesas')}${tipoKpi('estornos', 'Estornos')}</div>
+    <div class="hero-foot"><small>Entradas <b class="num">${money(ent)}</b></small><small>Saídas <b class="num">${money(sai)}</b></small></div>
+    <div class="hero-foot"><small style="opacity:.75">${ui.cxv === 'saldo' ? 'Fechar detalhe' : 'Toque para ver o detalhe'}</small></div></section>
+  <div class="kpis cx-kpis">${kpi('receber', 'A receber', recT, rec.length, recT ? 'alert' : '')}${kpi('cpagar', 'Compras a pagar', pagT, pag.length, '')}${kpi('dpagar', 'Despesas a pagar', dpagT, dpag.length, '')}${tipoKpi('vendas', 'Vendas')}${tipoKpi('compras', 'Compras')}${tipoKpi('despesas', 'Despesas')}${tipoKpi('estornos', 'Estornos')}</div>
   ${corpo}`;
 }
 
@@ -4259,7 +4275,7 @@ function relDados() {
 }
 function relResumoTexto() {
   const d = relDados(), t = d.t;
-  return [`🍓 *Morangos Made in Roça* — ${rPerLabel()}`, '', `Vendas: ${money(t.vendas)} (${d.vs.length} ${d.vs.length === 1 ? 'pedido' : 'pedidos'})`, `Comprado na roça: ${money(d.comprado)}`, `Vendido − comprado: ${money(t.vendas - d.comprado)}`, `Lucro bruto: ${money(t.lucroBruto)}`, `Despesas: ${money(t.despesas)}`, `*Resultado: ${money(t.resultado)}*`, '', `A receber (geral): ${money(aReceber().reduce((x, v) => x + vLiq(v), 0))}`, `A pagar na roça (geral): ${money(aPagar().reduce((x, c) => x + cAberto(c), 0))}`, `Saldo do caixa: ${money(saldoGeral())}`].join('\n');
+  return [`🍓 *Morangos Made in Roça* — ${rPerLabel()}`, '', `Vendas: ${money(t.vendas)} (${d.vs.length} ${d.vs.length === 1 ? 'pedido' : 'pedidos'})`, `Comprado na roça: ${money(d.comprado)}`, `Vendido − comprado: ${money(t.vendas - d.comprado)}`, `Lucro bruto: ${money(t.lucroBruto)}`, `Despesas: ${money(t.despesas)}`, `*Resultado: ${money(t.resultado)}*`, '', `A receber (geral): ${money(aReceber().reduce((x, v) => x + vLiq(v), 0))}`, `Compras a pagar (geral): ${money(aPagar().reduce((x, c) => x + cAberto(c), 0))}`, `Saldo do caixa: ${money(saldoGeral())}`].join('\n');
 }
 function baixarArq(nome, conteudo, tipo) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([conteudo], { type: tipo })); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
@@ -4337,6 +4353,8 @@ function gRelatorios() {
   const byCat = {}; for (const d of D.ds) byCat[catNome(d.categoria) || 'Outros'] = (byCat[catNome(d.categoria) || 'Outros'] || 0) + restante('despesas', d);
   const ar = aReceber(), ap = aPagar();
   const sArec = ar.reduce((s, v) => s + vLiq(v), 0), sApag = ap.reduce((s, c) => s + cAberto(c), 0);
+  const dpg = despAPagar(), sDpag = dpg.reduce((s, d) => s + restante('despesas', d), 0);
+  const dpgP = dpg.filter(d => inPeriod(d.ts, rPer())), sDpagP = dpgP.reduce((s, d) => s + restante('despesas', d), 0);
   const pagoVs = vs.filter(v => v.pago).reduce((s, v) => s + vLiq(v), 0);
   const novos = new Set(vs.map(v => v.clienteId || v.cliente?.nome).filter(Boolean)).size;
   const margem = t.vendas ? Math.round(t.lucroBruto / t.vendas * 100) : 0;
@@ -4350,9 +4368,9 @@ function gRelatorios() {
   <div class="kpis rel-kpis">
     <div class="kpi"><small>Vendas</small><b>${money(t.vendas)}</b><span class="s">${vs.length} ${vs.length === 1 ? 'pedido' : 'pedidos'}</span>${delta(t.vendas, ant?.vendas)}</div>
     <div class="kpi good"><small>Lucro bruto</small><b>${money(t.lucroBruto)}</b><span class="s">margem ${margem}%</span>${delta(t.lucroBruto, ant?.lucroBruto)}</div>
-    <div class="kpi"><small>Custo dos morangos</small><b>${money(t.cmv)}</b>${delta(t.cmv, ant?.cmv, true)}</div>
+    <button class="kpi" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="compras"><small>Compras</small><b>${money(t.cmv)}</b>${delta(t.cmv, ant?.cmv, true)}</button>
     <div class="kpi"><small>Ticket médio</small><b>${money(vs.length ? t.vendas / vs.length : 0)}</b><span class="s">${novos} ${novos === 1 ? 'cliente' : 'clientes'}</span></div>
-    <div class="kpi bad"><small>Despesas</small><b>${money(t.despesas)}</b>${delta(t.despesas, ant?.despesas, true)}</div>
+    <button class="kpi bad" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="despesas"><small>Despesas</small><b>${money(t.despesas)}</b>${delta(t.despesas, ant?.despesas, true)}</button>
     <div class="kpi"><small>Já recebido</small><b>${money(pagoVs)}</b><span class="s">${t.vendas ? Math.round(pagoVs / t.vendas * 100) : 0}% das vendas</span></div>
   </div>
   </div>
@@ -4366,14 +4384,16 @@ function gRelatorios() {
   <div class="kpis">
     <div class="kpi good"><small>Entrou no caixa</small><b>${money(t.entradas)}</b></div>
     <div class="kpi bad"><small>Saiu do caixa</small><b>${money(t.saidas)}</b></div>
-    <div class="kpi"><small>Compras a pagar</small><b>${money(D.compraAPagar)}</b><span class="s">do período</span></div>
-    <div class="kpi"><small>Vendas a receber</small><b>${money(D.vendaAReceber)}</b><span class="s">do período</span></div>
-    <div class="kpi wide ${t.entradas - t.saidas >= 0 ? 'good' : 'bad'}"><small>Saldo do período no caixa</small><b>${money(n2(t.entradas - t.saidas))}</b></div>
+    <button class="kpi" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="cpagar" aria-label="Compras a pagar do período: ${money(D.compraAPagar)}. Ver no caixa"><small>Compras a pagar</small><b>${money(D.compraAPagar)}</b><span class="s">do período</span></button>
+    <button class="kpi" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="receber" aria-label="A receber do período: ${money(D.vendaAReceber)}. Ver no caixa"><small>A receber</small><b>${money(D.vendaAReceber)}</b><span class="s">do período</span></button>
+    <button class="kpi ${sDpagP ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="dpagar" aria-label="Despesas a pagar do período: ${money(sDpagP)}. Ver no caixa"><small>Despesas a pagar</small><b>${money(sDpagP)}</b><span class="s">do período</span></button>
+    <button class="kpi ${t.entradas - t.saidas >= 0 ? 'good' : 'bad'}" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="saldo"><small>Saldo do caixa</small><b>${money(n2(t.entradas - t.saidas))}</b><span class="s">do período</span></button>
   </div>
   <div class="sec-h"><h2>Dinheiro em aberto</h2><span class="muted" style="font-size:13px">hoje, no geral</span></div>
-  <div class="kpis"><button class="kpi ${sArec ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go" data-v="caixa"><small>A receber</small><b>${money(sArec)}</b><span class="s">${ar.length} ${ar.length === 1 ? 'venda' : 'vendas'} sem pagar</span></button>
-    <button class="kpi ${sApag ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go" data-v="compras"><small>A pagar na roça</small><b>${money(sApag)}</b><span class="s">${ap.length} ${ap.length === 1 ? 'compra' : 'compras'}</span></button>
-    <div class="kpi good wide"><small>Saldo do caixa</small><b>${money(saldoGeral())}</b><span class="s">todo o histórico</span></div></div>
+  <div class="kpis"><button class="kpi ${sArec ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="receber"><small>A receber</small><b>${money(sArec)}</b><span class="s">${ar.length} ${ar.length === 1 ? 'venda' : 'vendas'} sem pagar</span></button>
+    <button class="kpi ${sApag ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="cpagar"><small>Compras a pagar</small><b>${money(sApag)}</b><span class="s">${ap.length} ${ap.length === 1 ? 'compra' : 'compras'}</span></button>
+    <button class="kpi ${sDpag ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="dpagar"><small>Despesas a pagar</small><b>${money(sDpag)}</b><span class="s">${dpg.length} ${dpg.length === 1 ? 'despesa' : 'despesas'}</span></button>
+    <button class="kpi good" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="saldo"><small>Saldo do caixa</small><b>${money(saldoGeral())}</b><span class="s">todo o histórico</span></div></button>
   <div class="rel-2col" style="--n:${ndias}">
   <div style="min-width:0;display:grid;gap:14px;grid-template-rows:auto 1fr"><div class="sec-h"><h2>Vendas por dia</h2><span class="muted" style="font-size:13px">últimos ${ndias} dias</span></div>
   <div class="card rel-card"><div class="cols rel-cols">${days.map(d => `<div class="col" title="${d.lbl}: ${money(d.v)}"><i class="${d.v ? '' : 'zero'}" style="height:${d.v / maxD * 100}%"></i></div>`).join('')}</div><div class="col-labels">${days.map(d => `<span>${ndias > 15 ? (d.d.getDate() % 5 === 0 ? d.lbl : '') : d.lbl}</span>`).join('')}</div>
@@ -4665,16 +4685,16 @@ const AJ_G = [
   ]],
   ['Compras na roça e estoque', [
     ['Como registrar uma compra na roça?', '<ol><li>Em <b>Compras</b>, toque no <b>+</b>.</li><li>Escolha o <b>Produtor / roça</b>.</li><li>Em <b>Itens</b>, informe produto, quantidade e custo.</li><li>Escolha o pagamento (Pix, Dinheiro ou Fiado) e se <b>Já foi pago</b>.</li><li>Deixe marcado <b>Atualizar o custo dos produtos</b> para o lucro usar o custo novo.</li><li>Toque em <b>Salvar compra</b>. O estoque sobe na hora.</li></ol>', [['Registrar compra na roça', 'nova-compra']]],
-    ['Como pagar uma compra que ficou a prazo?', 'Toque em <b>Marcar paga</b> no cartão da compra, ou em <b>Caixa → A pagar → paga</b>. O valor sai do caixa nesse momento.', [['Ver compras a pagar', 'go-caixa-pagar']]],
+    ['Como pagar uma compra que ficou a prazo?', 'Toque em <b>Marcar paga</b> no cartão da compra, ou em <b>Caixa → Compras a pagar → paga</b>. O valor sai do caixa nesse momento.', [['Ver compras a pagar', 'go-caixa-pagar']]],
     ['Como cadastrar um produto?', 'Em <b>Configurações → Estoque</b>, toque no <b>+</b>. Informe nome, descrição que aparece na Loja, unidade, ordem na Loja, preço de venda, custo e estoque inicial. Desmarque <b>Mostrar no app do cliente</b> para vender só pela Gestão.', [['Novo produto', 'novo-produto'], ['Abrir Estoque', 'go-cfg', 'estoque']]],
     ['Como ajustar o estoque (perda ou contagem)?', 'No produto, toque em <b>Ajustar estoque</b> e escolha: <b>Perda</b> (tira), <b>Contei e o certo é…</b> (troca pelo número contado) ou <b>Entrada sem compra</b> (soma sem mexer no caixa).', [['Abrir Estoque', 'go-cfg', 'estoque']]],
     ['Por que o produto aparece esgotado ou sumiu da Loja?', 'Com estoque zero ele aparece como <b>Esgotado</b> e não pode ser comprado: registre uma compra ou ajuste o estoque. Se sumiu da lista, está <b>Fora do app</b>: edite o produto e marque <b>Mostrar no app do cliente</b>. Com 5 ou menos, ele aparece como <b>Acabando</b>.', [['Abrir Estoque', 'go-cfg', 'estoque'], ['Registrar compra', 'nova-compra']]],
   ]],
   ['Caixa (fluxo de caixa), despesas e estornos', [
-    ['Como a tela Caixa está organizada?', 'De cima para baixo:<ul><li><b>Pagamento</b> e <b>Período</b>: os dois filtros do topo.</li><li>Card grande <b>Saldo do período</b>, com <b>Em caixa agora</b>, <b>Entradas</b> e <b>Saídas</b>.</li><li>Seis cards: <b>A receber</b>, <b>A pagar</b>, <b>Vendas</b>, <b>Compras</b>, <b>Despesas</b> e <b>Estornos</b>.</li><li>Lá embaixo, as <b>Movimentações por dia</b>.</li></ul>Toque num card para ver a lista dele no lugar das movimentações. Toque de novo (<b>Fechar</b>) ou em <b>Ver movimentações</b> para voltar.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
+    ['Como a tela Caixa está organizada?', 'De cima para baixo:<ul><li><b>Pagamento</b> e <b>Período</b>: os dois filtros do topo.</li><li>Card grande <b>Saldo do período</b>, com <b>Em caixa agora</b>, <b>Entradas</b> e <b>Saídas</b>.</li><li>Sete cards: <b>A receber</b>, <b>Compras a pagar</b>, <b>Despesas a pagar</b>, <b>Vendas</b>, <b>Compras</b>, <b>Despesas</b> e <b>Estornos</b>.</li><li>Lá embaixo, as <b>Movimentações por dia</b>.</li></ul>Toque num card para ver a lista dele no lugar das movimentações. Toque de novo (<b>Fechar</b>) ou em <b>Ver movimentações</b> para voltar.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
     ['O que mostra o card Saldo do período?', '<ul><li><b>Saldo do período</b>: o que entrou menos o que saiu de verdade no período escolhido (aparece na etiqueta do card). Se você filtrar uma forma de pagamento, ele vira <b>Saldo do filtro</b> e conta só aquela forma.</li><li><b>Em caixa agora</b>: o saldo de todo o histórico, sem filtro nenhum. É o dinheiro que deveria estar com você.</li><li><b>Entradas</b>: vendas pagas e estornos de compras ou despesas que voltaram para você.</li><li><b>Saídas</b>: compras pagas, despesas pagas e devoluções a clientes.</li></ul>', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
     ['O que entra no saldo do caixa?', 'Só o dinheiro que entrou ou saiu de verdade: vendas pagas (na data em que foram pagas), compras pagas, despesas pagas e estornos. Vendas a receber, compras a pagar e despesas a pagar só entram quando forem pagas. Uma despesa com data futura (como as repetições de uma despesa recorrente) também só sai do caixa quando a data chega. Uma venda cancelada antes de ser paga não entra.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
-    ['O que são os cards A receber e A pagar?', '<ul><li><b>A receber</b>: soma das vendas lançadas no período que ainda não foram pagas (fiado, Pix a conferir, entregue e não pago). Fica destacado quando há valor.</li><li><b>A pagar</b>: soma das compras na roça e das despesas do período que ainda não foram pagas.</li></ul>Toque no card para ver a lista. Cada linha mostra o nome, a data (só a hora, se for de hoje) e o valor. Toque em <b>marcar recebido</b> ou <b>marcar paga</b> para dar baixa: o valor entra (ou sai) do caixa na hora da baixa. Toque no nome para ver o lançamento completo.', [['Ver a receber', 'go-caixa-ver', 'receber'], ['Ver a pagar', 'go-caixa-ver', 'pagar']]],
+    ['O que são os cards A receber, Compras a pagar e Despesas a pagar?', '<ul><li><b>A receber</b>: soma das vendas lançadas no período que ainda não foram pagas (fiado, Pix a conferir, entregue e não pago). Fica destacado quando há valor.</li><li><b>Compras a pagar</b>: soma das compras na roça do período que ainda não foram pagas.</li><li><b>Despesas a pagar</b>: soma das despesas do período marcadas como a pagar.</li></ul>Toque no card para ver a lista. Cada linha mostra o nome, a data (só a hora, se for de hoje) e o valor. Toque em <b>marcar recebido</b> ou <b>marcar paga</b> para dar baixa: o valor entra (ou sai) do caixa na hora da baixa. Toque no nome para ver o lançamento completo.', [['Ver a receber', 'go-caixa-ver', 'receber'], ['Ver compras a pagar', 'go-caixa-ver', 'cpagar'], ['Ver despesas a pagar', 'go-caixa-ver', 'dpagar']]],
     ['O que são os cards Vendas, Compras, Despesas e Estornos?', 'Cada um soma o que entrou ou saiu do caixa daquele tipo no período (e na forma de pagamento, se filtrada), e mostra quantos lançamentos são. Toque em <b>Ver</b> para listar só aquele tipo; toque numa linha para abrir o lançamento.<ul><li><b>Vendas</b>: vendas pagas.</li><li><b>Compras</b>: compras na roça pagas.</li><li><b>Despesas</b>: gastos pagos, como gasolina, embalagem e aluguel, que já saíram do caixa.</li><li><b>Estornos</b>: devoluções de dinheiro, de venda (sai) ou de compra e despesa (volta).</li></ul>', [['Ver vendas do caixa', 'go-caixa-ver', 'vendas'], ['Ver despesas', 'go-caixa-ver', 'despesas']]],
     ['Como ler as Movimentações por dia?', 'Cada dia mostra no topo o total que entrou (<b>+</b>) e saiu (<b>−</b>), e cada lançamento com hora, forma de pagamento e valor. No fim do dia aparecem o <b>Saldo do dia</b> (entradas − saídas daquele dia) e <b>Em caixa no fim do dia</b> (quanto havia no caixa ao fechar o dia, contando todo o histórico).', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
     ['O que acontece quando toco num lançamento?', 'Abre o detalhe: valor, cliente ou fornecedor, data, data do pagamento, forma, itens, observação e os estornos que já teve. Os botões mudam conforme o tipo: <b>Editar venda</b>, <b>Editar compra</b>, <b>Estornar</b> (ou <b>Estornar mais</b>) e <b>Apagar</b> (só despesa sem estorno). Num estorno, <b>Ver venda original</b> leva ao lançamento de origem.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
@@ -4697,9 +4717,9 @@ const AJ_G = [
     ['O que é o card Resultado?', 'É o quanto o negócio ganhou no período: <b>vendas − custo dos morangos vendidos − despesas</b>. Embaixo aparece a comparação com o período anterior (▲ melhorou, ▼ piorou), por exemplo com ontem, 7 dias antes ou o mês passado. Em <b>Tudo</b> não há comparação.', [['Abrir Relatórios', 'go', 'relatorios']]],
     ['O que significa cada um dos seis cards?', '<ul><li><b>Vendas</b>: total vendido no período (sem as canceladas e já tirando estornos) e quantos pedidos.</li><li><b>Lucro bruto</b>: vendas − custo dos morangos, com a <b>margem</b> em %.</li><li><b>Custo dos morangos</b>: quanto custaram, na compra, os morangos que você vendeu.</li><li><b>Ticket médio</b>: valor médio por pedido e quantos clientes compraram.</li><li><b>Despesas</b>: soma das despesas do período, pagas ou não (pela data da despesa).</li><li><b>Já recebido</b>: quanto das vendas do período já foi pago, e o % das vendas.</li></ul>A setinha mostra quanto mudou contra o período anterior. Verde é bom: subir em vendas e lucro, cair em custo e despesas.', [['Abrir Relatórios', 'go', 'relatorios']]],
     ['O que é o Balanço compra × venda?', 'Compara, em barras, o que você <b>vendeu</b> com o que <b>comprou na roça</b> no período. <b>Vendido − comprado</b> fica verde quando sobrou e vermelho quando comprou mais do que vendeu (o excesso fica no estoque).', [['Abrir Relatórios', 'go', 'relatorios']]],
-    ['O que mostram Entrou no caixa, Saiu do caixa e Saldo do período?', 'São os números do Caixa no mesmo período: <b>Entrou no caixa</b>, <b>Saiu do caixa</b> e o <b>Saldo do período no caixa</b> (entrou − saiu). <b>Compras a pagar</b> e <b>Vendas a receber</b> mostram o que, das compras e vendas do período, ainda está em aberto.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
+    ['O que mostram Entrou no caixa, Saiu do caixa e Saldo do período?', 'São os números do Caixa no mesmo período: <b>Entrou no caixa</b>, <b>Saiu do caixa</b> e o <b>Saldo do período no caixa</b> (entrou − saiu). <b>Compras a pagar</b>, <b>A receber</b> e <b>Despesas a pagar</b> mostram o que, das compras e vendas do período, ainda está em aberto. Toque num deles para abrir o Caixa com o mesmo período e o card correspondente aberto.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
     ['Por que o Resultado é diferente do saldo do caixa?', 'O <b>Resultado</b> conta a venda no dia em que foi feita, mesmo que ainda não tenha sido paga, conta a despesa pela data dela, mesmo a pagar, e conta só o custo dos morangos que foram vendidos. O <b>caixa</b> conta o dinheiro no dia em que entrou ou saiu, e conta a compra inteira na roça quando ela é paga. Por isso, num período com muito fiado ou com compra grande, os dois ficam diferentes.', [['Abrir Relatórios', 'go', 'relatorios']]],
-    ['O que é o Dinheiro em aberto?', 'Mostra a situação de hoje, sem olhar o período: <b>A receber</b> (todas as vendas sem pagar; toque para ir ao Caixa), <b>A pagar na roça</b> (todas as compras sem pagar; toque para ir a Compras) e <b>Saldo do caixa</b> de todo o histórico.', [['Ver a receber', 'go-caixa-ver', 'receber'], ['Ver a pagar', 'go-caixa-ver', 'pagar']]],
+    ['O que é o Dinheiro em aberto?', 'Mostra a situação de hoje, sem olhar o período: <b>A receber</b> (todas as vendas sem pagar; toque para ir ao Caixa), <b>Compras a pagar</b> (todas as compras sem pagar), <b>Despesas a pagar</b> (todas as despesas marcadas como a pagar) e <b>Saldo do caixa</b> de todo o histórico. Tocar em A receber, Compras a pagar ou Despesas a pagar abre o Caixa com esse card aberto e o período <b>Tudo</b>.', [['Ver a receber', 'go-caixa-ver', 'receber'], ['Ver compras a pagar', 'go-caixa-ver', 'cpagar'], ['Ver despesas a pagar', 'go-caixa-ver', 'dpagar']]],
     ['Como ler os gráficos Vendas por dia e Dia da semana?', '<b>Vendas por dia</b> mostra cada um dos últimos 15 dias (30 na tela do computador) e o <b>Melhor dia</b>. <b>Dia da semana</b> soma as vendas do período por dia da semana e mostra qual vende mais, bom para escolher os dias de entrega e de compra na roça.', [['Abrir Relatórios', 'go', 'relatorios']]],
     ['O que mostram as listas em barras?', 'As até 6 maiores de cada uma, com valor e %:<ul><li><b>Por forma de pagamento</b>: quanto veio de Pix, dinheiro, cartão e fiado.</li><li><b>App × avulsa</b>: pedidos pelo app, pelo chat e vendas avulsas.</li><li><b>Produtos mais vendidos</b>: receita e quantidade de cada produto.</li><li><b>Despesas por categoria</b>: com a cor de cada categoria.</li><li><b>Melhores clientes</b>: quem mais comprou no período.</li></ul>', [['Abrir Relatórios', 'go', 'relatorios']]],
     ['Como exportar em PDF, Excel ou CSV?', 'Toque em <b>Exportar (PDF, Excel, CSV)</b>. <b>PDF</b> abre a impressão: escolha Salvar como PDF. <b>Excel</b> traz abas de resumo, balanço, vendas, compras, despesas e produtos. <b>CSV</b> traz as movimentações do caixa. Tudo usa o período escolhido.', [['Abrir Exportar', 'go-rel-exportar']]],
@@ -6087,7 +6107,9 @@ document.addEventListener('click', async e => {
     case 'go-estoque': go('estoque'); break;
     case 'go-vendas-estornar': ui.vt = 'todas'; ui.vf = 'canceladas'; ui.vp = 'tudo'; go('vendas'); break;
     case 'go-compras': go('compras'); break;
-    case 'go-caixa-pagar': ui.cxv = 'pagar'; go('caixa'); break;
+    case 'go-caixa-pagar': ui.cxv = 'cpagar'; ui.cp = 'tudo'; ui.cDe = ''; ui.cAte = ''; go('caixa'); break;
+    case 'go-caixa-aberto': ui.cxv = v || 'mov'; ui.cp = 'tudo'; ui.cDe = ''; ui.cAte = ''; ui.cfp = 'todas'; go('caixa'); break;
+    case 'go-caixa-rel': ui.cxv = v || 'mov'; ui.cp = ui.rp; ui.cDe = ui.rDe; ui.cAte = ui.rAte; ui.cfp = 'todas'; go('caixa'); break;
     case 'go-caixa-ver': ui.cxv = v || 'mov'; go('caixa'); break;
     case 'go-rel-exportar': go('relatorios'); ui.sheet = { type: 'rexp' }; render(); break;
     case 'go-rota-mapa': go('entregas'); rotaMapaAbrir(); break;
