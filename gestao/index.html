@@ -1137,6 +1137,17 @@ textarea { min-height: 80px; resize: vertical; }
 .line { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 16px; }
 .line select { grid-column: 1 / -1; }
 .line-h { display: none; }
+.line-c { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; }
+.line-c .ln-est { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+.line-c .ln-est b { color: var(--ink); }
+.line-c .fx-pv { grid-column: 1 / 3; }
+.fx { display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); min-width: 0; cursor: text; }
+.fx:focus-within { border-color: var(--accent); }
+.fx span { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; flex: none; }
+.fx input[type=number] { border: 0 !important; background: transparent !important; height: 100% !important; padding: 0 !important; text-align: right; flex: 1; min-width: 0; box-shadow: none; outline: 0; }
+.media-box { font-size: 13px; color: var(--ink); background: var(--surface-2); border-radius: 14px; padding: 10px 12px; display: grid; gap: 6px; }
+.media-box:empty { display: none; }
+.media-box b { font-weight: 800; }
 .x { border: 0; background: var(--surface-2); border-radius: 12px; width: 40px; height: 44px; font-weight: 800; color: var(--muted); font-size: 18px; }
 .total-row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--line); }
 .total-row b { font-size: 24px; font-weight: 800; }
@@ -5199,7 +5210,7 @@ const prodOptions = sel => sortedProdutos().map(p => `<option value="${p.id}" ${
 
 function linesEditor(kind) {
   return `<div class="f full"><span class="lbl">Itens</span>
-    <div class="lines"><div class="line line-h"><span>Produto</span><span>Qtd.</span><span>${kind === 'compra' ? 'Custo un.' : 'Preço un.'}</span><span></span></div><div id="lines"></div></div>
+    <div class="lines"><div class="line line-h${kind === 'compra' ? ' line-hc' : ''}"><span class="lh-p">Produto</span><span>Quantidade</span><span>${kind === 'compra' ? 'Custo un. (R$)' : 'Preço un. (R$)'}</span>${kind === 'compra' ? '<span>Venda hoje (R$)</span>' : '<span></span>'}</div><div id="lines"></div><div id="media" class="media-box"></div></div>
     <button type="button" class="btn small" data-add-line style="justify-self:start;margin-top:4px">+ Item</button></div>
     <div class="total-row f full"><span class="muted">Total</span><b class="num" id="ltotal">R$ 0,00</b></div>`;
 }
@@ -5212,18 +5223,29 @@ function wireLines(f, kind, init) {
     const i = k++;
     const extra = it && !prodById(pid) ? `<option value="${esc(pid)}" selected>${esc(it.nome || 'Produto removido')}</option>` : '';
     const row = document.createElement('div'); row.className = 'line';
-    row.innerHTML = `<select aria-label="Produto" id="l-p-${i}" name="p">${extra}${prodOptions(pid)}</select><input aria-label="Quantidade" id="l-q-${i}" name="q" type="number" min="0" step="any" value="${it ? it.qtd : 1}" inputmode="decimal"><input aria-label="Valor unitário" id="l-v-${i}" name="v" type="number" min="0" step="0.01" value="${it ? (kind === 'compra' ? it.custo : it.preco) ?? priceOf(pid) : priceOf(pid)}" inputmode="decimal"><button type="button" class="x" aria-label="Remover item">×</button>`;
-    row.querySelector('select').addEventListener('change', e => { row.querySelector('[name=v]').value = priceOf(e.target.value); calc(); });
+    row.innerHTML = `<select aria-label="Produto" id="l-p-${i}" name="p">${extra}${prodOptions(pid)}</select>${kind === 'compra' ? '<div class="ln-est" aria-live="polite"></div>' : ''}<label class="fx"><span>${kind === 'compra' ? 'Quantidade' : 'Qtd.'}</span><input aria-label="Quantidade" id="l-q-${i}" name="q" type="number" min="0" step="any" value="${it ? it.qtd : 1}" inputmode="decimal"></label><label class="fx"><span>${kind === 'compra' ? 'Custo R$' : 'Preço R$'}</span><input aria-label="${kind === 'compra' ? 'Custo unitário em reais' : 'Preço unitário em reais'}" id="l-v-${i}" name="v" type="number" min="0" step="0.01" value="${it ? (kind === 'compra' ? it.custo : it.preco) ?? priceOf(pid) : priceOf(pid)}" inputmode="decimal"></label><button type="button" class="x" aria-label="Remover item">×</button>${kind === 'compra' ? `<label class="fx fx-pv"><span>Venda hoje R$</span><input aria-label="Preço de venda de hoje em reais" id="l-pv-${i}" name="pv" type="number" min="0" step="0.01" value="${(prodById(pid)?.preco) || ''}" inputmode="decimal"></label>` : ''}`;
+    const updEst = () => { const e = row.querySelector('.ln-est'); if (!e) return; const pr = prodById(row.querySelector('select').value); e.innerHTML = pr ? `Em estoque agora: <b>${n2(pr.estoque || 0)} ${esc(pr.unidade || '')}</b> · custo atual ${money(pr.custo || 0)} · venda ${money(pr.preco || 0)}` : ''; };
+    updEst();
+    if (kind === 'compra') row.classList.add('line-c');
+    row.querySelector('select').addEventListener('change', e => { row.querySelector('[name=v]').value = priceOf(e.target.value); const pv = row.querySelector('[name=pv]'); if (pv) pv.value = prodById(e.target.value)?.preco || ''; updEst(); calc(); });
     row.querySelector('.x').addEventListener('click', () => { row.remove(); calc(); });
     box.appendChild(row); calc();
   };
-  const calc = () => { f.querySelector('#ltotal').textContent = money(readLines(f).reduce((s, l) => s + l.qtd * l.unit, 0)); };
+  const calc = () => {
+    f.querySelector('#ltotal').textContent = money(readLines(f).reduce((s, l) => s + l.qtd * l.unit, 0));
+    const med = f.querySelector('#media'); if (!med || kind !== 'compra') return;
+    const up = !!f.querySelector('#c-custo')?.checked;
+    med.innerHTML = readLines(f).map(l => { const p = prodById(l.produtoId); if (!p) return ''; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0;
+      const novo = up && est > 0 ? n2((est * antes + l.qtd * l.unit) / (est + l.qtd)) : (up ? l.unit : antes);
+      return `<div><b>${esc(p.nome)}</b>: estoque ${n2(est)} + ${n2(l.qtd)} = ${n2(est + l.qtd)}<br>Custo médio: <b>${money(novo)}</b>${up ? '' : ' (custo não muda: desmarcado)'} · Venda hoje: <b>${money(l.pv || p.preco || 0)}</b></div>`; }).join('');
+  };
+  f.addEventListener('change', calc);
   box.addEventListener('input', calc);
   f.querySelector('[data-add-line]').addEventListener('click', () => add());
   if (init && init.length) init.forEach(add); else add();
 }
 function readLines(f) {
-  return [...f.querySelectorAll('#lines .line')].map(r => ({ produtoId: r.querySelector('[name=p]').value, qtd: Number(r.querySelector('[name=q]').value) || 0, unit: Number(r.querySelector('[name=v]').value) || 0 })).filter(l => l.produtoId && l.qtd > 0);
+  return [...f.querySelectorAll('#lines .line')].map(r => ({ produtoId: r.querySelector('[name=p]').value, qtd: Number(r.querySelector('[name=q]').value) || 0, unit: Number(r.querySelector('[name=v]').value) || 0, pv: r.querySelector('[name=pv]') ? Number(r.querySelector('[name=pv]').value) || 0 : 0 })).filter(l => l.produtoId && l.qtd > 0);
 }
 const formaOpts = (name, list, sel) => `<div class="opts">${list.map(k => `<label class="opt"><input type="radio" name="${name}" value="${k}" id="${name}-${k}" ${k === sel ? 'checked' : ''}><span>${FORMAS[k]}</span></label>`).join('')}</div>`;
 
@@ -5304,9 +5326,11 @@ function modalCompra(fornId, editId) {
     <div class="f full"><label for="c-forn">Produtor / roça</label><input type="text" id="c-forn" name="fornecedor" placeholder="Ex.: Sítio do Seu João" list="forn-list" autocomplete="off" value="${esc(ed ? ed.fornecedor || '' : fo?.nome || '')}"><datalist id="forn-list">${[...new Set([...sortedFornecedores().map(c => c.nome), ...S.compras.map(c => c.fornecedor)].filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
     ${linesEditor('compra')}
     <div class="f full"><span class="lbl">Pagamento</span>${formaOpts('forma', formas, ed ? ed.forma : 'pix')}</div>
-    <div class="f"><label class="switch" for="c-pago"><input type="checkbox" id="c-pago" name="pago" ${!ed || ed.pago ? 'checked' : ''}> Já foi pago</label></div>
-    <div class="f"><label for="c-data-b">Data</label>${dateField('c-data', 'data', dataOrig, 'Data da compra')}</div>
-    <div class="f full"><label class="switch" for="c-custo"><input type="checkbox" id="c-custo" name="custo" ${ed ? '' : 'checked'}> Atualizar o custo dos produtos com este valor</label></div>
+    <div class="f full"><label for="c-data-b">Data</label>${dateField('c-data', 'data', dataOrig, 'Data da compra')}</div>
+    <div class="f full nt-prefs">
+      <label class="nt-pref" for="c-pago"><span class="grow"><b>Já foi pago?</b><small>Desligado: fica como a pagar</small></span><input type="checkbox" class="lt-switch" id="c-pago" name="pago" ${!ed || ed.pago ? 'checked' : ''}></label>
+      <label class="nt-pref" for="c-custo"><span class="grow"><b>Atualizar o custo dos produtos?</b><small>Usa a média com o estoque que já existe</small></span><input type="checkbox" class="lt-switch" id="c-custo" name="custo" ${ed ? '' : 'checked'}></label>
+    </div>
     <div class="f full"><label for="c-obs">Observação</label><input type="text" id="c-obs" name="obs" value="${esc(ed?.obs || '')}"></div>
   </div><div class="form-acts">${ed ? `<button type="button" class="btn ghost" data-act="apagar-compra" data-id="${ed.id}" style="margin-right:auto">Apagar compra</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar compra'}</button></div>`,
   async f => {
@@ -5325,11 +5349,17 @@ function modalCompra(fornId, editId) {
         await patch('compras', ed.id, body);
         await adjustStock(delta, 1);
         if (upd) for (const i of itens) if (prodById(i.produtoId)) await patch('produtos', i.produtoId, { custo: i.custo });
+        for (const l of readLines(f)) if (l.pv > 0 && prodById(l.produtoId)) await patch('produtos', l.produtoId, { preco: l.pv });
       }, 'Compra atualizada e estoque corrigido.');
     }
     return safe(async () => {
       await put('compras', uid(), body);
-      for (const i of itens) { const p = prodById(i.produtoId); if (p) await patch('produtos', p.id, upd ? { estoque: n2((p.estoque || 0) + i.qtd), custo: i.custo } : { estoque: n2((p.estoque || 0) + i.qtd) }); }
+      const lns = readLines(f);
+      for (const i of itens) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0;
+        const ch = { estoque: n2((p.estoque || 0) + i.qtd) };
+        if (upd) ch.custo = n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo);
+        const pv = (lns.find(l => l.produtoId === i.produtoId) || {}).pv; if (pv > 0) ch.preco = pv;
+        await patch('produtos', p.id, ch); }
     }, 'Compra salva e estoque atualizado.');
   }, f => { wireLines(f, 'compra', ed?.itens); f.addEventListener('change', e => { if (e.target.name === 'forma') f.querySelector('#c-pago').checked = e.target.value !== 'fiado'; }); });
 }
