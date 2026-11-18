@@ -2314,6 +2314,9 @@ const FORMAS = { pix: 'Pix', dinheiro: 'Dinheiro', debito: 'Cartão de débito',
 const STATUS = { recebido: 'Recebido', separado: 'Separado', em_rota: 'Saiu para entrega', entregue: 'Entregue', cancelado: 'Cancelado' };
 const STATUS_PILL = { recebido: 'p-blue', separado: 'p-gray', em_rota: 'p-red', entregue: 'p-ok', cancelado: 'p-gray' };
 const PERIODOS = { hoje: 'Hoje', '7d': '7 dias', '30d': '30 dias', mes: 'Este mês', tudo: 'Tudo' };
+/* período com que Vendas, Entregas, Compras, Caixa e Relatórios abrem (Configurações > Período padrão; vale para este aparelho) */
+const perPadrao = () => { const v = ls.get('mmr-periodo-padrao', '7d'); return PERIODOS[v] ? v : '7d'; };
+const PER_PAG = { vendas: 'vp', caixa: 'cp', entregas: 'ep', compras: 'kp', relatorios: 'rp' };
 /* categorias de despesa: padrão + as criadas/editadas em Configurações (coleção "categorias") */
 const CAT_PADRAO = [['combustivel', 'Transporte', '#f76b15', 'truck'], ['alimentacao', 'Alimentação', '#f5b5d6', 'food'], ['embalagem', 'Embalagens', '#0090ff', 'box'], ['manutencao', 'Manutenção', '#6e56cf', 'wrench'], ['pessoal', 'Ajudante / diárias', '#30a46c', 'user'], ['outros', 'Outros', '#8d8d8d', 'dots']];
 const CAT_CORES = ['#e5484d', '#f76b15', '#ffb224', '#30a46c', '#12a594', '#0090ff', '#6e56cf', '#d6409f', '#a18072', '#8d8d8d',
@@ -3265,7 +3268,7 @@ const telaSessao = { get(k) { try { return sessionStorage.getItem('mmr-tela-' + 
 try { localStorage.removeItem('mmr-tela-g'); localStorage.removeItem('mmr-tela-c'); } catch {}
 const ui = {
   mode: ls.get('mmr-mode', 'gestao'), g: telaSessao.get('g'), c: telaSessao.get('c'),
-  vt: 'todas', vf: 'todas', vp: 'hoje', vDe: '', vAte: '', cp: 'hoje', cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', ep: 'hoje', eDe: '', eAte: '', kp: 'hoje', kDe: '', kAte: '', rp: 'hoje', rDe: '', rAte: '', cart: {}, banner: 0, track: null, sheet: null,
+  vt: 'todas', vf: 'todas', vp: perPadrao(), vDe: '', vAte: '', cp: perPadrao(), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', ep: perPadrao(), eDe: '', eAte: '', kp: perPadrao(), kDe: '', kAte: '', rp: perPadrao(), rDe: '', rAte: '', cart: {}, banner: 0, track: null, sheet: null,
 };
 let myOrders = ls.get('mmr-meus-pedidos', []);
 const W = () => canWrite ? '' : 'disabled';
@@ -3404,7 +3407,7 @@ function statusNote() {
   else if (!canWrite) msg = 'Modo leitura: só o dono e editores podem alterar os dados.';
   return msg ? `<div class="note" role="status">${esc(msg)}</div>` : '';
 }
-/* filtros: toda tela abre no padrão (período Hoje, tipo e situação Todas etc.). Ao sair de uma tela,
+/* filtros: toda tela abre no padrão (período escolhido em Configurações > Período padrão, tipo e situação Todas etc.). Ao sair de uma tela,
    tudo o que foi mudado nela (período, tipo, pedido, forma de pagamento, visão...) volta ao padrão.
    Atalhos que já abrem a tela com outro filtro, como "A receber", continuam valendo. */
 const FILTROS_PAG = {
@@ -3420,7 +3423,7 @@ function periodoNaTroca() {
   const atual = ui.mode === 'gestao' ? 'g:' + ui.g : 'c:' + ui.c;
   if (pagAnterior && pagAnterior !== atual) {
     const pad = FILTROS_PAG[pagAnterior.slice(2)];
-    if (pad) Object.assign(ui, pad);
+    if (pad) { Object.assign(ui, pad); const pk = PER_PAG[pagAnterior.slice(2)]; if (pk) ui[pk] = perPadrao(); }
     ui.hist = null; ui.emo = false; ui.emoCat = undefined; /* histórico de cliente e painel de emojis voltam fechados */
   }
   pagAnterior = atual;
@@ -3738,6 +3741,7 @@ function gConfig() {
     ${cfgRow('palette', 'Aparência', lookLabel(), 'sheet', 'ajustes')}
     ${cfgRow('home', 'Tela inicial', INICIO_BLOCOS.filter(b => inicioOn(b[0])).length + ' de ' + INICIO_BLOCOS.length + ' blocos', 'sheet', 'inicio-cfg')}
     ${cfgRow('dots', 'Menu inferior', menuNaBarra().length + ' na barra', 'sheet', 'menu-cfg')}
+    ${cfgRow('calendar', 'Período padrão', PERIODOS[perPadrao()], 'sheet', 'per-cfg')}
     ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
     ${cfgRow('pin', 'Rotas', rotaCfg().partida ? 'partida: ' + rotaCfg().partida : 'ponto de partida', 'sheet', 'rota-cfg')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
@@ -4585,7 +4589,7 @@ const AJ_G = [
     ['Como instalar o app no celular?', '<ol><li>Abra o endereço do app no navegador.</li><li>No Android: três pontinhos do Chrome → <b>Adicionar à tela inicial</b> (ou <b>Instalar app</b>).</li><li>No iPhone: botão <b>Compartilhar</b> do Safari → <b>Adicionar à Tela de Início</b>.</li></ol>O ícone do morango aparece na tela do celular e abre em tela cheia.'],
     ['Como andar pelas telas?', '<b>Barra de baixo</b>: os atalhos principais. <b>Botão +</b> no meio: lança algo novo (muda conforme a tela). <b>Mais (⋮)</b>: o que não está na barra e as <b>Configurações</b>. Para voltar, use o botão voltar do Android ou deslize o dedo para a esquerda (para a direita avança). Toque em qualquer cartão com <b>Editar</b> para alterar.', [['Escolher os botões da barra', 'sheet', 'menu-cfg']]],
     ['O que faz o botão +?', 'No Início ele abre <b>Lançar</b>: Venda, Compra, Despesa, Notícia, Produto e Cliente. Em Vendas abre a venda avulsa; em Compras, a compra na roça; em Estoque, novo produto; em Notícias, nova notícia; em Clientes e Fornecedores, novo cadastro; no Caixa, despesa, venda, compra, estorno e atalhos; no Chat, novo chat ou nova venda para o cliente da conversa.'],
-    ['Como funciona o Período?', 'Vendas, Entregas, Compras, Caixa e Relatórios têm o campo <b>Período</b> no topo: Hoje, 7 dias, 30 dias, Este mês, Tudo ou <b>Escolher período</b> (data inicial e final no calendário). Cada tela abre em <b>Hoje</b> e volta para Hoje quando você sai dela.'],
+    ['Como funciona o Período?', 'Vendas, Entregas, Compras, Caixa e Relatórios têm o campo <b>Período</b> no topo: Hoje, 7 dias, 30 dias, Este mês, Tudo ou <b>Escolher período</b> (data inicial e final no calendário). Cada tela abre no <b>Período padrão</b> (de início, 7 dias) e volta para ele quando você sai dela. Para mudar, vá em <b>Configurações → Período padrão</b>.', [['Abrir Período padrão', 'sheet', 'per-cfg']]],
     ['O que mostra a tela Início?', 'De cima para baixo:<ul><li><b>Vendas de hoje</b>: total do dia, comparação com o mesmo dia da semana passada, o anel de <b>% recebido</b> (recebido, falta receber e lucro bruto) e as barras dos últimos 7 dias.</li><li><b>Precisa de você</b>: os assuntos mais urgentes, cada um com um botão (Separar, Responder, Receber, Pagar…).</li><li><b>Divisão das vendas</b>: por Pagamento, Produto ou App × Avulsa, em Hoje, 7 dias ou Mês.</li><li><b>Vendas × gastos</b>: quanto entrou, quanto saiu (compras e despesas) e se sobrou ou faltou.</li><li><b>Rota de hoje</b>: entregas feitas e a próxima parada.</li><li><b>Clientes sumidos</b> e as <b>Movimentações</b> do dia.</li></ul>', [['Abrir o Início', 'go', 'inicio']]],
     ['Como escolho o que aparece no Início?', 'Em <b>Configurações → Tela inicial</b> você liga ou desliga cada bloco: Vendas de hoje, Precisa de você, Divisão das vendas, Vendas × gastos, Rota de hoje, Clientes sumidos e Movimentações. <b>Mostrar tudo</b> traz todos de volta. Vale só para este aparelho.', [['Abrir Tela inicial', 'sheet', 'inicio-cfg']]],
     ['Como vejo as vendas de outro dia?', 'No cartão <b>Vendas de hoje</b>, toque numa das barras dos últimos 7 dias. O cartão, o <b>Vendas × gastos</b> e as <b>Movimentações</b> passam a mostrar aquele dia. Toque na mesma barra de novo (ou saia do Início) para voltar para hoje.', [['Abrir o Início', 'go', 'inicio']]],
@@ -4957,6 +4961,7 @@ function sheetHTML() {
     <div class="ap-sec"><span class="ap-l">Cor</span>${look.visual === 'bento' ? '<small class="muted">O Bento usa a paleta própria (preto, lima e tons pastel).</small>' : ''}<div class="ap-cores">${(window.LT_TEMAS || []).map(([k, l, a, b]) => `<button class="ap-cor" style="background:linear-gradient(135deg,${a},${b})" data-act="look" data-k="tema" data-v="${k}" aria-label="${l}" aria-pressed="${look.tema === k}" title="${l}" ${look.visual === 'bento' ? 'disabled' : ''}>${look.tema === k ? icOwn('check') : ''}</button>`).join('')}</div></div>`);
   if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
   if (s.type === 'cat-cfg') return catCfgSheet(wrap);
+  if (s.type === 'per-cfg') { const atual = perPadrao(); return wrap('Período padrão', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período que aparece ao abrir Vendas, Entregas, Compras, Caixa e Relatórios. Você ainda pode trocar na própria tela; ao sair, ela volta para este. Vale para este aparelho.</p><div class="bs-list">${Object.entries(PERIODOS).map(([v, l]) => `<button class="bs-row" data-act="per-padrao" data-v="${v}" aria-pressed="${atual === v}"><span class="grow">${l}</span>${atual === v ? ic('check') : ''}</button>`).join('')}</div>`); }
   if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
   if (s.type === 'exemplos') { const nEx = contaExemplos(), noApp = exNoApp(), disp = exDisponivel(); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
     for (const c of EX_CATS) ui.exQtd[c.k] = Math.min(ui.exQtd[c.k] || 0, disp[c.k]);
@@ -6063,6 +6068,7 @@ document.addEventListener('click', async e => {
     case 'cat-apagar': catApagar(id); break;
     case 'cat-voltar': closeModal(); ui.sheet = { type: 'cat-cfg' }; render(); break;
     case 'rota-gps': rotaGps(); break;
+    case 'per-padrao': { const pv = PERIODOS[v] ? v : '7d'; ls.set('mmr-periodo-padrao', pv); for (const k of Object.values(PER_PAG)) if (ui[k] !== 'custom') ui[k] = pv; ui.sheet = null; render(); toast('Período padrão: ' + PERIODOS[pv] + '.'); break; }
     case 'wa-apagar': ls.set('mmr-wa-numero', ''); ui.sheet = null; render(); toast('Número apagado.'); break;
     case 'ex-zerar': ui.exMsg = null; ui.exAviso = null; ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
     case 'ex-carregar': carregarExemplos(); break;
@@ -6107,7 +6113,7 @@ document.addEventListener('click', async e => {
       } });
       break;
     }
-    case 'vlimpar': ui.vf = 'todas'; ui.vp = '7d'; render(); break;
+    case 'vlimpar': ui.vf = 'todas'; ui.vp = perPadrao(); render(); break;
     case 'set-theme': look.modo = v; ls.set('mmr-look', look); applyTheme(); render(); break;
     case 'look': look[t.dataset.k] = v; if (look.visual === 'aurora') look.modo = 'claro'; ls.set('mmr-look', look); applyTheme(); render(); break;
     case 'menu-tgl': { let l = menuNaBarra(); l = l.includes(v) ? l.filter(k => k !== v) : [...l, v]; if (l.length) { ls.set('mmr-menu', l); render(); } break; }
