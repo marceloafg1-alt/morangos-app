@@ -771,6 +771,35 @@ small b.iv-bad{color:var(--bad)}small b.iv-warn{color:var(--warn)}small b.iv-ok{
 .iv-seg span.done,.iv-seg span.cur{border-color:transparent}
 .iv-seg span.cur{background:var(--accent)}
 
+
+/* Últimas vendas dentro de Divisão das vendas: só na Gestão web, em telas a partir de 1250 px */
+.iv-ult{display:none}
+@media (min-width:1250px){
+  .iv-div:has(.iv-ult){display:grid;grid-template-columns:minmax(0,max-content) minmax(250px,1fr);gap:24px;padding-bottom:12px}
+  .iv-ult-h h2,.iv-ult-all{white-space:nowrap}
+  .iv-ult{display:flex;flex-direction:column;min-height:0;position:relative;padding-top:14px}
+  .iv-ult-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-4px 0 6px}
+  .iv-ult-h h2{margin:0;font-size:15px;font-weight:700}
+  .iv-ult-all{border:0;border-radius:99px;padding:5px 11px;font:inherit;font-size:12px;font-weight:800;background:var(--tint);color:var(--accent);cursor:pointer}
+  .iv-ult-l{position:absolute;left:0;right:0;top:48px;bottom:0;overflow:hidden;display:flex;flex-direction:column}
+  .iv-uv{display:flex;align-items:center;gap:10px;width:100%;padding:7px 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;color:var(--ink);font:inherit;cursor:pointer;flex:none}
+  .iv-uv[hidden]{display:none}
+  .iv-uv-t{flex:1;min-width:0;display:grid;gap:1px}
+  .iv-uv-t b{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .iv-uv-t small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .iv-uv-v{display:grid;justify-items:end;gap:2px;flex:none}
+  .iv-uv-v b{font-size:13.5px;font-weight:800}
+  .iv-uv-s{font-style:normal;font-size:10.5px;font-weight:800;border-radius:99px;padding:1px 7px}
+  .iv-uv-s.ok{background:var(--okBg);color:var(--okc)}.iv-uv-s.w{background:var(--warnBg);color:var(--warn)}.iv-uv-s.c{background:var(--fill);color:var(--muted)}
+  .lt[data-visual="bento"] .iv-uv{color:var(--onT);border-color:rgba(20,20,22,.12)}
+  .lt[data-visual="bento"] .iv-uv-t small{color:var(--onT2)}
+  .lt[data-visual="bento"] .iv-ult-all{background:#141416;color:var(--lime)}
+  .lt[data-visual="bento"] .iv-uv-s{background:rgba(255,255,255,.6);color:var(--onT)}
+  .lt[data-visual="bento"] .iv-uv-s.w{background:var(--peach);color:#141416}
+  .lt[data-visual="bento"] .iv-uv-s.ok{background:#141416;color:var(--lime)}
+}
+@media (min-width:1250px){.iv-div:has(.iv-ult) .iv-pl div{white-space:nowrap}}
+@media (min-width:1250px) and (max-width:1499px){.iv-div:has(.iv-ult) .iv-pie{flex-direction:column;align-items:flex-start;gap:12px}.iv-div:has(.iv-ult) .iv-pl{width:100%}}
 /* ===== Início no Bento: blocos coloridos (lima, lilás, pêssego, azul, menta, amarelo) ===== */
 .iv-div{--iv1:var(--a2);--iv2:var(--okc);--iv3:var(--info);--iv4:var(--warn);--iv5:var(--muted2)}
 .lt[data-visual="bento"] :is(.iv-div,.iv-est,.iv-rota,.iv-sum,.iv-mov){color:var(--onT);border:0;border-radius:28px;box-shadow:none}
@@ -3545,6 +3574,7 @@ function render() {
   navSync();
   telaSessao.set('g', ui.g); telaSessao.set('c', ui.c); // lembra a tela só ao recarregar; ao fechar o app, abre no Início
   cabecalhoFixo();
+  ivUltFit();
 }
 /* cabeçalho fixo: sombra ao rolar e espaço para rolagens automáticas não pararem atrás dele */
 function cabecalhoFixo() {
@@ -3720,14 +3750,31 @@ function ivDivisao() {
   const grad = L.map(([, val], i) => { const p0 = acc / tot * 100; acc += val; return `${IV_CORES[i]} ${p0.toFixed(2)}% ${(acc / tot * 100).toFixed(2)}%`; }).join(',');
   const chip = (act, v, cur, l) => `<button class="iv-chip ${cur === v ? 'on' : ''}" data-act="${act}" data-v="${v}">${l}</button>`;
   return `<div class="sec-h iv-sh"><h2>Divisão das vendas</h2></div>
-  <div class="card iv-div"><div class="iv-ct"><h2>Divisão das vendas</h2></div>
+  <div class="card iv-div"><div class="iv-dl"><div class="iv-ct"><h2>Divisão das vendas</h2></div>
     <div class="iv-chips">${chip('iv-dv', 'pag', vis, 'Pagamento')}${chip('iv-dv', 'prod', vis, 'Produto')}${chip('iv-dv', 'orig', vis, 'App × Avulsa')}</div>
     <div class="iv-chips">${chip('iv-dp', 'hoje', per, 'Hoje')}${chip('iv-dp', '7d', per, '7 dias')}${chip('iv-dp', 'mes', per, 'Mês')}</div>
     ${tot > 0 ? `<div class="iv-pie"><div class="iv-donut" style="background:conic-gradient(${grad})"><i><b class="num">${money(tot)}</b><small>${per === 'hoje' ? 'hoje' : per === '7d' ? '7 dias' : 'no mês'}</small></i></div>
       <div class="iv-pl">${L.map(([n, val], i) => `<div><span class="iv-dot" style="background:${IV_CORES[i]}"></span><span class="lt-grow">${esc(n)}</span><b class="num">${Math.round(val / tot * 100)}%</b></div>`).join('')}</div></div>`
       : `<p class="sub" style="margin:12px 0">Nenhuma venda neste período.</p>`}
-  </div>`;
+  </div>${ivUltimas()}</div>`;
 }
+/* só na Gestão web (tela larga): últimas vendas no espaço livre do cartão Divisão das vendas, quantas couberem */
+function ivUltimas() {
+  const L = [...S.vendas].sort((a, b) => b.ts - a.ts).slice(0, 25);
+  const row = v => { const canc = v.status === 'cancelado', pago = !canc && !!v.pago;
+    return `<button class="iv-uv" data-act="cx-det" data-col="vendas" data-id="${esc(v.id)}"><span class="iv-uv-t"><b>${esc(v.cliente?.nome || 'Venda avulsa')}</b><small>${relTime(v.ts)} · ${esc(FORMAS[v.forma] || v.forma || '')}</small></span><span class="iv-uv-v"><b class="num">${money(canc ? v.total : vLiq(v))}</b><i class="iv-uv-s ${canc ? 'c' : pago ? 'ok' : 'w'}">${canc ? 'Cancelada' : pago ? 'Pago' : 'A receber'}</i></span></button>`; };
+  return `<div class="iv-ult"><div class="iv-ult-h"><h2>Últimas vendas</h2><button class="iv-ult-all" data-act="go" data-v="vendas">Ver todas</button></div>
+    <div class="iv-ult-l">${L.map(row).join('') || '<p class="sub" style="margin:8px 0">Nenhuma venda ainda.</p>'}</div></div>`;
+}
+/* esconde as linhas que não cabem inteiras no cartão */
+function ivUltFit() {
+  const box = $main.querySelector('.iv-ult-l'); if (!box) return;
+  const its = [...box.children]; its.forEach(x => { x.hidden = false; });
+  if (!box.clientHeight) return;
+  const lim = box.getBoundingClientRect().bottom + 0.5;
+  its.forEach(x => { if (x.getBoundingClientRect().bottom > lim) x.hidden = true; });
+}
+addEventListener('resize', () => ivUltFit());
 function ivLucro() {
   /* vendas x gastos dos últimos 7 dias, em barras; o dia escolhido no gráfico de vendas (ui.hd) fica em destaque */
   const sel = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0, d0 = startOfDay();
