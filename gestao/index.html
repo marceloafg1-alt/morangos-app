@@ -4368,7 +4368,7 @@ function gRelatorios() {
   <div class="kpis rel-kpis">
     <div class="kpi"><small>Vendas</small><b>${money(t.vendas)}</b><span class="s">${vs.length} ${vs.length === 1 ? 'pedido' : 'pedidos'}</span>${delta(t.vendas, ant?.vendas)}</div>
     <div class="kpi good"><small>Lucro bruto</small><b>${money(t.lucroBruto)}</b><span class="s">margem ${margem}%</span>${delta(t.lucroBruto, ant?.lucroBruto)}</div>
-    <button class="kpi" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="compras"><small>Compras</small><b>${money(t.cmv)}</b>${delta(t.cmv, ant?.cmv, true)}</button>
+    <div class="kpi"><small>Custo dos morangos</small><b>${money(t.cmv)}</b>${delta(t.cmv, ant?.cmv, true)}</div>
     <div class="kpi"><small>Ticket médio</small><b>${money(vs.length ? t.vendas / vs.length : 0)}</b><span class="s">${novos} ${novos === 1 ? 'cliente' : 'clientes'}</span></div>
     <button class="kpi bad" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="despesas"><small>Despesas</small><b>${money(t.despesas)}</b>${delta(t.despesas, ant?.despesas, true)}</button>
     <div class="kpi"><small>Já recebido</small><b>${money(pagoVs)}</b><span class="s">${t.vendas ? Math.round(pagoVs / t.vendas * 100) : 0}% das vendas</span></div>
