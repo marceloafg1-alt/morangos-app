@@ -4467,12 +4467,12 @@ function gRelatorios() {
     <small class="muted">${dif >= 0 ? 'Você vendeu mais do que comprou no período.' : 'Você comprou mais do que vendeu no período. O excesso fica em estoque.'}</small>
   </div>
   <div class="kpis">
-    <div class="kpi good"><small>Entrou no caixa</small><b>${money(t.entradas)}</b></div>
-    <div class="kpi bad"><small>Saiu do caixa</small><b>${money(t.saidas)}</b></div>
-    <button class="kpi" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="cpagar" aria-label="Compras a pagar do período: ${money(D.compraAPagar)}. Ver no caixa"><small>Compras a pagar</small><b>${money(D.compraAPagar)}</b><span class="s">do período</span></button>
-    <button class="kpi" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="receber" aria-label="A receber do período: ${money(D.vendaAReceber)}. Ver no caixa"><small>A receber</small><b>${money(D.vendaAReceber)}</b><span class="s">do período</span></button>
-    <button class="kpi ${sDpagP ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="dpagar" aria-label="Despesas a pagar do período: ${money(sDpagP)}. Ver no caixa"><small>Despesas a pagar</small><b>${money(sDpagP)}</b><span class="s">do período</span></button>
-    <button class="kpi ${t.entradas - t.saidas >= 0 ? 'good' : 'bad'}" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="saldo"><small>Saldo do caixa</small><b>${money(n2(t.entradas - t.saidas))}</b><span class="s">do período</span></button>
+    <div class="kpi good"><small>Entrou no caixa</small><b>${money(t.entradas)}</b><span class="s">${rPerLabel()}</span></div>
+    <div class="kpi bad"><small>Saiu do caixa</small><b>${money(t.saidas)}</b><span class="s">${rPerLabel()}</span></div>
+    <button class="kpi" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="cpagar" aria-label="Compras a pagar do período: ${money(D.compraAPagar)}. Ver no caixa"><small>Compras a pagar</small><b>${money(D.compraAPagar)}</b><span class="s">${rPerLabel()}</span></button>
+    <button class="kpi" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="receber" aria-label="A receber do período: ${money(D.vendaAReceber)}. Ver no caixa"><small>A receber</small><b>${money(D.vendaAReceber)}</b><span class="s">${rPerLabel()}</span></button>
+    <button class="kpi ${sDpagP ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="dpagar" aria-label="Despesas a pagar do período: ${money(sDpagP)}. Ver no caixa"><small>Despesas a pagar</small><b>${money(sDpagP)}</b><span class="s">${rPerLabel()}</span></button>
+    <button class="kpi ${t.entradas - t.saidas >= 0 ? 'good' : 'bad'}" style="font:inherit;text-align:left" data-act="go-caixa-rel" data-v="saldo"><small>Saldo do caixa</small><b>${money(n2(t.entradas - t.saidas))}</b><span class="s">${rPerLabel()}</span></button>
   </div>
   <div class="sec-h"><h2>Dinheiro em aberto</h2><span class="muted" style="font-size:13px">hoje, no geral</span></div>
   <div class="kpis"><button class="kpi ${sArec ? 'alert' : ''}" style="font:inherit;text-align:left" data-act="go-caixa-aberto" data-v="receber"><small>A receber</small><b>${money(sArec)}</b><span class="s">${ar.length} ${ar.length === 1 ? 'venda' : 'vendas'} sem pagar</span></button>
