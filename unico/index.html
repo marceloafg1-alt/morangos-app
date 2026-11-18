@@ -624,6 +624,19 @@
   html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .lt-tabbar.lt-side{padding:20px 14px!important}
 
 
+/* Web com tela baixa: menu lateral enxuto com botão Mais (igual ao celular) */
+html[data-modo="gestao"][data-visao="web"] .lt-side .side-mais{display:none!important}
+@media (max-height:990px){
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-mais{display:flex!important}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side:not(.mais-open) .side-x{display:none!important}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-brand{padding-bottom:8px}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open{padding:12px 12px!important;gap:2px}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .side-brand{display:none}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .lt-fab{height:42px!important;margin:0 0 6px!important}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .lt-tab,html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .lt-tab.on{height:38px!important;min-height:38px}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .side-sp{flex:0 0 0;min-height:0}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .lt-tab[data-v="estoque"]{margin-top:8px}
+}
 html[data-modo="gestao"][data-visao="web"] .iv-clk{cursor:pointer}
 html[data-modo="gestao"][data-visao="web"] .iv-more{padding:6px 0 12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
 /* Início na web: Rota de hoje e Clientes sumidos sob "Precisa de você" (título dentro do cartão); Divisão das vendas ao lado de Vendas × gastos */
@@ -5125,9 +5138,13 @@ function nav() {
     const fabAct = fabOn ? 'close-sheet' : convCli ? 'sheet' : ui.g === 'conversas' ? 'nova-conversa' : ui.g === 'vendas' ? 'nova-venda' : fabPag ? fabPag[0] : 'sheet';
     const fabLbl = fabOn ? 'Fechar' : convCli ? 'Nova venda ou novo chat' : ui.g === 'conversas' ? 'Novo chat' : ui.g === 'vendas' ? 'Nova venda avulsa' : fabPag ? fabPag[1] : 'Lançar';
     if (WIDE.matches) { /* tela grande: menu lateral à esquerda */
-      const side = MENU_ITENS.map(i => t(i.k, i.ic, i.l, extras[i.k] || '', i.act));
+      const sideBtn = (i) => t(i.k, i.ic, i.l, extras[i.k] || '', i.act).replace('class="lt-tab ', 'class="lt-tab' + (naBarra.includes(i.k) ? '' : ' side-x') + ' ');
+      const side = MENU_ITENS.filter(i => naBarra.includes(i.k)).map(sideBtn);
+      const sideX = MENU_ITENS.filter(i => !naBarra.includes(i.k)).map(sideBtn);
+      const SX = h => h.replace('class="lt-tab ', 'class="lt-tab side-x ');
+      const sideMaisOn = !!ui.sideMais;
       const cfgOn = ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].includes(cur);
-      return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''}" aria-label="Gestão"><div class="side-brand"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça · Gestão</small></span></div><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}<span class="side-sp"></span>${t('estoque', 'box', 'Estoque')}${t('clientes', 'user', 'Clientes')}${t('fornecedores', 'basket', 'Fornecedores')}${t('noticias', 'megaphone', 'Notícias')}${t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'fornecedores', 'noticias'].includes(cur))}</nav>`;
+      return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''} ${sideMaisOn ? 'mais-open' : ''}" aria-label="Gestão"><div class="side-brand"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça · Gestão</small></span></div><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}<button class="lt-tab side-mais ${sideMaisOn || maisOn ? 'on' : ''}" data-act="side-mais" aria-label="Mais" aria-expanded="${sideMaisOn}">${ic(sideMaisOn ? 'x' : 'dots')}${sideMaisOn ? 'Menos' : 'Mais'}</button>${sideX.join('')}<span class="side-sp"></span>${SX(t('estoque', 'box', 'Estoque'))}${SX(t('clientes', 'user', 'Clientes'))}${SX(t('fornecedores', 'basket', 'Fornecedores'))}${SX(t('noticias', 'megaphone', 'Notícias'))}${SX(t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'fornecedores', 'noticias'].includes(cur)))}</nav>`;
     }
     return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', 'Mais', '', 'sheet', maisOn)}</nav>`;
   }
@@ -6326,6 +6343,7 @@ document.addEventListener('click', async e => {
     case 'ex-apagar-cat': { const k = t.dataset.k, c = EX_CATS.find(x => x.k === k), n = exNoApp()[k] || 0; if (!c || !n) break; modalConfirm(`Apagar ${n === 1 ? 'o exemplo' : 'os ' + n + ' exemplos'} de <b>${esc(c.nome)}</b>? Os outros exemplos e seus dados reais continuam.`, 'Apagar', () => { removerExemplosCat(k); }); break; }
     case 'ex-recriar': modalConfirm(`Apagar todos os exemplos e criar ${EX_MAX} de cada tipo, ligados entre si (clientes, vendas, entregas, conversas, compras e fornecedores)? Seus lançamentos reais não são apagados.`, 'Zerar e criar', () => { recriarExemplos(); }); break;
     case 'ex-remover': modalConfirm('Remover todos os dados de exemplo? Seus lançamentos reais não são apagados.', 'Remover exemplos', () => { removerExemplos(); }); break;
+    case 'side-mais': ui.sideMais = !ui.sideMais; render(); break;
     case 'close-sheet': { const eraRota = ui.sheet && ui.sheet.type === 'rota-cfg'; ui.sheet = null; render(); if (eraRota) rtVolta(); break; }
     case 'close-all': ui.sheet = null; $modal.innerHTML = ''; render(); break;
     case 'vfiltro': ui[t.dataset.k] = v; if (v === 'custom' && !ui.vDe) { ui.vAte = ymd(new Date()); ui.vDe = ymd(new Date(Date.now() - 6 * 864e5)); } render(); break;
