@@ -608,6 +608,7 @@
   /* Listas e cartões em colunas */
   .app>.stack{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:12px 20px;align-items:start}
   .app>.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))!important}
+  .app>.cx-kpis>:last-child:nth-child(odd){grid-column:auto}
 }
 @media (min-width:1700px){ .app{padding-left:calc(16px + 264px + 48px)!important;padding-right:48px!important} }
 
