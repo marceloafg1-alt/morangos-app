@@ -799,7 +799,8 @@ small b.iv-bad{color:var(--bad)}small b.iv-warn{color:var(--warn)}small b.iv-ok{
   .lt[data-visual="bento"] .iv-uv-s.ok{background:#141416;color:var(--lime)}
 }
 @media (min-width:1250px){.iv-div:has(.iv-ult) .iv-pl div{white-space:nowrap}}
-@media (min-width:1250px) and (max-width:1499px){.iv-div:has(.iv-ult) .iv-pie{flex-direction:column;align-items:flex-start;gap:12px}.iv-div:has(.iv-ult) .iv-pl{width:100%}}
+/* legenda embaixo do gráfico só quando ela não cabe ao lado (ivUltFit mede) */
+@media (min-width:1250px){.iv-div.iv-empilha .iv-pie{flex-direction:column;align-items:flex-start;gap:12px}.iv-div.iv-empilha .iv-pl{width:100%}}
 /* ===== Início no Bento: blocos coloridos (lima, lilás, pêssego, azul, menta, amarelo) ===== */
 .iv-div{--iv1:var(--a2);--iv2:var(--okc);--iv3:var(--info);--iv4:var(--warn);--iv5:var(--muted2)}
 .lt[data-visual="bento"] :is(.iv-div,.iv-est,.iv-rota,.iv-sum,.iv-mov){color:var(--onT);border:0;border-radius:28px;box-shadow:none}
@@ -3768,6 +3769,8 @@ function ivUltimas() {
 }
 /* esconde as linhas que não cabem inteiras no cartão */
 function ivUltFit() {
+  const card = $main.querySelector('.iv-div'), pl = card && card.querySelector('.iv-pl');
+  if (card) { card.classList.remove('iv-empilha'); if (pl && card.querySelector('.iv-ult')?.offsetWidth && pl.scrollWidth > pl.clientWidth + 1) card.classList.add('iv-empilha'); }
   const box = $main.querySelector('.iv-ult-l'); if (!box) return;
   const its = [...box.children]; its.forEach(x => { x.hidden = false; });
   if (!box.clientHeight) return;
