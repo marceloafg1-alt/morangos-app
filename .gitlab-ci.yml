@@ -4,7 +4,7 @@ pages:
     - mkdir -p public
     - cp index.html manifest.webmanifest manifest-v2.webmanifest sw.js icon-192.png icon-512.png public/
     - cp -r gestao public/gestao
-    - mkdir -p public/unico && cp unico/index.html public/unico/index.html
+    - cp -r unico public/unico
   artifacts:
     paths:
       - public
