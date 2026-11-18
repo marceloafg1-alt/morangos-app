@@ -540,7 +540,7 @@
 .lt[data-visual="bento"] .lt-tabbar:not(.lt-plana) .lt-tab.on{flex:0 0 94px;width:94px;min-width:0;padding:0 4px;background:var(--lime);color:#141416;font-size:11.5px;font-weight:800}
 .lt[data-visual="bento"] .lt-tabbar:not(.lt-plana) .lt-tab svg{width:20px;height:20px}
 .lt[data-visual="bento"] .lt-tabbar:not(.lt-plana) .lt-fab{width:46px;height:46px;margin:0 2px;border-radius:16px;background:#fff;color:#141416;box-shadow:none}
-.lt[data-visual="bento"] .lt-tabbar:not(.lt-plana) .lt-fab.on{background:var(--lime)}
+.lt[data-visual="bento"][data-escuro="1"] .lt-tabbar:not(.lt-plana) .lt-fab{background:var(--lime)}
 
 /* ---------- Variante plana (tela larga / navegador) ---------- */
 .lt-tabbar.lt-plana{left:0;right:0;bottom:0;border-radius:0;gap:0;justify-content:space-around;padding:10px 6px calc(8px + env(safe-area-inset-bottom,0px));
@@ -567,11 +567,113 @@
   .lt-page{max-width:720px;margin:0 auto}
 }
 
-.iv-clk{cursor:pointer}
-.iv-more{padding:6px 0 12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
-/* o app do celular não usa a versão web dos cartões do Início */
-.iv-ct,.iv-w{display:none}
-.iv-btn2{margin-right:6px}
+
+/* ===== Versão web (computador): mais espaço ===== */
+
+  html[data-modo="gestao"][data-visao="web"] .lt-page{max-width:none !important}
+  html[data-modo="gestao"][data-visao="web"] .app{max-width:900px !important}
+  html[data-modo="gestao"][data-visao="web"] .lt-tabbar{left:50%;right:auto;width:min(760px,calc(100% - 28px));transform:translateX(-50%)}
+
+
+/* ===== Tela grande (notebook/computador): menu lateral + conteúdo em colunas ===== */
+
+  html[data-modo="gestao"][data-visao="web"] .lt-tabbar.lt-side{left:16px!important;right:auto!important;top:16px;bottom:16px!important;width:264px;transform:none;flex-direction:column;align-items:stretch;gap:4px;
+    padding:20px 14px!important;border-radius:28px!important;overflow-y:auto;border:0;box-shadow:0 12px 36px rgba(0,0,0,.14),0 2px 8px rgba(0,0,0,.06)!important}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .side-brand{display:flex;align-items:center;gap:10px;padding:0 6px 14px;color:var(--ink)}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .side-brand b{display:block;font-size:17px}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .side-brand small{display:block;font-size:11.5px;color:var(--muted);font-weight:600}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .side-brand .mr-badge{flex:none}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .lt-fab{order:0;width:100%;height:46px;margin:0 0 10px!important;border-radius:14px;gap:8px;font-size:14px;font-weight:700;border:0}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .lt-fab::after{content:attr(aria-label);font-size:14px;font-weight:700}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .lt-tab{flex:none;width:100%!important;height:46px;justify-content:flex-start;gap:12px;padding:0 14px!important;font-size:14px!important;font-weight:600;border-radius:14px;color:var(--ink)}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .lt-tab.on{background:var(--tint);color:var(--accent);font-weight:800}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .lt-tab .lt-dot{position:static;margin-left:auto;left:auto!important;top:auto}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .side-sp{flex:1;min-height:12px}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .lt-tab[data-v="estoque"]{border-top:1px solid var(--line);border-radius:0 0 14px 14px;margin-top:4px}
+  html[data-modo="gestao"][data-visao="web"] .app{max-width:none!important;margin:0!important;padding-left:calc(16px + 264px + 32px)!important;padding-right:32px!important;padding-bottom:40px!important}
+  html[data-modo="gestao"][data-visao="web"] .lt-page{max-width:none!important}
+  html[data-modo="gestao"][data-visao="web"] .cart-bar{display:none}
+
+@media (max-width:1399px){ html[data-modo="gestao"][data-visao="web"] .app{padding-left:calc(16px + 264px + 24px)!important;padding-right:24px!important} }
+
+
+  html[data-modo="gestao"][data-visao="web"] .app{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 28px;align-content:start}
+  html[data-modo="gestao"][data-visao="web"] .app>*{grid-column:1/-1;min-width:0;margin-top:0!important;margin-bottom:0!important}
+  /* Início */
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.lt-hero:not(.iv-luc){grid-column:1;grid-row:2}
+  html[data-modo="gestao"][data-visao="web"] .app>.lt-hero.iv-luc{grid-column:1/-1;grid-row:auto}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need{grid-column:2;grid-row:2;align-self:stretch}
+  html[data-modo="gestao"][data-visao="web"] .now-row{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));overflow:visible!important;gap:12px}
+  html[data-modo="gestao"][data-visao="web"] .now-row>.now{width:auto!important;min-width:0}
+  /* Listas e cartões em colunas */
+  html[data-modo="gestao"][data-visao="web"] .app>.stack{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:12px 20px;align-items:start}
+  html[data-modo="gestao"][data-visao="web"] .app>.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))!important}
+  html[data-modo="gestao"][data-visao="web"] .app>.cx-kpis>:last-child:nth-child(odd){grid-column:auto}
+
+@media (min-width:1700px){ html[data-modo="gestao"][data-visao="web"] .app{padding-left:calc(16px + 264px + 48px)!important;padding-right:48px!important} }
+
+
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-fab{width:100%!important;height:48px!important;margin:0 0 10px!important;border-radius:16px!important;gap:8px;flex:none!important;justify-content:center}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-fab::after{content:attr(aria-label);font-size:14px;font-weight:800;white-space:nowrap}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab{flex:none!important;width:100%!important;height:46px!important;min-height:46px;justify-content:flex-start!important;padding:0 14px!important;border-radius:14px!important}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab.on{height:46px!important}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab[data-v="estoque"]{border-top:0;margin-top:6px;position:relative}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab[data-v="estoque"]::before{content:"";position:absolute;left:14px;right:14px;top:-4px;height:1px;background:currentColor;opacity:.15}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .lt-side .side-brand,html[data-modo="gestao"][data-visao="web"] .lt[data-escuro="1"] .lt-side .side-brand,html[data-modo="gestao"][data-visao="web"] .lt[data-visual="aurora"] .lt-side .side-brand{color:#fff}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .lt-side .side-brand small,html[data-modo="gestao"][data-visao="web"] .lt[data-escuro="1"] .lt-side .side-brand small,html[data-modo="gestao"][data-visao="web"] .lt[data-visual="aurora"] .lt-side .side-brand small{color:rgba(255,255,255,.62)}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .lt-tabbar.lt-side{padding:20px 14px!important}
+
+
+/* Web com tela baixa: menu lateral enxuto com botão Mais (igual ao celular) */
+html[data-modo="gestao"][data-visao="web"] .lt-side .side-mais{display:none!important}
+@media (max-height:990px){
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-mais{display:flex!important}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side:not(.mais-open) .side-x{display:none!important}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .side-brand{padding-bottom:8px}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open{padding:12px 12px!important;gap:2px}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .side-brand{display:none}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .lt-fab{height:42px!important;margin:0 0 6px!important}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .lt-tab,html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .lt-tab.on{height:38px!important;min-height:38px}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .side-sp{flex:0 0 0;min-height:0}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side.mais-open .lt-tab[data-v="estoque"]{margin-top:8px}
+}
+html[data-modo="gestao"][data-visao="web"] .iv-clk{cursor:pointer}
+html[data-modo="gestao"][data-visao="web"] .iv-more{padding:6px 0 12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
+/* Início na web: Rota de hoje e Clientes sumidos sob "Precisa de você" (título dentro do cartão); Divisão das vendas ao lado de Vendas × gastos */
+.iv-ct{display:none}
+
+  html[data-modo="gestao"][data-visao="web"] .app>.sec-h.iv-sh{display:none}
+  html[data-modo="gestao"][data-visao="web"] .iv-ct{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px}
+  html[data-modo="gestao"][data-visao="web"] .iv-ct h2{margin:0;font-size:15px;font-weight:700}
+  html[data-modo="gestao"][data-visao="web"] .iv-div .iv-ct{margin-top:14px}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.lt-hero:not(.iv-luc){grid-column:1;grid-row:2/5}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need{grid-column:2;grid-row:2;align-self:start}
+  html[data-modo="gestao"][data-visao="web"] .app>.iv-rota{grid-column:2;grid-row:3;margin-top:0!important}
+  html[data-modo="gestao"][data-visao="web"] .app>.iv-sum{grid-column:2;grid-row:4;margin-top:0!important}
+  html[data-modo="gestao"][data-visao="web"] .app>.iv-div{grid-column:1;grid-row:5;margin-top:0!important}
+  html[data-modo="gestao"][data-visao="web"] .app>.lt-hero.iv-luc{grid-column:2;grid-row:5}
+  html[data-modo="gestao"][data-visao="web"] .app>.sec-h:has(+.iv-mov){grid-row:6}
+  html[data-modo="gestao"][data-visao="web"] .app>.iv-mov{grid-row:7}
+  html[data-modo="gestao"][data-visao="web"] .iv-rota,html[data-modo="gestao"][data-visao="web"] .iv-sum{padding:2px 16px!important}
+  html[data-modo="gestao"][data-visao="web"] .iv-rota .iv-it,html[data-modo="gestao"][data-visao="web"] .iv-sum .iv-it{border:0}
+  html[data-modo="gestao"][data-visao="web"] .iv-rota .iv-t small,html[data-modo="gestao"][data-visao="web"] .iv-sum .iv-t small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  html[data-modo="gestao"][data-visao="web"] .iv-m{display:none}
+  html[data-modo="gestao"][data-visao="web"] .iv-clk{cursor:pointer}
+  html[data-modo="gestao"][data-visao="web"] .iv-btn2{margin-right:6px}
+  html[data-modo="gestao"][data-visao="web"] .iv-sum .iv-it,html[data-modo="gestao"][data-visao="web"] .iv-rota .iv-it{min-height:64px}
+  html[data-modo="gestao"][data-visao="web"] .iv-sum .iv-btn,html[data-modo="gestao"][data-visao="web"] .iv-rota .iv-btn{flex:none}
+  /* cartões ao lado de Vendas de hoje 10% mais baixos; o primeiro começa na mesma linha de Vendas de hoje */
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need .iv-list,html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need>.card{margin-top:0!important}
+  html[data-modo="gestao"][data-visao="web"] .iv-need .iv-it,html[data-modo="gestao"][data-visao="web"] .iv-rota .iv-it,html[data-modo="gestao"][data-visao="web"] .iv-sum .iv-it{height:60px;min-height:0!important;padding-top:0!important;padding-bottom:0!important;box-sizing:border-box}
+  html[data-modo="gestao"][data-visao="web"] .iv-need .iv-ic,html[data-modo="gestao"][data-visao="web"] .iv-rota .iv-ic,html[data-modo="gestao"][data-visao="web"] .iv-sum .iv-ic{width:32px;height:32px}
+  /* "Precisa de você": título acima da linha dos cartões, que começam na mesma altura de Vendas de hoje */
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.lt-hero:not(.iv-luc),html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need{margin-top:36px!important}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need{position:relative}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need>.sec-h{position:absolute;left:0;right:0;bottom:100%;margin:0 0 6px}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] :is(.iv-rota,.iv-sum){padding:0!important}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] :is(.iv-rota,.iv-sum) .iv-it{padding:12px 14px}
+
+html:not([data-visao="web"]) .iv-w{display:none}
 
 /* ---------- Cor sólida: o que fica direto sobre o fundo colorido ---------- */
 .lt[data-visual="classico"][data-solido="1"]:not([data-escuro="1"]) .lt-chip.on,
@@ -606,6 +708,14 @@
 .pend-pill{font-style:normal;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
 .pend-pill.red{background:var(--red-soft);color:var(--red)}
 .pend-btn .chev{width:20px;height:20px;color:var(--muted)}
+.pend-list{display:none;flex-direction:column;gap:6px;min-width:0}
+.pend-li{width:100%;display:flex;align-items:center;gap:10px;min-width:0;padding:7px 10px;border-radius:12px;background:var(--fill,var(--surface-2));font-size:13.5px}
+.pend-li .pl-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.pend-li .pl-dot.red{background:var(--red)}.pend-li .pl-dot.dark{background:var(--muted)}
+.pend-li .pl-t{flex:none;font-weight:600}
+.pend-li .pl-d{flex:1;min-width:0;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pend-li .pl-n{flex:none;font-weight:700;font-style:normal;font-variant-numeric:tabular-nums}
+
 .pend-tx{min-width:0;display:grid;gap:2px}.pend-tx b{font-weight:600;font-size:16px}.pend-tx small{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pend-row .ml-v{font-weight:700}
 .ml-ic.pend-red{background:var(--red-soft);color:var(--red)}.ml-ic.pend-warn{background:var(--warn-soft);color:var(--warn)}
@@ -675,6 +785,37 @@ small b.iv-bad{color:var(--bad)}small b.iv-warn{color:var(--warn)}small b.iv-ok{
 .iv-seg span.done,.iv-seg span.cur{border-color:transparent}
 .iv-seg span.cur{background:var(--accent)}
 
+
+/* Últimas vendas dentro de Divisão das vendas: só na Gestão web, em telas a partir de 1250 px */
+.iv-ult{display:none}
+html[data-modo="cliente"][data-visao="web"] .lt-tabbar{left:50% !important;right:auto !important;width:min(440px,calc(100% - 28px)) !important;transform:translateX(-50%) !important}
+@media (min-width:1250px){
+  html[data-modo="gestao"][data-visao="web"] .iv-div:has(.iv-ult){display:grid;grid-template-columns:minmax(0,max-content) minmax(250px,1fr);gap:24px;padding-bottom:12px}
+  html[data-modo="gestao"][data-visao="web"] .iv-ult-h h2,html[data-modo="gestao"][data-visao="web"] .iv-ult-all{white-space:nowrap}
+  html[data-modo="gestao"][data-visao="web"] .iv-ult{display:flex;flex-direction:column;min-height:0;position:relative;padding-top:14px}
+  html[data-modo="gestao"][data-visao="web"] .iv-ult-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-4px 0 6px}
+  html[data-modo="gestao"][data-visao="web"] .iv-ult-h h2{margin:0;font-size:15px;font-weight:700}
+  html[data-modo="gestao"][data-visao="web"] .iv-ult-all{border:0;border-radius:99px;padding:5px 11px;font:inherit;font-size:12px;font-weight:800;background:var(--tint);color:var(--accent);cursor:pointer}
+  html[data-modo="gestao"][data-visao="web"] .iv-ult-l{position:absolute;left:0;right:0;top:48px;bottom:0;overflow:hidden;display:flex;flex-direction:column}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv{display:flex;align-items:center;gap:10px;width:100%;padding:7px 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;color:var(--ink);font:inherit;cursor:pointer;flex:none}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv[hidden]{display:none}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv-t{flex:1;min-width:0;display:grid;gap:1px}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv-t b{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv-t small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv-v{display:grid;justify-items:end;gap:2px;flex:none}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv-v b{font-size:13.5px;font-weight:800}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv-s{font-style:normal;font-size:10.5px;font-weight:800;border-radius:99px;padding:1px 7px}
+  html[data-modo="gestao"][data-visao="web"] .iv-uv-s.ok{background:var(--okBg);color:var(--okc)}html[data-modo="gestao"][data-visao="web"] .iv-uv-s.w{background:var(--warnBg);color:var(--warn)}html[data-modo="gestao"][data-visao="web"] .iv-uv-s.c{background:var(--fill);color:var(--muted)}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .iv-uv{color:var(--onT);border-color:rgba(20,20,22,.12)}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .iv-uv-t small{color:var(--onT2)}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .iv-ult-all{background:#141416;color:var(--lime)}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .iv-uv-s{background:rgba(255,255,255,.6);color:var(--onT)}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .iv-uv-s.w{background:var(--peach);color:#141416}
+  html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .iv-uv-s.ok{background:#141416;color:var(--lime)}
+}
+@media (min-width:1250px){html[data-modo="gestao"][data-visao="web"] .iv-div:has(.iv-ult) .iv-pl div{white-space:nowrap}}
+/* legenda embaixo do gráfico só quando ela não cabe ao lado (ivUltFit mede) */
+@media (min-width:1250px){html[data-modo="gestao"][data-visao="web"] .iv-div.iv-empilha .iv-pie{flex-direction:column;align-items:flex-start;gap:12px}html[data-modo="gestao"][data-visao="web"] .iv-div.iv-empilha .iv-pl{width:100%}}
 /* ===== Início no Bento: blocos coloridos (lima, lilás, pêssego, azul, menta, amarelo) ===== */
 .iv-div{--iv1:var(--a2);--iv2:var(--okc);--iv3:var(--info);--iv4:var(--warn);--iv5:var(--muted2)}
 .lt[data-visual="bento"] :is(.iv-div,.iv-est,.iv-rota,.iv-sum,.iv-mov){color:var(--onT);border:0;border-radius:28px;box-shadow:none}
@@ -916,6 +1057,7 @@ svg.i { width: 22px; height: 22px; flex: none; }
 .kpi.good b { color: var(--green-ink); } .kpi.bad b { color: var(--red-ink); } .kpi.alert b { color: var(--warn); }
 .kpi.wide { grid-column: 1 / -1; }
 .rel-kpis { align-items: start; }
+ html[data-modo="gestao"][data-visao="web"] .app>.kpis.rel-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important} 
 
 .bars { display: grid; gap: 12px; padding: 16px; }
 .bar-l { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; margin-bottom: 5px; }
@@ -3469,6 +3611,8 @@ function render() {
   telaSessao.set('g', ui.g); telaSessao.set('c', ui.c); // lembra a tela só ao recarregar; ao fechar o app, abre no Início
   cabecalhoFixo();
   avisarNovidades();
+  document.documentElement.dataset.modo = ui.mode; document.documentElement.dataset.visao = WIDE.matches ? 'web' : 'celular';
+  ivUltFit();
 }
 /* cabeçalho fixo: sombra ao rolar e espaço para rolagens automáticas não pararem atrás dele */
 function cabecalhoFixo() {
@@ -3614,7 +3758,10 @@ function pendencias() {
   return p;
 }
 const pendBtn = () => { const p = pendencias(), n = p.reduce((s, x) => s + (x[7] === 'dark' ? 0 : 1), 0), urg = p.filter(x => x[7] === 'red').length;
-  return `<button class="pend-btn" data-act="go" data-v="pendencias"><span class="pend-ic">${ic('list')}</span><span class="pend-t"><b>Pendências${n ? ` <i class="pend-pill ${urg ? 'red' : ''}">${n} ${n === 1 ? 'assunto' : 'assuntos'}</i>` : ''}</b><small>${n ? 'Tudo o que está em aberto' : 'Tudo em dia'}</small></span>${ic('right', 'i chev')}</button>`; };
+  return `<button class="pend-btn" data-act="go" data-v="pendencias"><span class="pend-ic">${ic('list')}</span><span class="pend-t"><b>Pendências${n ? ` <i class="pend-pill ${urg ? 'red' : ''}">${n} ${n === 1 ? 'assunto' : 'assuntos'}</i>` : ''}</b><small>${n ? 'Tudo o que está em aberto' : 'Tudo em dia'}</small></span>${ic('right', 'i chev')}${pendLista(p)}</button>`; };
+/* só aparece na versão web (tela larga): os assuntos que couberem no cartão, urgentes primeiro */
+const pendLista = p => { if (!p.length) return ''; const ord = { red: 0, warn: 1, dark: 2 }, L = [...p].sort((a, b) => (ord[a[7]] ?? 1) - (ord[b[7]] ?? 1)), vis = L;
+  return `<span class="pend-list">${vis.map(x => `<span class="pend-li"><i class="pl-dot ${x[7]}"></i><span class="pl-t">${esc(x[2])}</span><span class="pl-d">${esc(x[3] || '')}</span>${x[7] === 'dark' ? '' : `<i class="pl-n">${x[4]}</i>`}</span>`).join('')}</span>`; };
 function gPendencias() {
   const p = pendencias();
   const grupos = ['Responder', 'Receber', 'Pagar', 'Entregar', 'Estoque', 'Caixa'].map(g => [g, p.filter(x => x[0] === g)]).filter(g => g[1].length);
@@ -3640,14 +3787,33 @@ function ivDivisao() {
   const grad = L.map(([, val], i) => { const p0 = acc / tot * 100; acc += val; return `${IV_CORES[i]} ${p0.toFixed(2)}% ${(acc / tot * 100).toFixed(2)}%`; }).join(',');
   const chip = (act, v, cur, l) => `<button class="iv-chip ${cur === v ? 'on' : ''}" data-act="${act}" data-v="${v}">${l}</button>`;
   return `<div class="sec-h iv-sh"><h2>Divisão das vendas</h2></div>
-  <div class="card iv-div"><div class="iv-ct"><h2>Divisão das vendas</h2></div>
+  <div class="card iv-div"><div class="iv-dl"><div class="iv-ct"><h2>Divisão das vendas</h2></div>
     <div class="iv-chips">${chip('iv-dv', 'pag', vis, 'Pagamento')}${chip('iv-dv', 'prod', vis, 'Produto')}${chip('iv-dv', 'orig', vis, 'App × Avulsa')}</div>
     <div class="iv-chips">${chip('iv-dp', 'hoje', per, 'Hoje')}${chip('iv-dp', '7d', per, '7 dias')}${chip('iv-dp', 'mes', per, 'Mês')}</div>
     ${tot > 0 ? `<div class="iv-pie"><div class="iv-donut" style="background:conic-gradient(${grad})"><i><b class="num">${money(tot)}</b><small>${per === 'hoje' ? 'hoje' : per === '7d' ? '7 dias' : 'no mês'}</small></i></div>
       <div class="iv-pl">${L.map(([n, val], i) => `<div><span class="iv-dot" style="background:${IV_CORES[i]}"></span><span class="lt-grow">${esc(n)}</span><b class="num">${Math.round(val / tot * 100)}%</b></div>`).join('')}</div></div>`
       : `<p class="sub" style="margin:12px 0">Nenhuma venda neste período.</p>`}
-  </div>`;
+  </div>${ivUltimas()}</div>`;
 }
+/* só na Gestão web (tela larga): últimas vendas no espaço livre do cartão Divisão das vendas, quantas couberem */
+function ivUltimas() {
+  const L = [...S.vendas].sort((a, b) => b.ts - a.ts).slice(0, 25);
+  const row = v => { const canc = v.status === 'cancelado', pago = !canc && !!v.pago;
+    return `<button class="iv-uv" data-act="cx-det" data-col="vendas" data-id="${esc(v.id)}"><span class="iv-uv-t"><b>${esc(v.cliente?.nome || 'Venda avulsa')}</b><small>${relTime(v.ts)} · ${esc(FORMAS[v.forma] || v.forma || '')}</small></span><span class="iv-uv-v"><b class="num">${money(canc ? v.total : vLiq(v))}</b><i class="iv-uv-s ${canc ? 'c' : pago ? 'ok' : 'w'}">${canc ? 'Cancelada' : pago ? 'Pago' : 'A receber'}</i></span></button>`; };
+  return `<div class="iv-ult"><div class="iv-ult-h"><h2>Últimas vendas</h2><button class="iv-ult-all" data-act="go" data-v="vendas">Ver todas</button></div>
+    <div class="iv-ult-l">${L.map(row).join('') || '<p class="sub" style="margin:8px 0">Nenhuma venda ainda.</p>'}</div></div>`;
+}
+/* esconde as linhas que não cabem inteiras no cartão */
+function ivUltFit() {
+  const card = $main.querySelector('.iv-div'), pl = card && card.querySelector('.iv-pl');
+  if (card) { card.classList.remove('iv-empilha'); if (pl && card.querySelector('.iv-ult')?.offsetWidth && pl.scrollWidth > pl.clientWidth + 1) card.classList.add('iv-empilha'); }
+  const box = $main.querySelector('.iv-ult-l'); if (!box) return;
+  const its = [...box.children]; its.forEach(x => { x.hidden = false; });
+  if (!box.clientHeight) return;
+  const lim = box.getBoundingClientRect().bottom + 0.5;
+  its.forEach(x => { if (x.getBoundingClientRect().bottom > lim) x.hidden = true; });
+}
+addEventListener('resize', () => ivUltFit());
 function ivLucro() {
   /* vendas x gastos dos últimos 7 dias, em barras; o dia escolhido no gráfico de vendas (ui.hd) fica em destaque */
   const sel = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0, d0 = startOfDay();
@@ -3763,6 +3929,7 @@ function gConfig() {
     ${cfgRow('pin', 'Rotas', rotaCfg().partida ? 'partida: ' + rotaCfg().partida : 'ponto de partida', 'sheet', 'rota-cfg')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
+    ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
   </nav>
   <div class="sec-h"><h2>Suporte</h2></div>
   <nav class="card menu-list cfg-list" aria-label="Suporte">
@@ -4946,6 +5113,12 @@ const MENU_ITENS = [
 ];
 const MENU_PADRAO = ['inicio', 'vendas', 'entregas', 'caixa', 'conversas'];
 const MENU_MAX = 5;
+/* Um link só: reconhece o aparelho. Tela larga (computador) = versão web com menu lateral; celular = versão com barra embaixo.
+   O botão em Configurações (Ver como) força uma das duas neste aparelho. */
+const WIDE_MQ = window.matchMedia('(min-width:1000px)');
+const visaoForcada = () => { try { const v = localStorage.getItem('mmr-visao'); return v === 'web' || v === 'celular' ? v : ''; } catch (e) { return ''; } };
+const WIDE = { get matches() { const f = visaoForcada(); return f ? f === 'web' : WIDE_MQ.matches && !/Android.*Mobile|iPhone|iPod/i.test(navigator.userAgent); } };
+WIDE_MQ.addEventListener?.('change', () => { try { render(); } catch (e) {} });
 const menuNaBarra = () => { const v = ls.get('mmr-menu', null); const ok = Array.isArray(v) ? v.filter(k => MENU_ITENS.some(i => i.k === k)) : MENU_PADRAO; return MENU_ITENS.filter(i => ok.includes(i.k)).slice(0, MENU_MAX).map(i => i.k); };
 function nav() {
   const cur = ui.mode === 'gestao' ? ui.g : ui.c;
@@ -4964,6 +5137,15 @@ function nav() {
     const fabPag = { estoque: ['novo-produto', 'Novo produto'], compras: ['nova-compra', 'Nova compra na roça'], noticias: ['nova-noticia', 'Nova notícia'], clientes: ['novo-cliente', 'Novo cliente'], fornecedores: ['novo-fornecedor', 'Novo fornecedor'] }[ui.g];
     const fabAct = fabOn ? 'close-sheet' : convCli ? 'sheet' : ui.g === 'conversas' ? 'nova-conversa' : ui.g === 'vendas' ? 'nova-venda' : fabPag ? fabPag[0] : 'sheet';
     const fabLbl = fabOn ? 'Fechar' : convCli ? 'Nova venda ou novo chat' : ui.g === 'conversas' ? 'Novo chat' : ui.g === 'vendas' ? 'Nova venda avulsa' : fabPag ? fabPag[1] : 'Lançar';
+    if (WIDE.matches) { /* tela grande: menu lateral à esquerda */
+      const sideBtn = (i) => t(i.k, i.ic, i.l, extras[i.k] || '', i.act).replace('class="lt-tab ', 'class="lt-tab' + (naBarra.includes(i.k) ? '' : ' side-x') + ' ');
+      const side = MENU_ITENS.filter(i => naBarra.includes(i.k)).map(sideBtn);
+      const sideX = MENU_ITENS.filter(i => !naBarra.includes(i.k)).map(sideBtn);
+      const SX = h => h.replace('class="lt-tab ', 'class="lt-tab side-x ');
+      const sideMaisOn = !!ui.sideMais;
+      const cfgOn = ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].includes(cur);
+      return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''} ${sideMaisOn ? 'mais-open' : ''}" aria-label="Gestão"><div class="side-brand"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça · Gestão</small></span></div><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}<button class="lt-tab side-mais ${sideMaisOn || maisOn ? 'on' : ''}" data-act="side-mais" aria-label="Mais" aria-expanded="${sideMaisOn}">${ic(sideMaisOn ? 'x' : 'dots')}${sideMaisOn ? 'Menos' : 'Mais'}</button>${sideX.join('')}<span class="side-sp"></span>${SX(t('estoque', 'box', 'Estoque'))}${SX(t('clientes', 'user', 'Clientes'))}${SX(t('fornecedores', 'basket', 'Fornecedores'))}${SX(t('noticias', 'megaphone', 'Notícias'))}${SX(t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'fornecedores', 'noticias'].includes(cur)))}</nav>`;
+    }
     return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', 'Mais', '', 'sheet', maisOn)}</nav>`;
   }
   return `${bar}<nav class="lt-tabbar" aria-label="Loja">${t('inicio', 'home', 'Loja')}${t('pedidos', 'truck', 'Pedidos', activeOrder() ? cnt(1) : '')}<button class="lt-fab${ui.c === 'sacola' ? ' on' : ''}" data-act="go" data-v="sacola" aria-label="Sacola${n ? ', ' + n + ' itens' : ''}">${ic('bag')}${cnt(n)}</button>${t('chat', 'chat', 'Chat', cnt(naoLidasC()))}${t('perfil', 'user', 'Perfil')}</nav>`;
@@ -6139,6 +6321,7 @@ document.addEventListener('click', async e => {
     case 'baixar-anexo': baixarAnexo(id); break;
     case 'ver-foto': ui.sheet = { type: 'foto', id }; render(); break;
     case 'chat-rapido': { const ta = document.getElementById('chat-txt'); if (ta) { ta.value = v; ta.focus(); } break; }
+    case 'visao': { const f = visaoForcada(), n = f === '' ? (WIDE.matches ? 'celular' : 'web') : f === 'web' ? 'celular' : ''; try { n ? localStorage.setItem('mmr-visao', n) : localStorage.removeItem('mmr-visao'); } catch (e) {} toast(n ? 'Versão ' + (n === 'web' ? 'web' : 'celular') + ' neste aparelho.' : 'Automático: o app escolhe pela tela.'); render(); break; }
     case 'mode': ui.mode = v; ls.set('mmr-mode', v); ui.g = 'inicio'; ui.c = 'inicio'; ui.sheet = null; render(); window.scrollTo(0, 0); break;
     case 'sheet': if (v === 'exemplos') { exUniverso.c = null; ui.exMsg = null; ui.exAviso = null; } ui.sheet = { type: v }; render(); break;
     case 'ex-qtd': { const k = t.dataset.k, disp = exDisponivel()[k], q = (ui.exQtd[k] || 0) + Number(v); ui.exMsg = null; ui.exAviso = q > disp ? { k } : null; ui.exQtd[k] = Math.max(0, Math.min(disp, q)); render(); break; }
@@ -6160,6 +6343,7 @@ document.addEventListener('click', async e => {
     case 'ex-apagar-cat': { const k = t.dataset.k, c = EX_CATS.find(x => x.k === k), n = exNoApp()[k] || 0; if (!c || !n) break; modalConfirm(`Apagar ${n === 1 ? 'o exemplo' : 'os ' + n + ' exemplos'} de <b>${esc(c.nome)}</b>? Os outros exemplos e seus dados reais continuam.`, 'Apagar', () => { removerExemplosCat(k); }); break; }
     case 'ex-recriar': modalConfirm(`Apagar todos os exemplos e criar ${EX_MAX} de cada tipo, ligados entre si (clientes, vendas, entregas, conversas, compras e fornecedores)? Seus lançamentos reais não são apagados.`, 'Zerar e criar', () => { recriarExemplos(); }); break;
     case 'ex-remover': modalConfirm('Remover todos os dados de exemplo? Seus lançamentos reais não são apagados.', 'Remover exemplos', () => { removerExemplos(); }); break;
+    case 'side-mais': ui.sideMais = !ui.sideMais; render(); break;
     case 'close-sheet': { const eraRota = ui.sheet && ui.sheet.type === 'rota-cfg'; ui.sheet = null; render(); if (eraRota) rtVolta(); break; }
     case 'close-all': ui.sheet = null; $modal.innerHTML = ''; render(); break;
     case 'vfiltro': ui[t.dataset.k] = v; if (v === 'custom' && !ui.vDe) { ui.vAte = ymd(new Date()); ui.vDe = ymd(new Date(Date.now() - 6 * 864e5)); } render(); break;
