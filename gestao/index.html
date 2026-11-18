@@ -4330,7 +4330,10 @@ function gRelatorios() {
   const maxD = Math.max(...days.map(d => d.v), 1);
   const melhorDia = days.reduce((m, d) => d.v > m.v ? d : m, days[0]);
   const DOW = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  const maxW = Math.max(...byDow, 1);
+  /* Dia da semana: lê TODO o histórico (não depende do período) e mede o lucro bruto de cada venda */
+  const lucroDow = [0, 0, 0, 0, 0, 0, 0];
+  for (const v of vendasValidas()) lucroDow[new Date(v.ts).getDay()] += vLiq(v) - (v.itens || []).reduce((a, i) => a + Math.max(0, i.qtd - estQtd(v, i.produtoId, true)) * (i.custo || 0), 0);
+  const maxW = Math.max(...lucroDow, 1);
   const byCat = {}; for (const d of D.ds) byCat[catNome(d.categoria) || 'Outros'] = (byCat[catNome(d.categoria) || 'Outros'] || 0) + restante('despesas', d);
   const ar = aReceber(), ap = aPagar();
   const sArec = ar.reduce((s, v) => s + vLiq(v), 0), sApag = ap.reduce((s, c) => s + cAberto(c), 0);
@@ -4375,8 +4378,8 @@ function gRelatorios() {
   <div style="min-width:0;display:grid;gap:14px;grid-template-rows:auto 1fr"><div class="sec-h"><h2>Vendas por dia</h2><span class="muted" style="font-size:13px">últimos ${ndias} dias</span></div>
   <div class="card rel-card"><div class="cols rel-cols">${days.map(d => `<div class="col" title="${d.lbl}: ${money(d.v)}"><i class="${d.v ? '' : 'zero'}" style="height:${d.v / maxD * 100}%"></i></div>`).join('')}</div><div class="col-labels">${days.map(d => `<span>${ndias > 15 ? (d.d.getDate() % 5 === 0 ? d.lbl : '') : d.lbl}</span>`).join('')}</div>
     ${melhorDia.v ? `<p class="muted rel-foot">Melhor dia: <b>${melhorDia.lbl}/${String(melhorDia.d.getMonth() + 1).padStart(2, '0')}</b> com ${money(melhorDia.v)}</p>` : ''}</div></div>
-  <div style="min-width:0;display:grid;gap:14px;grid-template-rows:auto 1fr"><div class="sec-h"><h2>Dia da semana</h2></div>
-  <div class="card rel-card"><div class="cols rel-cols">${byDow.map((v, i) => `<div class="col" title="${DOW[i]}: ${money(v)}"><i class="${v ? '' : 'zero'}" style="height:${v / maxW * 100}%"></i></div>`).join('')}</div><div class="col-labels" style="gap:4px">${DOW.map(d => `<span style="flex:1;text-align:center">${d[0]}</span>`).join('')}</div>${maxW > 0 && byDow.some(v => v) ? `<p class="muted rel-foot">Melhor: <b>${['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'][byDow.indexOf(maxW)]}</b></p>` : '<p class="muted rel-foot">&nbsp;</p>'}</div></div>
+  <div style="min-width:0;display:grid;gap:14px;grid-template-rows:auto 1fr"><div class="sec-h"><h2>Dia da semana</h2><span class="muted" style="font-size:13px">lucro, todo o histórico</span></div>
+  <div class="card rel-card"><div class="cols rel-cols">${lucroDow.map((v, i) => `<div class="col" title="${DOW[i]}: ${money(v)}"><i class="${v > 0 ? '' : 'zero'}" style="height:${Math.max(0, v) / maxW * 100}%"></i></div>`).join('')}</div><div class="col-labels" style="gap:4px">${DOW.map(d => `<span style="flex:1;text-align:center">${d[0]}</span>`).join('')}</div>${lucroDow.some(v => v > 0) ? `<p class="muted rel-foot">Mais lucro: <b>${['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'][lucroDow.indexOf(maxW)]}</b> com ${money(maxW)}</p>` : '<p class="muted rel-foot">&nbsp;</p>'}</div></div>
   </div>
   <div class="sec-h"><h2>Por forma de pagamento</h2></div>${bars(byForma, k => FORMAS[k] || k)}
   <div class="sec-h"><h2>App × avulsa</h2></div>${bars(byOrig, k => k, 'g')}
