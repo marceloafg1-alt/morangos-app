@@ -3930,6 +3930,7 @@ function gConfig() {
     ${cfgRow('calendar', 'Período padrão', PERIODOS[perPadrao()], 'sheet', 'per-cfg')}
     ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
     ${cfgRow('pin', 'Rotas', rotaCfg().partida ? 'partida: ' + rotaCfg().partida : 'ponto de partida', 'sheet', 'rota-cfg')}
+    ${cfgRow('list', 'Planilha modelo', 'baixar para cadastrar em lote', 'baixar-modelo', 'x')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
     ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
@@ -4005,7 +4006,7 @@ function vendasFiltradas() {
 function gVendas() {
   const list = vendasFiltradas();
   const tot = list.filter(v => v.status !== 'cancelado').reduce((s, v) => s + v.total, 0);
-  return pageHeaderFixo('Vendas', '', `<div class="vsel">${[['vt', 'Tipo de venda', VTIPOS[ui.vt]], ['vf', 'Pedido', VPED[ui.vf]], ['vp', 'Período', vPerLabel()]].map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`) +
+  return pageHeaderFixo('Vendas', btnImportar, `<div class="vsel">${[['vt', 'Tipo de venda', VTIPOS[ui.vt]], ['vf', 'Pedido', VPED[ui.vf]], ['vp', 'Período', vPerLabel()]].map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`) +
     `
     <p class="sub" style="margin:0">${list.length} ${list.length === 1 ? 'venda' : 'vendas'} · <b class="num">${money(tot)}</b></p>
     <div class="stack">${list.map(vendaItem).join('') || emptyBox('Nenhuma venda com esse filtro.', canWrite ? '<button class="btn primary" data-act="nova-venda">Lançar venda avulsa</button>' : '')}</div>`;
@@ -5810,10 +5811,226 @@ function gCadastros(k) {
   const vazio = ehC ? emptyBox('Nenhum cliente ainda. Cadastre quem compra de você para lançar vendas mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-cliente">Novo cliente</button>' : '')
     : emptyBox('Nenhum fornecedor ainda. Cadastre os produtores de quem você compra para registrar as compras mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-fornecedor">Novo fornecedor</button>' : '');
   const lista = ehC ? cs : fs;
-  return pageHeader(ehC ? 'Clientes' : 'Fornecedores') +
+  return pageHeader(ehC ? 'Clientes' : 'Fornecedores', btnImportar) +
   `<p class="sub cad-cnt">${lista.length} ${ehC ? (lista.length === 1 ? 'cliente' : 'clientes') : (lista.length === 1 ? 'fornecedor' : 'fornecedores')}</p>
   ${lista.length ? `<div class="cad-list">${lista.map(c => linha(c, ehC)).join('')}</div>` : vazio}`;
 }
+
+/* ===== PLANILHA DE CADASTRO EM LOTE (modelo .xlsx + importação) ===== */
+const PL = {
+  clientes: { aba: 'Clientes', cols: [
+    ['nome', 'Nome', 30, 't'], ['tipo', 'Tipo (Pessoa ou Comércio)', 22, 't'], ['telefone', 'Telefone / WhatsApp', 20, 't'], ['email', 'E-mail', 26, 't'],
+    ['cep', 'CEP', 12, 't'], ['endereco', 'Rua', 28, 't'], ['numero', 'Número', 10, 't'], ['complemento', 'Complemento', 18, 't'], ['bairro', 'Bairro', 18, 't'],
+    ['cidade', 'Cidade / UF', 20, 't'], ['referencia', 'Ponto de referência', 28, 't'], ['obs', 'Observação', 30, 't']],
+    lista: { tipo: 'Pessoa,Comércio' } },
+  fornecedores: { aba: 'Fornecedores', cols: [
+    ['nome', 'Nome', 30, 't'], ['tipo', 'Tipo (Produtor ou Empresa)', 24, 't'], ['telefone', 'Telefone / WhatsApp', 20, 't'], ['produtos', 'O que fornece', 30, 't'],
+    ['pix', 'Chave Pix', 24, 't'], ['banco', 'Banco', 16, 't'], ['agencia', 'Agência', 10, 't'], ['conta', 'Conta', 12, 't'],
+    ['tipoConta', 'Tipo de conta (Corrente ou Poupança)', 24, 't'], ['titular', 'Titular da conta', 26, 't'], ['docTitular', 'CPF / CNPJ do titular', 20, 't'],
+    ['cep', 'CEP', 12, 't'], ['endereco', 'Rua / estrada', 28, 't'], ['numero', 'Número / km', 12, 't'], ['bairro', 'Bairro / comunidade', 20, 't'],
+    ['cidade', 'Cidade / UF', 20, 't'], ['referencia', 'Ponto de referência', 28, 't'], ['obs', 'Observação', 30, 't']],
+    lista: { tipo: 'Produtor,Empresa', tipoConta: 'Corrente,Poupança' } },
+  vendas: { aba: 'Vendas', cols: [
+    ['venda', 'Nº da venda (repita nas linhas da mesma venda)', 22, 't'], ['data', 'Data (dd/mm/aaaa)', 16, 't'], ['cliente', 'Cliente', 28, 't'], ['telefone', 'Telefone', 18, 't'],
+    ['endereco', 'Endereço (se for entregar)', 30, 't'], ['produto', 'Produto (igual ao do Estoque)', 28, 't'], ['qtd', 'Quantidade', 12, 'n'], ['preco', 'Preço unitário', 14, 'n'],
+    ['forma', 'Forma de pagamento', 22, 't'], ['pago', 'Já foi pago (Sim ou Não)', 18, 't'], ['entrega', 'Entrega', 24, 't'], ['obs', 'Observação', 30, 't']],
+    lista: { cliente: '@clientes', forma: 'Pix,Dinheiro,Cartão de débito,Cartão de crédito,Fiado', pago: 'Sim,Não', entrega: 'Já entregue / retirado,Entregar depois,Pôr na rota agora' } },
+};
+const PL_LISTA = 'Lista de clientes';
+const plSemAcento = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const plXml = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
+const plCol = i => { let s = ''; for (i++; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
+let _crcT = null;
+const plCrc = b => { if (!_crcT) { _crcT = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; _crcT[n] = c >>> 0; } }
+  let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = _crcT[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function plZip(arqs) { // arqs: [[nome, texto]] → Uint8Array (zip sem compressão)
+  const enc = new TextEncoder(), partes = [], cen = []; let off = 0;
+  const u16 = n => [n & 255, (n >> 8) & 255], u32 = n => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
+  for (const [nome, txt] of arqs) {
+    const nm = enc.encode(nome), d = enc.encode(txt), crc = plCrc(d);
+    const lh = new Uint8Array([0x50, 0x4b, 3, 4, 20, 0, 0, 8, 0, 0, 0, 0, 0x21, 0, ...u32(crc), ...u32(d.length), ...u32(d.length), ...u16(nm.length), 0, 0]);
+    partes.push(lh, nm, d);
+    cen.push(new Uint8Array([0x50, 0x4b, 1, 2, 20, 0, 20, 0, 0, 8, 0, 0, 0, 0, 0x21, 0, ...u32(crc), ...u32(d.length), ...u32(d.length), ...u16(nm.length), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...u32(off)]), nm);
+    off += lh.length + nm.length + d.length;
+  }
+  const tamCen = cen.reduce((s, x) => s + x.length, 0);
+  const fim = new Uint8Array([0x50, 0x4b, 5, 6, 0, 0, 0, 0, ...u16(arqs.length), ...u16(arqs.length), ...u32(tamCen), ...u32(off), 0, 0]);
+  const tudo = new Uint8Array(off + tamCen + fim.length); let p = 0; for (const x of [...partes, ...cen, fim]) { tudo.set(x, p); p += x.length; } return tudo;
+}
+function plModeloXLSX() {
+  const abas = Object.values(PL), nomesCli = sortedClientes().map(c => c.nome).filter(Boolean);
+  const sheets = abas.map(ab => {
+    const cols = `<cols>${ab.cols.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c[2]}" customWidth="1"${c[3] === 't' ? ' style="2"' : ''}/>`).join('')}</cols>`;
+    const head = `<row r="1" ht="32" customHeight="1">${ab.cols.map((c, i) => `<c r="${plCol(i)}1" s="1" t="inlineStr"><is><t>${plXml(c[1])}</t></is></c>`).join('')}</row>`;
+    const vals = Object.entries(ab.lista || {}).map(([k, lst]) => { const i = ab.cols.findIndex(c => c[0] === k), r = `${plCol(i)}2:${plCol(i)}2000`;
+      const f1 = lst === '@clientes' ? `'${PL_LISTA}'!$A$2:$A$${Math.max(2, nomesCli.length + 1)}` : `"${plXml(lst)}"`;
+      return `<dataValidation type="list" allowBlank="1" showErrorMessage="0" sqref="${r}"><formula1>${f1}</formula1></dataValidation>`; }).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>${cols}<sheetData>${head}</sheetData>${vals ? `<dataValidations count="${Object.keys(ab.lista).length}">${vals}</dataValidations>` : ''}</worksheet>`;
+  });
+  const listaXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="1" width="40" customWidth="1"/></cols><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Clientes cadastrados</t></is></c></row>${nomesCli.map((n, i) => `<row r="${i + 2}"><c r="A${i + 2}" t="inlineStr"><is><t>${plXml(n)}</t></is></c></row>`).join('')}</sheetData></worksheet>`;
+  sheets.push(listaXml);
+  const arqs = [
+    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`],
+    ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${abas.map((a, i) => `<sheet name="${a.aba}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}<sheet name="${PL_LISTA}" sheetId="${abas.length + 1}" state="hidden" r:id="rId${abas.length + 1}"/></sheets></workbook>`],
+    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD7263D"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`],
+    ...sheets.map((x, i) => [`xl/worksheets/sheet${i + 1}.xml`, x]),
+  ];
+  return new Blob([plZip(arqs)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+function baixarModeloPlanilha() {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(plModeloXLSX()); a.download = 'modelo-cadastro-morangos.xlsx'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('Modelo baixado: preencha as abas Clientes, Fornecedores e Vendas.');
+}
+/* ---- leitura do .xlsx ---- */
+async function plLerXLSX(buf) {
+  if (typeof DecompressionStream === 'undefined') throw new Error('sem-suporte');
+  const b = new Uint8Array(buf), dv = new DataView(buf), dec = new TextDecoder();
+  let e = b.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('nao-xlsx');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const ent = {};
+  for (let i = 0; i < n; i++) { const met = dv.getUint16(p + 10, true), cs = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+    ent[dec.decode(b.subarray(p + 46, p + 46 + nl))] = { met, cs, lo }; p += 46 + nl + el + cl; }
+  const ler = async nome => { const x = ent[nome]; if (!x) return null; const ini = x.lo + 30 + dv.getUint16(x.lo + 26, true) + dv.getUint16(x.lo + 28, true), dados = b.subarray(ini, ini + x.cs);
+    if (x.met === 0) return dec.decode(dados);
+    return dec.decode(await new Response(new Blob([dados]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()); };
+  const xml = t => new DOMParser().parseFromString(t, 'application/xml');
+  const wb = await ler('xl/workbook.xml'); if (!wb) throw new Error('nao-xlsx');
+  const rels = xml(await ler('xl/_rels/workbook.xml.rels')); const alvo = {}; rels.querySelectorAll('Relationship').forEach(r => { alvo[r.getAttribute('Id')] = r.getAttribute('Target'); });
+  const ss = []; const sst = await ler('xl/sharedStrings.xml'); if (sst) xml(sst).querySelectorAll('si').forEach(si => ss.push([...si.querySelectorAll('t')].map(t => t.textContent).join('')));
+  const out = {};
+  for (const s of xml(wb).querySelectorAll('sheet')) {
+    const rid = s.getAttribute('r:id') || s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'); let t = alvo[rid]; if (!t) continue;
+    t = t.startsWith('/') ? t.slice(1) : 'xl/' + t; const sx = await ler(t); if (!sx) continue;
+    const linhas = [];
+    xml(sx).querySelectorAll('sheetData > row').forEach(row => { const arr = [];
+      row.querySelectorAll(':scope > c').forEach(c => { const ref = c.getAttribute('r') || '', m = ref.match(/^([A-Z]+)/); if (!m) return; let ci = 0; for (const ch of m[1]) ci = ci * 26 + ch.charCodeAt(0) - 64; ci--;
+        const ty = c.getAttribute('t'); let v;
+        if (ty === 'inlineStr') v = [...c.querySelectorAll('t')].map(x => x.textContent).join('');
+        else { const vv = c.querySelector('v'); if (!vv) return; v = ty === 's' ? (ss[+vv.textContent] ?? '') : ty === 'n' || !ty ? Number(vv.textContent) : vv.textContent; if (typeof v === 'number' && !isFinite(v)) v = vv.textContent; }
+        arr[ci] = v; });
+      linhas.push(arr); });
+    out[s.getAttribute('name')] = linhas;
+  }
+  return out;
+}
+/* ---- interpretação das abas ---- */
+const plTxt = v => v == null ? '' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : String(v)) : String(v).trim();
+function plNum(v) { if (typeof v === 'number') return v; const s = String(v ?? '').replace(/[R$\s]/g, ''); if (!s) return NaN; const t = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s; return Number(t); }
+function plData(v) { // → 'aaaa-mm-dd' ou '' (vazio) ou null (inválida)
+  if (v == null || v === '') return '';
+  if (typeof v === 'number') { if (v < 20000 || v > 80000) return null; const d = new Date(Math.round((v - 25569) * 864e5)); return d.toISOString().slice(0, 10); }
+  const s = String(v).trim(); let m;
+  if ((m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/))) { const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; const d = new Date(y, +m[2] - 1, +m[1]); return d.getMonth() === +m[2] - 1 ? ymd(d) : null; }
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[0];
+  return null;
+}
+function plLinhas(def, linhas) { // cabeçalho → chave
+  if (!linhas || !linhas.length) return [];
+  const hd = (linhas[0] || []).map(h => plSemAcento(plTxt(h))); const idx = {};
+  def.cols.forEach(([k, rot]) => { const alvo = plSemAcento(rot); let i = hd.findIndex(h => h === alvo); if (i < 0) i = hd.findIndex(h => h && (h.startsWith(alvo.split(' (')[0]) || alvo.startsWith(h))); if (i >= 0) idx[k] = i; });
+  return linhas.slice(1).map((l, n) => ({ n: n + 2, v: Object.fromEntries(def.cols.map(([k]) => [k, idx[k] == null ? '' : l[idx[k]] ?? ''])) })).filter(r => Object.values(r.v).some(x => plTxt(x)));
+}
+const plFormas = { pix: 'pix', dinheiro: 'dinheiro', 'cartao de debito': 'debito', debito: 'debito', 'cartao de credito': 'credito', credito: 'credito', fiado: 'fiado', 'fiado (a prazo)': 'fiado' };
+const plEntregas = { 'ja entregue / retirado': 'entregue', 'ja entregue': 'entregue', entregue: 'entregue', retirado: 'entregue', 'entregar depois': 'separado', separado: 'separado', 'por na rota agora': 'em_rota', 'na rota': 'em_rota', rota: 'em_rota', em_rota: 'em_rota' };
+let _plCeps = {};
+async function plBuscarCeps(wb) { // busca o endereço de cada CEP da planilha (uma vez por CEP) para completar o que estiver em branco
+  _plCeps = {}; const set = new Set();
+  for (const k of ['clientes', 'fornecedores']) { const nome = Object.keys(wb).find(n => plSemAcento(n) === plSemAcento(PL[k].aba)); if (!nome) continue;
+    for (const { v } of plLinhas(PL[k], wb[nome])) { const d = plTxt(v.cep).replace(/\D/g, ''); if (d && !(plTxt(v.endereco) && plTxt(v.bairro) && plTxt(v.cidade))) set.add(d.padStart(8, '0')); } }
+  const lista = [...set]; if (lista.length) toast('Buscando os endereços pelo CEP…');
+  for (let i = 0; i < lista.length; i += 5) await Promise.all(lista.slice(i, i + 5).map(async cep => { try { const r = cep.length === 8 && await buscaCEP(cep); if (r && !r.naoExiste) _plCeps[cep] = r; } catch (e) {} }));
+}
+function plCompletaCep(c, R) { const r = c.cep && _plCeps[c.cep]; if (!r) return; let mudou = false;
+  if (!c.endereco && r.rua) { c.endereco = r.rua; mudou = true; } if (!c.bairro && r.bairro) { c.bairro = r.bairro; mudou = true; } if (!c.cidade && r.cidade) { c.cidade = r.cidade; mudou = true; }
+  if (mudou) R.cepOk = (R.cepOk || 0) + 1; }
+function plPlanejar(wb) {
+  const R = { clientes: [], fornecedores: [], vendas: [], pulados: { clientes: [], fornecedores: [], vendas: [] }, erros: [], abas: [], ignoradas: [] };
+  const porAba = {}; for (const nome of Object.keys(wb)) { const k = Object.keys(PL).find(k => plSemAcento(PL[k].aba) === plSemAcento(nome)); if (k) { porAba[k] = wb[nome]; R.abas.push(PL[k].aba); } else if (plSemAcento(nome) !== plSemAcento(PL_LISTA)) R.ignoradas.push(nome); }
+  const cpf = s => s.replace(/\D/g, '');
+  // clientes
+  const novosCli = [];
+  for (const { n, v } of plLinhas(PL.clientes, porAba.clientes)) {
+    const g = k => plTxt(v[k]); const nome = g('nome'); if (!nome) { R.erros.push(`Clientes, linha ${n}: falta o nome.`); continue; }
+    const c = { nome, tipo: plSemAcento(g('tipo')).startsWith('com') ? 'comercio' : 'pessoa', telefone: g('telefone'), email: g('email').toLowerCase(), cep: cpf(g('cep')).padStart(g('cep') ? 8 : 0, '0'), endereco: g('endereco'), numero: g('numero'), complemento: g('complemento'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs') };
+    plCompletaCep(c, R);
+    const ja = [...S.clientes, ...novosCli].find(x => plSemAcento(x.nome) === plSemAcento(nome) || mesmaPessoa(x, c));
+    if (ja) { R.pulados.clientes.push(nome); continue; }
+    c.id = uid() + novosCli.length; novosCli.push(c); R.clientes.push(c);
+  }
+  // fornecedores
+  const novosForn = [];
+  for (const { n, v } of plLinhas(PL.fornecedores, porAba.fornecedores)) {
+    const g = k => plTxt(v[k]); const nome = g('nome'); if (!nome) { R.erros.push(`Fornecedores, linha ${n}: falta o nome.`); continue; }
+    const f = { nome, tipo: plSemAcento(g('tipo')).startsWith('emp') ? 'empresa' : 'produtor', telefone: g('telefone'), produtos: g('produtos'), pix: g('pix'), banco: g('banco'), agencia: g('agencia'), conta: g('conta'), tipoConta: plSemAcento(g('tipoConta')).startsWith('poup') ? 'poupanca' : 'corrente', titular: g('titular'), docTitular: g('docTitular'), cep: cpf(g('cep')).padStart(g('cep') ? 8 : 0, '0'), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs') };
+    plCompletaCep(f, R);
+    if ([...S.fornecedores, ...novosForn].some(x => plSemAcento(x.nome) === plSemAcento(nome))) { R.pulados.fornecedores.push(nome); continue; }
+    f.id = uid() + novosForn.length; novosForn.push(f); R.fornecedores.push(f);
+  }
+  // vendas: linhas com o mesmo "Nº da venda" formam uma venda só
+  const grupos = []; const porNum = {};
+  for (const r of plLinhas(PL.vendas, porAba.vendas)) { const num = plTxt(r.v.venda); if (num && porNum[num]) porNum[num].push(r); else { const g = [r]; grupos.push(g); if (num) porNum[num] = g; } }
+  const ass = []; // assinaturas das vendas já existentes e das já lidas
+  const assin = (ts, nome, total, itens) => ymd(new Date(ts)) + '|' + plSemAcento(nome) + '|' + n2(total) + '|' + itens.map(i => i.produtoId + 'x' + n2(i.qtd)).sort().join(',');
+  S.vendas.filter(v => v.status !== 'cancelado').forEach(v => ass.push(assin(v.ts, v.cliente?.nome || '', v.total, v.itens || [])));
+  const todosCli = () => [...S.clientes, ...novosCli];
+  for (const g of grupos) {
+    const h = g[0].v, rot = `Vendas, linha${g.length > 1 ? 's ' + g.map(x => x.n).join(', ') : ' ' + g[0].n}`; let falha = '';
+    const dia = plData(h.data); if (dia === null) falha = 'data inválida (use dd/mm/aaaa)';
+    const forma = plTxt(h.forma) ? plFormas[plSemAcento(plTxt(h.forma))] : 'pix'; if (!forma) falha = falha || `forma de pagamento “${plTxt(h.forma)}” não existe`;
+    const status = plTxt(h.entrega) ? plEntregas[plSemAcento(plTxt(h.entrega))] : 'entregue'; if (!status) falha = falha || `entrega “${plTxt(h.entrega)}” não existe`;
+    const pg = plSemAcento(plTxt(h.pago)); const pago = !pg ? forma !== 'fiado' : /^(s|sim|1|x|pago|true|verdadeiro)/.test(pg);
+    const itens = [];
+    for (const { v } of g) { const pn = plTxt(v.produto); if (!pn && !plTxt(v.qtd)) continue;
+      const p = S.produtos.find(x => plSemAcento(x.nome) === plSemAcento(pn)); if (!p) { falha = falha || `produto “${pn}” não está no Estoque`; break; }
+      const q = plNum(v.qtd); if (!(q > 0)) { falha = falha || `quantidade de “${pn}” inválida`; break; }
+      const pr = plTxt(v.preco) === '' ? (p.preco || 0) : plNum(v.preco); if (!(pr >= 0)) { falha = falha || `preço de “${pn}” inválido`; break; }
+      itens.push({ produtoId: p.id, nome: p.nome, qtd: q, preco: pr, custo: p.custo ?? 0 }); }
+    if (!falha && !itens.length) falha = 'sem produto';
+    if (falha) { R.erros.push(`${rot}: ${falha}.`); continue; }
+    const nome = plTxt(h.cliente), cl = nome ? todosCli().find(x => plSemAcento(x.nome) === plSemAcento(nome)) : null;
+    const cliente = { nome, telefone: plTxt(h.telefone) || cl?.telefone || '', endereco: plTxt(h.endereco) || (cl ? cliEndereco(cl) : '') };
+    const total = n2(itens.reduce((s, i) => s + i.qtd * i.preco, 0)), ts = tsFromDate(dia || todayInput());
+    const as = assin(ts, nome, total, itens);
+    if (ass.includes(as)) { R.pulados.vendas.push(`${dia ? dataBR(dia) : 'hoje'} · ${nome || 'sem cliente'} · ${money(total)}`); continue; }
+    ass.push(as);
+    const body = { ts, cliente, itens, total, forma, pago, pagoTs: pago ? ts : null, origem: 'avulsa', status, ordemRota: null, obs: plTxt(h.obs) }; if (cl) body.clienteId = cl.id;
+    R.vendas.push(body);
+  }
+  return R;
+}
+async function plAplicar(R) {
+  for (const { id, ...c } of R.clientes) await put('clientes', id, { ...c, ts: Date.now() });
+  for (const { id, ...f } of R.fornecedores) await put('fornecedores', id, { ...f, ts: Date.now() });
+  let ordem = nextOrdem();
+  for (const body of R.vendas) { if (body.status === 'em_rota') body.ordemRota = ordem++; await put('vendas', uid(), body); await adjustStock(body.itens, -1); }
+}
+function plPrevia(R, nomeArq) {
+  const pl = (n, a, b) => `${n} ${n === 1 ? a : b}`;
+  const lista = (t, xs) => xs.length ? `<p class="muted" style="margin:10px 0 2px;font-size:13px"><b>${t}</b></p><ul style="margin:0;padding-left:18px;font-size:13px">${xs.slice(0, 8).map(x => `<li>${esc(x)}</li>`).join('')}${xs.length > 8 ? `<li>e mais ${xs.length - 8}…</li>` : ''}</ul>` : '';
+  const pul = R.pulados, nPul = pul.clientes.length + pul.fornecedores.length + pul.vendas.length;
+  const nNovos = R.clientes.length + R.fornecedores.length + R.vendas.length;
+  if (!R.abas.length) { toast('Não achei as abas Clientes, Fornecedores ou Vendas nesta planilha. Use o modelo de Configurações.'); return; }
+  openModal('Importar planilha', `<p class="muted" style="margin:0 0 8px;font-size:13.5px">${esc(nomeArq)}</p>
+    <div class="kv"><span>Clientes novos</span><b class="num">${R.clientes.length}</b><span>Fornecedores novos</span><b class="num">${R.fornecedores.length}</b><span>Vendas novas</span><b class="num">${R.vendas.length}</b></div>
+    ${R.cepOk ? `<p class="muted" style="font-size:13px;margin:10px 0 0">${pl(R.cepOk, 'endereço completado', 'endereços completados')} pelo CEP.</p>` : ''}
+    ${R.vendas.length ? '<p class="cx-note" style="margin-top:10px">As vendas entram como vendas feitas: saem do estoque e entram no caixa (as pagas).</p>' : ''}
+    ${nPul ? `<p class="cx-note" style="margin-top:10px"><b>Atenção:</b> ${pl(nPul, 'cadastro repetido não será importado', 'cadastros repetidos não serão importados')} (nada foi atualizado).</p>${lista('Clientes que já existem', pul.clientes)}${lista('Fornecedores que já existem', pul.fornecedores)}${lista('Vendas que já existem', pul.vendas)}` : ''}
+    ${lista('Linhas com problema (não serão importadas)', R.erros)}
+    ${R.ignoradas.length ? `<p class="muted" style="font-size:12.5px;margin-top:10px">Abas ignoradas: ${esc(R.ignoradas.join(', '))}.</p>` : ''}
+    <div class="form-acts"><button type="button" class="btn" data-act="close-modal">${nNovos ? 'Cancelar' : 'Fechar'}</button>${nNovos ? `<button type="submit" class="btn primary">Importar ${pl(nNovos, 'registro', 'registros')}</button>` : ''}</div>`,
+    async () => { const ok = await safe(() => plAplicar(R)); if (ok) toast(`Importado: ${pl(R.clientes.length, 'cliente', 'clientes')}, ${pl(R.fornecedores.length, 'fornecedor', 'fornecedores')} e ${pl(R.vendas.length, 'venda', 'vendas')}.${nPul ? ' Repetidos foram pulados.' : ''}`); return ok; });
+}
+function escolherPlanilha() {
+  let inp = document.getElementById('pl-arquivo'); if (!inp) { inp = document.createElement('input'); inp.type = 'file'; inp.id = 'pl-arquivo'; inp.hidden = true; inp.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; document.body.appendChild(inp);
+    inp.addEventListener('change', async () => { const f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
+      if (!/\.xlsx$/i.test(f.name)) { toast('Envie a planilha em .xlsx (o modelo de Configurações).'); return; }
+      try { const wb = await plLerXLSX(await f.arrayBuffer()); await plBuscarCeps(wb); plPrevia(plPlanejar(wb), f.name); }
+      catch (e) { console.error(e); toast(e.message === 'sem-suporte' ? 'Este navegador não consegue abrir planilhas. Atualize o navegador.' : 'Não consegui ler este arquivo. Use o modelo .xlsx de Configurações.'); } }); }
+  inp.click();
+}
+const btnImportar = `<button type="button" class="lt-iconbtn" data-act="importar-planilha" aria-label="Importar planilha" title="Importar planilha">${'<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg>'}</button>`;
 
 function modalConfirm(msg, btn, fn) {
   openModal('Confirmar', `<p style="margin:0">${msg}</p><div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary">${btn}</button></div>`, fn);
@@ -6290,6 +6507,8 @@ document.addEventListener('click', async e => {
   const a = t.dataset.act, v = t.dataset.v, id = t.dataset.id;
   if (OPEN[a]) { if (ui.sheet) { ui.sheet = null; render(); } if (!canWrite) { toast('Modo leitura: não dá para lançar.'); return; } OPEN[a](); return; }
   switch (a) {
+    case 'baixar-modelo': baixarModeloPlanilha(); break;
+    case 'importar-planilha': if (!canWrite) { toast('Modo leitura: não dá para importar.'); break; } escolherPlanilha(); break;
     case 'sair': ls.set('mmr-sessao', ''); toast('Você saiu deste aparelho.'); render(); break;
     case 'push-toggle': {
       if (!('Notification' in window)) { toast('Este aparelho não recebe notificações.'); break; }
