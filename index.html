@@ -3931,6 +3931,7 @@ function gConfig() {
     ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
     ${cfgRow('pin', 'Rotas', rotaCfg().partida ? 'partida: ' + rotaCfg().partida : 'ponto de partida', 'sheet', 'rota-cfg')}
     ${cfgRow('list', 'Planilha modelo', 'baixar para cadastrar em lote', 'baixar-modelo', 'x')}
+    ${cfgRow('receipt', 'Backup', ({ manual: 'manual', automatico: 'a cada 8 horas', alteracao: 'a cada alteração' })[bkCfg().modo] + ' · último: ' + bkQuando(bkCfg().ultimo), 'sheet', 'backup')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
     ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
@@ -5221,6 +5222,17 @@ function sheetHTML() {
   if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
   if (s.type === 'cat-cfg') return catCfgSheet(wrap);
   if (s.type === 'per-cfg') { const atual = perPadrao(); return wrap('Período padrão', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período que aparece ao abrir Vendas, Entregas, Compras, Caixa e Relatórios. Você ainda pode trocar na própria tela; ao sair, ela volta para este. Vale para este aparelho.</p><div class="bs-list">${Object.entries(PERIODOS).map(([v, l]) => `<button class="bs-row" data-act="per-padrao" data-v="${v}" aria-pressed="${atual === v}"><span class="grow">${l}</span>${atual === v ? ic('check') : ''}</button>`).join('')}</div>`); }
+  if (s.type === 'backup') { const c = bkCfg(), bt = (m, t, d) => `<button class="lt-btn lt-block" style="${c.modo === m ? '' : 'background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8;'}text-align:left;display:block;height:auto;min-height:0;padding:10px 16px;line-height:1.3;white-space:normal" data-act="bk-modo" data-v="${m}"><b style="display:block">${t}</b><span style="display:block;font-weight:400;font-size:12.5px;margin-top:2px">${d}</span></button>`;
+    return wrap('Backup', `<p class="muted" style="margin:0 0 8px;font-size:14px">Último backup: <b>${bkQuando(c.ultimo)}</b>${c.drive ? ' · no Drive: <b>' + bkQuando(c.drive) + '</b>' : ''}</p>${c.erro ? '<p style="margin:0 0 8px;font-size:13.5px;color:#b3261e">Drive: ' + esc(c.erro) + '</p>' : ''}
+      <div class="sec-h" style="margin:6px 0"><h2>Quando fazer</h2></div>
+      <div style="display:grid;gap:8px">${bt('manual', 'Manual', 'Só quando você tocar em “Fazer backup agora”.')}${bt('automatico', 'Automático', 'A cada 8 horas. Se o app estava fechado na hora, faz ao abrir. Envia ao Google Drive.')}${bt('alteracao', 'A cada alteração', 'Dez minutos depois da primeira mudança, envia ao Google Drive tudo o que mudou nesse tempo.')}</div>
+      <div class="sec-h" style="margin:14px 0 6px"><h2>Backup e restauração</h2></div>
+      <div style="display:grid;gap:8px"><button class="lt-btn lt-block" data-act="bk-agora">Fazer backup agora</button><button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.85" data-act="bk-escolher">Restaurar de um arquivo</button><input type="file" id="bk-file" accept=".json,application/json" hidden></div>
+      <div class="sec-h" style="margin:14px 0 6px"><h2>Google Drive</h2></div>
+      <p class="muted" style="margin:0 0 8px;font-size:13.5px">Cole o <b>ID do cliente</b> criado no Google Cloud (termina com .apps.googleusercontent.com). O backup fica num arquivo “${BK_ARQ}” no seu Drive.</p>
+      <div class="f full"><label for="bk-cid">ID do Google Drive</label><input type="text" id="bk-cid" value="${esc(c.clientId)}" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <div style="display:grid;gap:8px;margin-top:10px"><button class="lt-btn lt-block" data-act="bk-salvar-id">Salvar ID</button>${c.clientId ? '<button class="lt-btn lt-block" data-act="bk-drive">Enviar para o Drive agora</button><button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.85" data-act="bk-rest-drive">Restaurar do Drive</button>' : ''}</div>`); }
+  if (s.type === 'backup-conf') { const o = ui.bkPend || { itens: {} }; return wrap('Restaurar backup', `<p style="margin:0 0 10px;font-size:14.5px">Backup de <b>${bkQuando(Date.parse(o.data))}</b>. Restaurar <b>substitui todos os dados atuais</b> deste aparelho por esses. Quer continuar?</p><div style="display:grid;gap:8px"><button class="lt-btn lt-block" data-act="bk-aplicar">Sim, restaurar</button><button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.85" data-act="bk-cancelar">Cancelar</button></div>`); }
   if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
   if (s.type === 'exemplos') { const nEx = contaExemplos(), noApp = exNoApp(), disp = exDisponivel(); if (!ui.exQtd) ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0]));
     for (const c of EX_CATS) ui.exQtd[c.k] = Math.min(ui.exQtd[c.k] || 0, disp[c.k]);
@@ -6574,6 +6586,14 @@ document.addEventListener('click', async e => {
     case 'cat-voltar': closeModal(); ui.sheet = { type: 'cat-cfg' }; render(); break;
     case 'rota-gps': rotaGps(); break;
     case 'per-padrao': { const pv = PERIODOS[v] ? v : '7d'; ls.set('mmr-periodo-padrao', pv); for (const k of Object.values(PER_PAG)) if (ui[k] !== 'custom') ui[k] = pv; ui.sheet = null; render(); toast('Período padrão: ' + PERIODOS[pv] + '.'); break; }
+    case 'bk-modo': { const cf = bkCfg(); if (v !== 'manual' && !cf.clientId) { toast('Para o automático, coloque o ID do Google Drive abaixo.'); } bkSalvarCfg({ modo: v }); render(); if (v !== 'manual' && cf.clientId) bkDispara(); break; }
+    case 'bk-agora': bkManual(); break;
+    case 'bk-escolher': document.getElementById('bk-file')?.click(); break;
+    case 'bk-salvar-id': { bkSalvarCfg({ clientId: (document.getElementById('bk-cid')?.value || '').trim(), drive: 0, erro: '' }); bkTok = null; render(); toast('ID salvo.'); break; }
+    case 'bk-drive': bkDrive(true); break;
+    case 'bk-rest-drive': bkRestaurarDrive(); break;
+    case 'bk-aplicar': bkAplica(); break;
+    case 'bk-cancelar': ui.bkPend = null; ui.sheet = { type: 'backup' }; render(); break;
     case 'wa-apagar': ls.set('mmr-wa-numero', ''); ui.sheet = null; render(); toast('Número apagado.'); break;
     case 'ex-zerar': ui.exMsg = null; ui.exAviso = null; ui.exQtd = Object.fromEntries(EX_CATS.map(c => [c.k, 0])); render(); break;
     case 'ex-carregar': carregarExemplos(); break;
@@ -6803,6 +6823,95 @@ document.addEventListener('touchcancel', swipeEnd, { passive: true });
 // ao recarregar, o navegador não restaura a rolagem: senão o topo aparece com a sombra (risco) por um instante
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 applyTheme();
+/* ===== Backup: manual, automático (a cada 8 h) e a cada alteração; envio ao Google Drive ===== */
+const BK_ARQ = 'morangos-backup.json', BK_IGNORA = ['mmr-backup-cfg', 'mmr-visao', 'mmr-notif-lidas', 'mmr-news-vistas', 'mmr-emo-rec', 'mmr-pf-abertas', 'mmr-push-nl', 'mmr-push-st'];
+const BK_HORAS = 8, BK_ESPERA = window.BK_ESPERA_TESTE || 10 * 60e3; // a cada alteração: espera 10 min desde a 1ª mudança e envia tudo junto
+const bkCfg = () => Object.assign({ modo: 'manual', clientId: '', ultimo: 0, drive: 0, erro: '' }, ls.get('mmr-backup-cfg', {}) || {});
+const bkSalvarCfg = p => ls.set('mmr-backup-cfg', Object.assign(bkCfg(), p));
+const bkQuando = t => t ? new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'nunca';
+function bkMonta() {
+  const itens = {};
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('mmr-') && !BK_IGNORA.includes(k)) itens[k] = localStorage.getItem(k); } } catch {}
+  return { app: 'morangos', versao: 1, data: new Date().toISOString(), itens };
+}
+async function bkManual() {
+  const obj = bkMonta(), txt = JSON.stringify(obj), nome = 'morangos-backup-' + obj.data.slice(0, 10) + '.json';
+  const f = new File([txt], nome, { type: 'application/json' });
+  try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: 'Backup Morangos' }); bkSalvarCfg({ ultimo: Date.now() }); toast('Backup enviado.'); render(); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  bkSalvarCfg({ ultimo: Date.now() }); toast('Backup baixado: ' + nome); render();
+}
+/* Google Drive (escopo drive.file: o app só enxerga o arquivo que ele mesmo criou) */
+let bkTok = null, bkTokExp = 0, bkGis = null;
+function bkCarregaGis() {
+  if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+  return bkGis || (bkGis = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = ok; s.onerror = () => { bkGis = null; no(new Error('Sem internet para falar com o Google.')); }; document.head.appendChild(s); }));
+}
+async function bkToken(interativo) {
+  if (bkTok && Date.now() < bkTokExp - 60000) return bkTok;
+  const id = bkCfg().clientId.trim(); if (!id) throw new Error('Coloque o ID do Google Drive primeiro.');
+  await bkCarregaGis();
+  return new Promise((ok, no) => {
+    const tc = google.accounts.oauth2.initTokenClient({ client_id: id, scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: r => { if (r.error) return no(new Error(r.error === 'access_denied' ? 'Acesso ao Google negado.' : 'Google: ' + r.error)); bkTok = r.access_token; bkTokExp = Date.now() + (r.expires_in || 3600) * 1000; ok(bkTok); },
+      error_callback: () => no(new Error('Entre na conta Google (toque em Enviar agora).')) });
+    tc.requestAccessToken({ prompt: interativo ? (bkCfg().drive ? '' : 'consent') : '' });
+  });
+}
+async function bkAcha(tok) {
+  const r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent("name='" + BK_ARQ + "' and trashed=false") + '&fields=files(id,modifiedTime)', { headers: { Authorization: 'Bearer ' + tok } });
+  if (!r.ok) throw new Error('Drive respondeu ' + r.status);
+  return ((await r.json()).files || [])[0] || null;
+}
+let bkOcupado = false;
+async function bkDrive(interativo) {
+  if (bkOcupado) return; bkOcupado = true;
+  try {
+    const tok = await bkToken(interativo), ex = await bkAcha(tok), corpo = JSON.stringify(bkMonta());
+    const meta = { name: BK_ARQ, mimeType: 'application/json' }, lim = 'mmrbk' + Date.now();
+    const body = '--' + lim + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(ex ? {} : meta) + '\r\n--' + lim + '\r\nContent-Type: application/json\r\n\r\n' + corpo + '\r\n--' + lim + '--';
+    const r = await fetch('https://www.googleapis.com/upload/drive/v3/files' + (ex ? '/' + ex.id : '') + '?uploadType=multipart', { method: ex ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'multipart/related; boundary=' + lim }, body });
+    if (!r.ok) throw new Error('Drive respondeu ' + r.status);
+    bkSalvarCfg({ ultimo: Date.now(), drive: Date.now(), erro: '', pend: bkTimer ? 1 : 0 });
+    if (interativo) toast('Backup salvo no Google Drive.');
+  } catch (e) { bkSalvarCfg({ erro: e.message || 'Falhou' }); if (interativo) toast(e.message || 'Não deu para enviar ao Drive.'); }
+  finally { bkOcupado = false; if (ui.sheet && ui.sheet.type === 'backup') render(); }
+}
+async function bkRestaurarDrive() {
+  try { const tok = await bkToken(true), ex = await bkAcha(tok); if (!ex) { toast('Nenhum backup encontrado no Drive.'); return; }
+    const r = await fetch('https://www.googleapis.com/drive/v3/files/' + ex.id + '?alt=media', { headers: { Authorization: 'Bearer ' + tok } }); if (!r.ok) throw new Error('Drive respondeu ' + r.status);
+    bkPrepara(await r.json());
+  } catch (e) { toast(e.message || 'Não deu para ler o Drive.'); }
+}
+function bkPrepara(obj) {
+  if (!obj || obj.app !== 'morangos' || !obj.itens || typeof obj.itens !== 'object') { toast('Este arquivo não é um backup do Morangos.'); return; }
+  ui.bkPend = obj; ui.sheet = { type: 'backup-conf' }; render();
+}
+function bkAplica() {
+  const o = ui.bkPend; if (!o) return;
+  try { const apagar = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('mmr-') && !BK_IGNORA.includes(k)) apagar.push(k); }
+    apagar.forEach(k => localStorage.removeItem(k)); for (const [k, v] of Object.entries(o.itens)) if (k.startsWith('mmr-') && !BK_IGNORA.includes(k)) localStorage.setItem(k, v);
+  } catch { toast('Não coube na memória do aparelho.'); return; }
+  ui.bkPend = null; location.reload();
+}
+/* disparos automáticos */
+let bkTimer = null;
+function bkDispara() {
+  const c = bkCfg(); if (c.modo === 'manual' || !c.clientId) return;
+  if (c.modo === 'automatico' && Date.now() - c.ultimo < BK_HORAS * 3600e3) return;
+  if (c.modo === 'alteracao' && !c.pend) return;
+  bkDrive(false);
+}
+(function () {
+  const sets = Storage.prototype.setItem, rem = Storage.prototype.removeItem;
+  const aviso = k => { if (typeof k === 'string' && k.startsWith('mmr-') && !BK_IGNORA.includes(k) && bkCfg().modo === 'alteracao') { if (!bkCfg().pend) bkSalvarCfg({ pend: 1 }); if (!bkTimer) bkTimer = setTimeout(() => { bkTimer = null; bkDrive(false); }, BK_ESPERA); } };
+  Storage.prototype.setItem = function (k, v) { const r = sets.call(this, k, v); if (this === localStorage) aviso(k); return r; };
+  Storage.prototype.removeItem = function (k) { const r = rem.call(this, k); if (this === localStorage) aviso(k); return r; };
+  setTimeout(bkDispara, 4000); setInterval(bkDispara, 10 * 60e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) bkDispara(); });
+  document.addEventListener('change', e => { const t = e.target; if (t && t.id === 'bk-file') { const f = t.files && t.files[0]; t.value = ''; if (!f) return; f.text().then(x => { try { bkPrepara(JSON.parse(x)); } catch { toast('Arquivo inválido.'); } }); } });
+})();
+
 render();
 boot();
 })();
