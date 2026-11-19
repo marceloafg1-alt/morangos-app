@@ -1751,6 +1751,8 @@ form .is-off { opacity: .55; }
 .fab-pop .form-acts .btn { min-height: 46px; }
 .fab-sec { display: grid; gap: 8px; }
 .fab-tile.sm { min-height: 50px; padding: 10px 6px; }
+.fab-tile.ia { grid-column: 1 / -1; min-height: 39px; padding: 6px; }
+.lt[data-visual="bento"] .btn.primary.ia-ler { background: var(--lime); color: #141416; }
 .lt .fab-tile[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .lt .fab-tile[aria-pressed="true"] svg.i { color: #fff; }
 .lt[data-escuro="1"] .fab-tile[aria-pressed="true"], .lt[data-escuro="1"] .fab-tile[aria-pressed="true"] svg.i { color: var(--card); }
@@ -5184,6 +5186,7 @@ function sheetHTML() {
   const wrap = (title, inner) => `<div class="sheet bs-scrim" data-act="close-sheet"><div class="bs${/^Período/.test(title) ? ' bs-per' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="bs-h"><h2>${title}</h2><button class="bs-x" data-act="close-sheet" aria-label="Fechar">${ic('x')}</button></div>${inner}</div></div>`;
   const fabWrap = (title, inner) => `<div class="sheet fab-scrim" data-act="close-sheet"><div class="fab-pop" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="fab-k">${title}</div>${inner}</div></div>`;
   const FAB_K = { ajuda: 'Ajuda', inicio: 'Início', vendas: 'Vendas', entregas: 'Entregas', caixa: 'Caixa', relatorios: 'Relatórios', conversas: 'Chat', estoque: 'Estoque', compras: 'Compras na roça', noticias: 'Notícias', clientes: 'Clientes', fornecedores: 'Fornecedores', config: 'Configurações', notificacoes: 'Notificações' };
+  const fti = () => `<button class="fab-tile ia" data-act="ia-lancar" ${W()}><span>Lançar com IA</span></button>`;
   const ft = (icon, label, act, v = '', w = true) => `<button class="fab-tile" data-act="${act}" ${v ? `data-v="${v}"` : ''} ${w ? W() : ''}>${ic(icon)}<span>${label}</span></button>`;
   if (s.type === 'rexp') { const eb = (ico, tt, sub, k, rec) => `<button class="bs-row" data-act="rel-exp" data-v="${k}"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}${rec ? ' <span class="pill p-ok">recomendado</span>' : ''}</b><small>${sub}</small></span></button>`;
     return wrap('Exportar relatório', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período: <b>${rPerLabel()}</b></p><div class="bs-list">${eb('receipt', 'PDF', 'Relatório pronto para imprimir ou enviar. Na tela que abrir, escolha “Salvar como PDF”.', 'pdf')}${eb('chart', 'Excel (.xls)', 'Planilha com abas: resumo, balanço, vendas, compras, despesas e produtos.', 'xls')}${eb('wallet', 'CSV (.csv)', 'Movimentações do caixa. Abre no Excel, Google Planilhas e no contador.', 'csv', true)}${eb('chat', 'Resumo no WhatsApp', 'Texto curto com os números principais.', 'whats')}</div>`); }
@@ -5203,12 +5206,12 @@ function sheetHTML() {
   if (s.type === 'conv-mais') return fabWrap('Chat', `<div class="fab-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">${ft('receipt', 'Nova venda', 'venda-cliente', '')}${ft('chat', 'Novo chat', 'nova-conversa', '', false)}</div>`.replace('data-act="venda-cliente"', `data-act="venda-cliente" data-id="${esc(ui.conv || '')}"`));
   if (s.type === 'foto') { const m = S.mensagens.find(x => x.id === s.id); const u = urlOk(m?.anexo?.url); return wrap('Foto', u ? `<img class="bs-foto" src="${u}" alt="Foto enviada no chat">` : '<p class="muted">Foto indisponível.</p>'); }
   if (s.type === 'novo' && ui.g === 'caixa') {
-    return fabWrap('Caixa', `<div class="fab-grid">${ft('cash', 'Nova despesa', 'nova-despesa')}${ft('receipt', 'Nova venda', 'nova-venda')}${ft('basket', 'Nova compra', 'nova-compra')}${ft('bolt', 'Lançar com IA', 'ia-lancar')}${ft('undo', 'Estornar venda', 'escolher-estorno')}${ft('wallet', 'A receber', 'cx-ver', 'receber', false)}${ft('chart', 'Relatório', 'go', 'relatorios', false)}</div>`);
+    return fabWrap('Caixa', `<div class="fab-grid">${ft('cash', 'Nova despesa', 'nova-despesa')}${ft('receipt', 'Nova venda', 'nova-venda')}${ft('basket', 'Nova compra', 'nova-compra')}${ft('undo', 'Estornar venda', 'escolher-estorno')}${ft('wallet', 'A receber', 'cx-ver', 'receber', false)}${ft('chart', 'Relatório', 'go', 'relatorios', false)}${fti()}</div>`);
   }
   if (s.type === 'novo') {
     return fabWrap(FAB_K[ui.g] || 'Lançar', `<div class="fab-grid">
       ${ft('receipt', 'Venda', 'nova-venda')}${ft('basket', 'Compra', 'nova-compra')}${ft('cash', 'Despesa', 'nova-despesa')}
-      ${ft('megaphone', 'Notícia', 'nova-noticia')}${ft('user', 'Cliente', 'novo-cliente')}${ft('morango', 'Fornecedor', 'novo-fornecedor')}${ft('bolt', 'Lançar com IA', 'ia-lancar')}
+      ${ft('megaphone', 'Notícia', 'nova-noticia')}${ft('user', 'Cliente', 'novo-cliente')}${ft('morango', 'Fornecedor', 'novo-fornecedor')}${fti()}
     </div>`);
   }
   if (s.type === 'mais') { const naBarra = menuNaBarra();
@@ -5329,6 +5332,10 @@ function openModal(title, inner, onSubmit, onOpen) {
   document.getElementById('nav-root').innerHTML = nav();
   if (['Novo cliente', 'Novo fornecedor', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g); g.innerHTML = btnImportar.replace('class="lt-iconbtn"', 'class="bs-x" style="margin-right:0"'); g.appendChild(x); } }
+  if (title === 'Lançar com IA') { // upload e câmera no topo, ao lado do título (mesmo estilo do upload da Venda avulsa)
+    const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g);
+      const sv = p => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+      g.innerHTML = `<button type="button" class="bs-x" id="ia-up" style="margin-right:0" aria-label="Enviar arquivo" title="Enviar arquivo ou foto">${sv('<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/>')}</button><button type="button" class="bs-x" id="ia-cam" style="margin-right:0" aria-label="Tirar foto" title="Tirar foto">${sv('<path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>')}</button>`; g.appendChild(x); } }
   const f = document.getElementById('mform');
   f.addEventListener('submit', async e => { e.preventDefault(); const btn = f.querySelector('[type=submit]'); if (btn) btn.disabled = true; const ok = await onSubmit(f); if (btn) btn.disabled = false; if (ok !== false) closeModal(); });
   onOpen && onOpen(f);
@@ -6540,7 +6547,7 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
 /* ===== Lançar com IA: texto, planilha ou PDF -> lista para conferir -> lançamentos (vendas, compras e despesas) =====
    A chave da IA fica só neste aparelho (Configurações > Lançar com IA). A IA só devolve dados; nada entra sem você confirmar. */
 const IA_MODELO = 'claude-haiku-5-5';
-const IA_MAX_TXT = 30000, IA_MAX_ARQ = 15 * 1024 * 1024;
+const IA_MAX_TXT = 30000, IA_MAX_ARQ = 25 * 1024 * 1024;
 /* preços do Haiku 5.5 em US$ por milhão de tokens (até 100 mil tokens por envio) e câmbio aproximado: ajuste aqui se mudar */
 const IA_USD_ENT = 0.10, IA_USD_SAI = 0.50, IA_USD_BRL = 5.5;
 const iaReais = u => (u.ent * IA_USD_ENT + u.sai * IA_USD_SAI) / 1e6 * IA_USD_BRL;
@@ -6570,10 +6577,11 @@ const iaFerramenta = {
         produto: { type: 'string' }, quantidade: { type: 'number' }, preco_unitario: { type: 'number', description: 'Venda: preço de venda por unidade. Compra: custo por unidade. 0 se não informado.' } }, required: ['produto', 'quantidade'] } },
       valor: { type: 'number', description: 'Valor total em reais. Para despesa é obrigatório; para venda/compra use só se não houver preço unitário.' },
       forma: { type: 'string', enum: ['pix', 'dinheiro', 'debito', 'credito', 'fiado', ''] },
+      entrega: { type: 'string', enum: ['entregue', 'separado', 'em_rota', ''], description: 'Só para venda. entregue: só se o texto disser que já foi entregue, retirada ou levada na hora. separado: se disser que a entrega está pendente, a entregar ou para entregar depois. em_rota: se disser que já saiu para entrega. Vazio se o texto não disser nada sobre entrega.' },
       pago: { type: 'boolean', description: 'true se o pagamento já foi feito.' },
       valor_pago: { type: 'number', description: 'Quanto já foi pago, se for pagamento parcial. 0 se não informado.' },
       data: { type: 'string', description: 'AAAA-MM-DD, ou vazio se não foi dita (vale hoje).' },
-      observacao: { type: 'string' } }, required: ['tipo'] } },
+      observacao: { type: 'string', description: 'SÓ preencha se o usuário mandou expressamente colocar algo na observação ("coloque na observação..."). Caso contrário, deixe vazio.' } }, required: ['tipo'] } },
     nao_entendido: { type: 'array', items: { type: 'string' }, description: 'Trechos que não deu para transformar em lançamento.' } },
     required: ['lancamentos'] }
 };
@@ -6585,7 +6593,10 @@ Regras:
 - Se algo não for um lançamento do app, coloque o trecho em nao_entendido. Se nada servir, devolva lancamentos vazio.
 - "X comprou/levou" = venda para o cliente X. "Comprei de Y" = compra do fornecedor Y. Gasto com combustível, embalagem, energia etc. = despesa.
 - Use os nomes de produtos e clientes cadastrados quando o texto se referir a eles (mesmo com apelido ou erro de digitação).
-- pago=true só se o texto disser que pagou. Se pagou menos que o total, pago=false e informe valor_pago. "Fiado" ou "a prazo" = forma fiado e pago=false.
+- Entrega de venda: se o texto falar em entrega pendente, a entregar ou entregar depois, use entrega=separado; nunca marque entregue sem o texto dizer.
+- Imagens enviadas (foto de cupom fiscal, nota, caderno ou print): leia o texto da imagem. Cupom fiscal de loja ou posto é DESPESA (descricao = nome do estabelecimento, valor = total, data do cupom); só vira COMPRA se os itens forem produtos cadastrados comprados de um fornecedor.
+- pago=true só se o texto disser que pagou. Se pagou menos que o total (inclusive "metade"), pago=false e informe valor_pago em reais, calculando com o preço cadastrado quando o texto não disser o valor. "Fiado" ou "a prazo" = forma fiado e pago=false.
+- Observação: nunca crie observação por conta própria nem resuma o texto nela. Só use o campo observacao se o usuário mandar colocar algo na observação.
 - Nunca invente valores, quantidades ou datas. Se faltar, deixe 0 ou vazio.
 Hoje é ${todayInput()}.
 Produtos cadastrados: ${S.produtos.filter(p => p.ativo !== false).map(p => `${p.nome} (${p.unidade || 'un'}, R$ ${n2(p.preco)})`).join('; ') || 'nenhum'}.
@@ -6599,9 +6610,21 @@ function iaCarregaXLSX() {
   if (window.XLSX) return Promise.resolve();
   return new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('xlsx')); document.head.appendChild(sc); });
 }
+/* foto: reduz para no máximo 1600 px e envia como JPEG, para ser rápida e gastar pouco */
+async function iaImagem(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error((file.name || 'foto') + ': não deu para abrir esta imagem. Tente PNG ou JPG.')); i.src = url; });
+    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+  } finally { URL.revokeObjectURL(url); }
+}
 async function iaLerArquivo(file) {
   const nome = file.name || 'arquivo', ext = nome.split('.').pop().toLowerCase();
-  if (file.size > IA_MAX_ARQ) throw new Error(nome + ': arquivo grande demais (máximo 15 MB).');
+  if (file.size > IA_MAX_ARQ) throw new Error(nome + ': arquivo grande demais (máximo 25 MB).');
+  if (/^image\//.test(file.type) || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'heic', 'heif', 'bmp'].includes(ext)) return { img: await iaImagem(file), nome };
   if (ext === 'pdf' || file.type === 'application/pdf') return { pdf: await iaB64(file), nome };
   if (['xlsx', 'xls', 'ods'].includes(ext)) {
     await iaCarregaXLSX();
@@ -6609,11 +6632,11 @@ async function iaLerArquivo(file) {
     return { texto: `Planilha ${nome}:\n` + wb.SheetNames.map(n => `--- aba ${n} ---\n` + XLSX.utils.sheet_to_csv(wb.Sheets[n])).join('\n'), nome };
   }
   if (['csv', 'txt', 'tsv', 'md'].includes(ext) || /^text\//.test(file.type)) return { texto: `Arquivo ${nome}:\n` + await file.text(), nome };
-  throw new Error(nome + ': tipo não aceito. Use texto, CSV, Excel ou PDF.');
+  throw new Error(nome + ': tipo não aceito. Use foto, PDF, CSV, Excel ou texto.');
 }
-async function iaChamar(texto, pdfs) {
+async function iaChamar(texto, pdfs, imgs = []) {
   const chave = iaChave(); if (!chave) throw new Error('Falta a chave da IA. Coloque em Configurações > Lançar com IA.');
-  const content = [...pdfs.map(p => ({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.pdf } })), { type: 'text', text: texto || 'Leia o documento anexado e registre os lançamentos.' }];
+  const content = [...imgs.map(m => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: m.img } })), ...pdfs.map(p => ({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.pdf } })), { type: 'text', text: texto || 'Leia o que foi anexado e registre os lançamentos.' }];
   const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': chave, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
     body: JSON.stringify({ model: IA_MODELO, max_tokens: 8000, system: iaSistema(), tools: [iaFerramenta], tool_choice: { type: 'tool', name: iaFerramenta.name }, messages: [{ role: 'user', content }] }) });
@@ -6664,6 +6687,7 @@ function iaPrepara(l) {
   if (o.tipo === 'venda') { const c = S.clientes.find(x => norm(x.nome) === norm(o.pessoa)); if (c) o.clienteId = c.id; else if (o.pessoa) o.avisos.push('cliente novo: fica só como nome na venda'); }
   else { if (!o.pessoa) o.problemas.push('sem fornecedor'); const f = S.fornecedores.find(x => norm(x.nome) === norm(o.pessoa)); if (f) o.fornecedorId = f.id; }
   if (o.forma === 'fiado') o.pago = false;
+  if (o.tipo === 'venda') { o.entrega = ['entregue', 'separado', 'em_rota'].includes(l.entrega) ? l.entrega : 'entregue'; if (!l.entrega) o.avisos.push('entrega não mencionada: marquei como já entregue'); }
   if (o.pago === false && o.valorPago > 0 && o.valorPago < (o.total || 0)) o.avisos.push('pagou ' + money(o.valorPago) + ' de ' + money(o.total) + ': lançado como pago parcial');
   return o;
 }
@@ -6728,11 +6752,11 @@ async function iaGravar(o) {
     const cl = o.clienteId ? S.clientes.find(x => x.id === o.clienteId) : null;
     const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, preco: i.un, custo: prodById(i.produtoId)?.custo || 0 }));
     const cliente = { nome: cl?.nome || o.pessoa, telefone: cl?.telefone || '', endereco: cl ? cliEndereco(cl) : '' };
-    await put('vendas', uid(), { ts, cliente, itens, total: o.total, forma, pago: o.pago, pagoTs: o.pago ? ts : null, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, origem: 'avulsa', status: 'entregue', ordemRota: null, obs: o.obs || 'Lançada com IA', ...(cl ? { clienteId: cl.id } : {}) });
+    await put('vendas', uid(), { ts, cliente, itens, total: o.total, forma, pago: o.pago, pagoTs: o.pago ? ts : null, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, origem: 'avulsa', status: o.entrega || 'entregue', ordemRota: o.entrega === 'em_rota' ? nextOrdem() : null, ...(o.entrega === 'entregue' || !o.entrega ? { entregueTs: ts } : {}), obs: o.obs || '', ...(cl ? { clienteId: cl.id } : {}) });
     return adjustStock(itens, -1);
   }
   const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, custo: i.un }));
-  await put('compras', uid(), { ts, fornecedor: o.pessoa, ...(o.fornecedorId ? { fornecedorId: o.fornecedorId } : {}), itens, total: o.total, forma: ['pix', 'dinheiro', 'fiado'].includes(forma) ? forma : 'pix', pago: o.pago, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, obs: o.obs || 'Lançada com IA' });
+  await put('compras', uid(), { ts, fornecedor: o.pessoa, ...(o.fornecedorId ? { fornecedorId: o.fornecedorId } : {}), itens, total: o.total, forma: ['pix', 'dinheiro', 'fiado'].includes(forma) ? forma : 'pix', pago: o.pago, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, obs: o.obs || '' });
   for (const i of itens) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0;
     await patch('produtos', p.id, { estoque: n2((p.estoque || 0) + i.qtd), custo: n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo) }); }
 }
@@ -6747,18 +6771,19 @@ function iaCard(o, i) {
   const det = o.tipo === 'despesa' ? `${esc(o.descricao)} · ${esc(catNome(o.categoria) || '')}` : o.itens.map(x => `${x.qtd}× ${esc(x.nome)} a ${money(x.un)}`).join(', ');
   const val = o.tipo === 'despesa' ? o.valor : o.total;
   return `<label class="nt-pref ia-i" style="align-items:flex-start;${bad ? 'opacity:.75' : ''}"><span class="nt-ic">${ic(icn)}</span><span class="grow"><b>${tl}${o.pessoa ? ' · ' + esc(o.pessoa) : ''} · ${money(val)}</b>
-    <small style="display:block">${det || '—'}</small><small style="display:block">${esc(FORMAS[o.forma] || (o.pago ? 'forma não informada' : ''))}${o.forma || o.pago ? ' · ' : ''}${o.pago ? 'pago' : 'não pago'} · ${esc(o.data.split('-').reverse().join('/'))}</small>
+    <small style="display:block">${det || '—'}</small><small style="display:block">${esc(FORMAS[o.forma] || (o.pago ? 'forma não informada' : ''))}${o.forma || o.pago ? ' · ' : ''}${o.pago ? 'pago' : 'não pago'} · ${esc(o.data.split('-').reverse().join('/'))}${o.tipo === 'venda' ? ' · entrega: ' + esc({ entregue: 'já entregue', separado: 'entregar depois', em_rota: 'na rota' }[o.entrega] || '') : ''}</small>
     ${bad ? `<small style="display:block;color:#c0392b">⚠ Não dá para lançar: ${esc(o.problemas.join('; '))}. Cadastre e peça de novo.</small>` : ''}${o.avisos.map(a => `<small class="muted" style="display:block">ℹ ${esc(a)}</small>`).join('')}</span>
     <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : 'checked'}></label>`;
 }
 function modalIA() {
-  const chave = iaChave(); let lista = [], fotos = [];
+  const chave = iaChave(); let lista = [], arquivos = [];
   const sem = !chave ? `<div class="note" style="margin-bottom:10px">Falta a chave da IA. <button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button></div>` : '';
   openModal('Lançar com IA', `${sem}<div class="fgrid">
-    <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" placeholder="Ex.: Cadastre o cliente Ana, CEP 18170-350, número 43. Maria comprou 5 bandejas de morango, pagou R$ 100 no Pix e ficou devendo R$ 50. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80 dinheiro." style="width:100%"></textarea>
+    <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" placeholder="Ex.: Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80." style="width:100%"></textarea>
       <small class="muted">Dica: use o microfone do teclado do celular para ditar.</small></div>
-    <div class="f full"><label for="ia-arq">Anexar planilha (CSV, Excel), PDF ou texto</label><input type="file" id="ia-arq" accept=".csv,.xlsx,.xls,.ods,.txt,.tsv,.pdf,application/pdf" multiple><small class="muted" id="ia-arqs"></small></div>
-    <div class="f full"><button type="button" class="btn primary" id="ia-ler" ${chave ? '' : 'disabled'}>Ler com a IA</button></div>
+    <div class="f full"><input type="file" id="ia-arq" accept="image/*,.pdf,.csv,.xlsx,.xls,.ods,.txt,.tsv,application/pdf" multiple hidden><input type="file" id="ia-foto" accept="image/*" capture="environment" hidden>
+      <div id="ia-arqs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div></div>
+    <div class="f full"><button type="button" class="btn primary ia-ler" id="ia-ler" ${chave ? '' : 'disabled'}>Ler com a IA</button></div>
     <div class="f full" id="ia-res"></div></div>
     <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary" id="ia-ok" disabled>Lançar selecionados</button></div>`,
   async f => {
@@ -6772,18 +6797,22 @@ function modalIA() {
   },
   f => {
     const res = f.querySelector('#ia-res'), btn = f.querySelector('#ia-ler'), okb = f.querySelector('#ia-ok'), arqs = f.querySelector('#ia-arqs');
-    f.querySelector('#ia-arq').addEventListener('change', e => { arqs.textContent = [...e.target.files].map(x => x.name).join(', '); });
+    const pinta = () => { arqs.innerHTML = arquivos.map((a, i) => `<span class="chip" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--fill,#0001);font-size:13px">${esc(a.name || 'foto')}<button type="button" data-rm="${i}" aria-label="Tirar" style="border:0;background:none;font-size:16px;line-height:1;padding:0">×</button></span>`).join(''); };
+    arqs.addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (b) { arquivos.splice(Number(b.dataset.rm), 1); pinta(); } });
+    const pega = e => { arquivos.push(...e.target.files); e.target.value = ''; pinta(); };
+    f.querySelector('#ia-arq').addEventListener('change', pega); f.querySelector('#ia-foto').addEventListener('change', pega);
+    document.getElementById('ia-up').addEventListener('click', () => f.querySelector('#ia-arq').click()); document.getElementById('ia-cam').addEventListener('click', () => f.querySelector('#ia-foto').click());
     const atualiza = () => { okb.disabled = !f.querySelector('[data-ia]:checked'); };
     res.addEventListener('change', atualiza);
     btn.addEventListener('click', async () => {
-      const partes = []; const pdfs = [];
+      const partes = []; const pdfs = []; const imgs = [];
       const t = f.querySelector('#ia-txt').value.trim(); if (t) partes.push(t);
       btn.disabled = true; btn.textContent = 'Lendo…'; res.innerHTML = ''; okb.disabled = true;
       try {
-        for (const file of f.querySelector('#ia-arq').files) { const r = await iaLerArquivo(file); if (r.pdf) pdfs.push(r); else partes.push(r.texto); }
-        const texto = partes.join('\n\n'); if (!texto.trim() && !pdfs.length) throw new Error('Escreva um texto ou anexe um arquivo.');
+        for (const file of arquivos) { const r = await iaLerArquivo(file); if (r.img) imgs.push(r); else if (r.pdf) pdfs.push(r); else partes.push(r.texto); }
+        const texto = partes.join('\n\n'); if (!texto.trim() && !pdfs.length && !imgs.length) throw new Error('Escreva um texto, envie um arquivo ou tire uma foto.');
         if (texto.length > IA_MAX_TXT) throw new Error('Conteúdo grande demais (' + texto.length + ' caracteres; máximo ' + IA_MAX_TXT + '). Envie em partes.');
-        const r = await iaChamar(texto, pdfs);
+        const r = await iaChamar(texto, pdfs, imgs);
         lista = r.lanc.map(iaPrepara); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
         res.innerHTML = (lista.length ? `<div class="nt-prefs">${lista.map(iaCard).join('')}</div><small class="muted">Confira. Desligue o que não quiser lançar.</small>` : '<div class="note">A IA não achou nenhum lançamento nesse conteúdo.</div>')
           + (r.sobra.length ? `<div class="note" style="margin-top:8px"><b>Não entendi:</b><br>${r.sobra.map(esc).join('<br>')}</div>` : '');
