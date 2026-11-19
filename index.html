@@ -4021,12 +4021,12 @@ function gEntregas() {
     acts: `<button class="btn small green" data-act="status" data-id="${v.id}" data-v="entregue" ${W()}>Entregue</button>
       <button class="btn small" aria-label="Subir" data-act="mover" data-id="${v.id}" data-v="-1" ${W()} ${i === 0 ? 'disabled' : ''}>↑</button><button class="btn small" aria-label="Descer" data-act="mover" data-id="${v.id}" data-v="1" ${W()} ${i === r.length - 1 ? 'disabled' : ''}>↓</button>
       <button class="btn small ghost" data-act="track" data-id="${v.id}">Ver como cliente</button>` })).join('') || emptyBox('Nenhuma entrega na rota.')}</div>
-  <div class="sec-h"><h2>Aguardando rota · ${sep.length}</h2>${sep.length > 1 ? `<button class="link" data-act="rota-todos" ${W()}>Pôr todos</button>` : ''}</div>
+  <div class="sec-h"><h2>Aguardando rota · ${sep.length}</h2>${sep.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" ${W()}>Pôr todos</button>` : ''}</div>
   <div class="stack">${sep.map(v => tcard({ act: 'editar-entrega', id: v.id, title: v.cliente?.nome || 'Cliente', val: money(v.total),
     meta: `${ic('pin', 'i')}<span>${esc(v.cliente?.endereco || 'Sem endereço')}</span>`,
     det: esc(itemsText(v.itens)) + (v.obs ? ' · ' + esc(v.obs) : ''),
     pills: `${statusPill(v.status)}${pagoPill(v)}${formaPill(v.forma)}`,
-    acts: `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="em_rota" ${W()}>Pôr na rota</button>` })).join('') || '<p class="sub" style="margin:0">Nada esperando.</p>'}</div>
+    acts: v.status === 'recebido' ? `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="separado" ${W()}>Separar</button>` : `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="em_rota" ${W()}>Pôr na rota</button>` })).join('') || '<p class="sub" style="margin:0">Nada esperando.</p>'}</div>
   <div class="sec-h"><h2>Entregues · ${done.length}</h2>${done.length ? `<span class="muted num">${money(doneTot)}</span>` : ''}</div>
   ${done.length ? `<div class="card list">${done.map(v => `<div class="li tc-li" data-act="editar-entrega" data-id="${v.id}" tabindex="0"><span class="av in">${ic('check')}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || '')}</small></span><span class="val">${money(v.total)}</span></div>`).join('')}</div>` : `<p class="sub" style="margin:0">${ui.ep === 'hoje' ? 'Nenhuma ainda.' : 'Nenhuma entrega neste período.'}</p>`}`;
 }
@@ -4816,7 +4816,7 @@ const AJ_G = [
     ['Como usar os filtros de Vendas?', 'No topo: <b>Tipo de venda</b> (pelo app, pelo chat, avulsas), <b>Pedido</b> (em andamento, a receber, entregues, cancelados) e <b>Período</b>. Abaixo aparece quantas vendas e a soma.', [['Abrir Vendas', 'go', 'vendas']]],
   ]],
   ['Entregas e rota', [
-    ['Como montar a rota do dia?', '<ol><li>Abra <b>Entregas</b>.</li><li>Em <b>Aguardando rota</b>, toque em <b>Pôr na rota</b> em cada pedido, ou em <b>Pôr todos</b>.</li><li>Acerte a ordem com <b>↑</b> e <b>↓</b>, ou use <b>Mapa e otimizar</b>. A primeira parada é a <b>Próxima</b>.</li></ol>', [['Abrir Entregas', 'go', 'entregas']]],
+    ['Como montar a rota do dia?', '<ol><li>Abra <b>Entregas</b>.</li><li>Em <b>Aguardando rota</b>, toque em <b>Pôr na rota</b> em cada pedido, ou em <b>Pôr todos</b>. Pedido ainda não separado mostra <b>Separar</b> primeiro, e o <b>Pôr todos</b> leva só os separados.</li><li>Acerte a ordem com <b>↑</b> e <b>↓</b>, ou use <b>Mapa e otimizar</b>. A primeira parada é a <b>Próxima</b>.</li></ol>', [['Abrir Entregas', 'go', 'entregas']]],
     ['Como marcar uma entrega como feita?', 'Toque em <b>Entregue</b> na parada. A próxima sobe na fila e os clientes veem a fila andar. As entregas feitas ficam em <b>Entregues</b> e contam no bloco <b>Rota de hoje</b> do Início.', [['Abrir Entregas', 'go', 'entregas']]],
     ['Como ver a rota no mapa e otimizar?', '<ol><li>Em <b>Entregas</b>, toque em <b>Mapa e otimizar</b>.</li><li>O app localiza os endereços e mostra as paradas numeradas no mapa.</li><li>Toque em <b>Otimizar rota</b> para ver a melhor ordem, a distância e o tempo.</li><li><b>Ver todas</b> enquadra todas as paradas; <b>Google Maps</b> abre a rota para dirigir.</li></ol>Toque num card da lista para ir ao pino dele.', [['Abrir o mapa da rota', 'go-rota-mapa']]],
     ['O endereço caiu no lugar errado no mapa.', 'Arraste o pino até o lugar certo, ou toque em <b>Corrigir local</b> no card e depois no mapa. <b>Refazer busca</b> procura o endereço de novo. Quando o endereço não é achado, o app usa um local aproximado pelo bairro e avisa o motivo.', [['Abrir o mapa da rota', 'go-rota-mapa']]],
@@ -6420,7 +6420,7 @@ document.addEventListener('click', async e => {
     case 'pago': await safe(() => patch('vendas', id, v === '1' ? { pago: true, pagoTs: Date.now() } : { pago: false, pagoTs: null, clienteInformouPix: false }), v === '1' ? 'Marcado como pago.' : 'Marcado como não pago.'); break;
     case 'status': await setStatus(id, v); break;
     case 'mover': await move(id, Number(v)); break;
-    case 'rota-todos': { const sep = S.vendas.filter(x => x.status === 'separado' || x.status === 'recebido').sort((p, q) => p.ts - q.ts); let o = nextOrdem(); await safe(async () => { for (const x of sep) await patch('vendas', x.id, { status: 'em_rota', ordemRota: o++ }); }, 'Pedidos colocados na rota.'); break; }
+    case 'rota-todos': { const sep = S.vendas.filter(x => x.status === 'separado').sort((p, q) => p.ts - q.ts); let o = nextOrdem(); await safe(async () => { for (const x of sep) await patch('vendas', x.id, { status: 'em_rota', ordemRota: o++ }); }, 'Pedidos colocados na rota.'); break; }
     case 'cx-det': if ($modal.innerHTML) closeModal(); modalLanc(t.dataset.col, id, t.dataset.eid); break;
     case 'estornar': if ($modal.innerHTML) closeModal(); modalEstorno(t.dataset.col, id); break;
     case 'escolher-estorno': { ui.sheet = null; render(); if (!canWrite) { toast('Modo leitura: não dá para estornar.'); break; } ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = '30d'; go('vendas'); toast('Toque em Estornar na venda que quer devolver.'); break; }
