@@ -5302,6 +5302,8 @@ const $modal = document.getElementById('modal-root');
 function openModal(title, inner, onSubmit, onOpen) {
   $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" data-act="close-modal" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
   document.getElementById('nav-root').innerHTML = nav();
+  if (['Novo cliente', 'Novo fornecedor', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
+    const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g); g.innerHTML = btnImportar.replace('class="lt-iconbtn"', 'class="bs-x" style="margin-right:0"'); g.appendChild(x); } }
   const f = document.getElementById('mform');
   f.addEventListener('submit', async e => { e.preventDefault(); const btn = f.querySelector('[type=submit]'); if (btn) btn.disabled = true; const ok = await onSubmit(f); if (btn) btn.disabled = false; if (ok !== false) closeModal(); });
   onOpen && onOpen(f);
