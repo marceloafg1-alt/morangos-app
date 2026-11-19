@@ -3328,6 +3328,11 @@ const valOrig = (col, x) => col === 'despesas' ? (Number(x.valor) || 0) : (Numbe
 const restante = (col, x) => Math.max(0, n2(valOrig(col, x) - estTot(x)));
 const vLiq = v => restante('vendas', v);
 const cAberto = c => restante('compras', c);
+/* pagamento parcial: valorPago = quanto já foi pago/recebido de uma venda ou compra ainda em aberto */
+const parcV = x => x.pago ? 0 : Math.max(0, n2(Number(x.valorPago) || 0));
+const vFalta = v => v.pago ? 0 : Math.max(0, n2(vLiq(v) - parcV(v)));
+const cFalta = c => c.pago ? 0 : Math.max(0, n2(cAberto(c) - parcV(c)));
+const parcPill = (x, falta, rot) => `<span class="pill p-no">${rot} · falta ${money(falta)}</span>`;
 const estQtd = (x, pid, soEstoque) => estornos(x).filter(e => !soEstoque || e.estoque).reduce((s, e) => s + (e.itens || []).filter(i => i.produtoId === pid).reduce((a, i) => a + (Number(i.qtd) || 0), 0), 0);
 const estPill = (col, x) => { const t = estTot(x); if (!t) return ''; return t >= valOrig(col, x) - 0.005 ? '<span class="pill p-gray">Estornada</span>' : `<span class="pill p-no">Estorno ${money(t)}</span>`; };
 const origTxt = v => v.origem === 'app' ? ' · pelo app' : v.origem === 'chat' ? ' · pelo chat' : '';
@@ -3336,11 +3341,17 @@ function cashMoves(periodo) {
   const est = (col, x, nome) => { for (const e of estornos(x)) if (e.caixa !== false) m.push({ ts: e.ts, tipo: col === 'vendas' ? 'out' : 'in', k: 'estornos', desc: 'Estorno · ' + nome, det: (e.parcial ? 'Parcial' : 'Total') + (e.motivo ? ' · ' + e.motivo : ''), forma: e.forma || '', valor: Number(e.valor) || 0, col, id: x.id, eid: e.id }); };
   for (const v of S.vendas) {
     const nome = v.cliente?.nome || 'Cliente avulso';
-    if (v.pago && (v.status !== 'cancelado' || estornos(v).length)) m.push({ ts: v.pagoTs || v.ts, tipo: 'in', k: 'vendas', desc: 'Venda · ' + nome, det: (FORMAS[v.forma] || v.forma || '') + origTxt(v), forma: v.forma, valor: n2((v.total || 0) - abatido(v)), col: 'vendas', id: v.id });
+    const vp = Math.min(Math.max(0, Number(v.valorPago) || 0), Math.max(0, n2((v.total || 0) - abatido(v))));
+    if ((v.pago || vp > 0) && (v.status !== 'cancelado' || estornos(v).length)) {
+      if (vp > 0) m.push({ ts: v.parcialTs || v.ts, tipo: 'in', k: 'vendas', desc: 'Venda (parcial) · ' + nome, det: (FORMAS[v.forma] || v.forma || '') + origTxt(v), forma: v.forma, valor: vp, col: 'vendas', id: v.id });
+      if (v.pago) m.push({ ts: v.pagoTs || v.ts, tipo: 'in', k: 'vendas', desc: 'Venda · ' + nome, det: (FORMAS[v.forma] || v.forma || '') + origTxt(v), forma: v.forma, valor: n2((v.total || 0) - abatido(v) - vp), col: 'vendas', id: v.id });
+    }
     est('vendas', v, nome);
   }
   for (const c of S.compras) {
-    if (c.pago) m.push({ ts: c.pagoTs || c.ts, tipo: 'out', k: 'compras', desc: 'Compra · ' + (c.fornecedor || 'Roça'), det: itemsText(c.itens), forma: c.forma, valor: n2((c.total || 0) - abatido(c)), col: 'compras', id: c.id });
+    const cp = Math.min(Math.max(0, Number(c.valorPago) || 0), Math.max(0, n2((c.total || 0) - abatido(c))));
+    if (cp > 0) m.push({ ts: c.parcialTs || c.ts, tipo: 'out', k: 'compras', desc: 'Compra (parcial) · ' + (c.fornecedor || 'Roça'), det: itemsText(c.itens), forma: c.forma, valor: cp, col: 'compras', id: c.id });
+    if (c.pago) m.push({ ts: c.pagoTs || c.ts, tipo: 'out', k: 'compras', desc: 'Compra · ' + (c.fornecedor || 'Roça'), det: itemsText(c.itens), forma: c.forma, valor: n2((c.total || 0) - abatido(c) - cp), col: 'compras', id: c.id });
     est('compras', c, c.fornecedor || 'Roça');
   }
   for (const d of S.despesas) {
@@ -3393,7 +3404,7 @@ function notificacoes(todas) {
     if (v.status === 'cancelado') continue;
     if (v.status === 'recebido') add('pedido:' + v.id, 'pedido', v.ts, `Pedido novo ${origemTxt(v)}: ${nomeV(v)}`, `${itemsText(v.itens)} · ${money(v.total)} · ${FORMAS[v.forma] || v.forma}`, 'go-vendas-abertas');
     if (v.clienteInformouPix && !v.pago) add('pix:' + v.id, 'pix', v.ts + 6e4, `${nomeV(v)} diz que pagou no Pix`, `Confira no banco se caiu ${money(v.total)} e confirme o pagamento.`, 'go-vendas-receber');
-    if (!v.pago && (v.forma === 'fiado' || v.status === 'entregue')) add('fiado:' + v.id, 'fiado', v.entregueTs || v.ts, `${v.forma === 'fiado' ? 'Fiado em aberto' : 'Entregue e não pago'}: ${nomeV(v)}`, `${money(v.total)} · venda de ${fmtDate(v.ts)}${v.obs ? ' · ' + v.obs : ''}`, 'go-vendas-receber');
+    if (!v.pago && (v.forma === 'fiado' || v.status === 'entregue')) add('fiado:' + v.id, 'fiado', v.entregueTs || v.ts, `${v.forma === 'fiado' ? 'Fiado em aberto' : 'Entregue e não pago'}: ${nomeV(v)}`, `${money(v.total)}${parcV(v) > 0 ? ' (falta ' + money(vFalta(v)) + ')' : ''} · venda de ${fmtDate(v.ts)}${v.obs ? ' · ' + v.obs : ''}`, 'go-vendas-receber');
     if (v.status === 'em_rota') { const i = r.findIndex(x => x.id === v.id); add('rota:' + v.id, 'rota', v.rotaTs || v.ts + 6e4, `Na rota: ${nomeV(v)}`, `Parada ${i + 1} de ${r.length}${v.cliente?.endereco ? ' · ' + v.cliente.endereco : ''}`, 'go', 'entregas'); }
     if (v.status === 'separado') add('sep:' + v.id, 'rota', v.ts + 6e4, `Pedido separado: ${nomeV(v)}`, 'Esperando sair para entrega. Coloque na rota.', 'go', 'entregas');
     if (v.status === 'entregue' && (v.entregueTs || v.ts) >= d0) add('ent:' + v.id, 'rota', v.entregueTs || v.ts, `Entrega feita: ${nomeV(v)}`, `${itemsText(v.itens)} · ${v.pago ? 'pago' : 'a receber'}`, 'go', 'entregas');
@@ -3407,7 +3418,7 @@ function notificacoes(todas) {
     const esg = (p.estoque || 0) <= 0;
     add(`est:${p.id}:${esg ? 0 : 1}`, 'estoque', ult + 6e4, `${esg ? 'Esgotado' : 'Acabando'}: ${p.nome}`, esg ? 'Ele some da Loja até você repor.' : `Restam ${fmtNum(p.estoque)} ${p.unidade || 'un.'}. Hora de comprar na roça.`, 'go', 'compras');
   }
-  for (const c of S.compras) if (!c.pago) add('compra:' + c.id, 'compra', c.ts, `Pagar ${c.fornecedor || 'compra na roça'}`, `${money(c.total)} · compra de ${fmtDate(c.ts)}${c.obs ? ' · ' + c.obs : ''}`, 'go', 'compras');
+  for (const c of S.compras) if (!c.pago) add('compra:' + c.id, 'compra', c.ts, `Pagar ${c.fornecedor || 'compra na roça'}`, `${money(c.total)}${parcV(c) > 0 ? ' (falta ' + money(cFalta(c)) + ')' : ''} · compra de ${fmtDate(c.ts)}${c.obs ? ' · ' + c.obs : ''}`, 'go', 'compras');
   for (const d of S.notificacoes) add('doc:' + d.id, NOTIF_TIPOS[d.tipo] ? d.tipo : 'aviso', d.ts || 0, d.titulo || 'Aviso', d.texto || '', d.act || '', d.v || '', d.aid || '', d.lida === true);
   return n.filter(x => todas || notifPrefs[x.tipo] !== false).map(x => ({ ...x, lida: x.lidaDoc || notifLidas.has(x.id) })).sort((a, b) => b.ts - a.ts);
 }
@@ -3668,7 +3679,7 @@ function bandGestao() {
   const sel = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0;
   const d0 = startOfDay(), ini = d0 - sel * 864e5;
   _rng = [ini, ini + 864e5]; const t = totals('_r'); _rng = null;
-  const faltaHoje = t.vs.filter(v => !v.pago).reduce((s, v) => s + vLiq(v), 0);
+  const faltaHoje = t.vs.filter(v => !v.pago).reduce((s, v) => s + vFalta(v), 0);
   const recebidoHoje = Math.max(0, t.vendas - faltaHoje);
   const ticket = t.vs.length ? t.vendas / t.vs.length : 0;
   const pagos = t.vs.filter(v => v.pago).length;
@@ -3711,7 +3722,7 @@ const pageHeader = (title, right = '') => `<header class="lt-head">${voltarBtn()
 /* cabeçalho fixo com filtro de período junto (o período faz parte do cabeçalho e fica parado ao rolar) */
 const pageHeaderFixo = (title, right = '', extra = '') => `<div class="lt-headbox">${pageHeader(title, right).replace(statusNote(), '')}<div class="hb-extra">${extra}</div></div>${statusNote()}`;
 const chips = (key, cur, opts) => `<div class="chips" role="group">${Object.entries(opts).map(([k, l]) => `<button class="chip" data-act="filter" data-k="${key}" data-v="${k}" aria-pressed="${cur === k}">${l}</button>`).join('')}</div>`;
-const pagoPill = v => v.pago ? `<span class="pill p-ok">Pago</span>` : (v.clienteInformouPix ? `<span class="pill p-blue">Cliente diz que pagou</span>` : `<span class="pill p-no">A receber</span>`);
+const pagoPill = v => v.pago ? `<span class="pill p-ok">Pago</span>` : parcV(v) > 0 ? parcPill(v, vFalta(v), 'Pago parcial') : (v.clienteInformouPix ? `<span class="pill p-blue">Cliente diz que pagou</span>` : `<span class="pill p-no">A receber</span>`);
 const statusPill = s => `<span class="pill ${STATUS_PILL[s] || 'p-gray'}">${STATUS[s] || s}</span>`;
 const origemTxt = v => v.origem === 'app' ? 'pelo app' : v.origem === 'chat' ? 'pelo chat' : 'avulsa';
 /* card padronizado: 5 linhas fixas (título+valor, info, detalhe, etiquetas, botões), toque abre a edição */
@@ -3740,9 +3751,9 @@ function pendencias() {
   const pix = S.vendas.filter(v => v.clienteInformouPix && !v.pago && v.status !== 'cancelado');
   if (pix.length) p.push(['Receber', 'cash', 'Pix para confirmar', pix.map(v => v.cliente?.nome).filter(Boolean).slice(0, 2).join(', '), pix.length, 'go-vendas-receber', '', 'warn']);
   const rec = aReceber();
-  if (rec.length) p.push(['Receber', 'wallet', 'Vendas sem receber', money(rec.reduce((s, v) => s + vLiq(v), 0)), rec.length, 'go-vendas-receber', '', 'warn']);
+  if (rec.length) p.push(['Receber', 'wallet', 'Vendas sem receber', money(rec.reduce((s, v) => s + vFalta(v), 0)), rec.length, 'go-vendas-receber', '', 'warn']);
   const ap = aPagar();
-  if (ap.length) p.push(['Pagar', 'basket', 'Compras a pagar', money(ap.reduce((s, c) => s + cAberto(c), 0)), ap.length, 'go-compras', '', 'warn']);
+  if (ap.length) p.push(['Pagar', 'basket', 'Compras a pagar', money(ap.reduce((s, c) => s + cFalta(c), 0)), ap.length, 'go-compras', '', 'warn']);
   const dpg = despAPagar();
   if (dpg.length) p.push(['Pagar', 'cash', 'Despesas a pagar', money(dpg.reduce((s, d) => s + restante('despesas', d), 0)), dpg.length, 'go-caixa-aberto', 'dpagar', 'warn']);
   const est = S.vendas.filter(v => v.status === 'cancelado' && v.pago && n2((v.total || 0) - somaE(v)) > 0);
@@ -3802,7 +3813,7 @@ function ivDivisao() {
 function ivUltimas() {
   const L = [...S.vendas].sort((a, b) => b.ts - a.ts).slice(0, 25);
   const row = v => { const canc = v.status === 'cancelado', pago = !canc && !!v.pago;
-    return `<button class="iv-uv" data-act="cx-det" data-col="vendas" data-id="${esc(v.id)}"><span class="iv-uv-t"><b>${esc(v.cliente?.nome || 'Venda avulsa')}</b><small>${relTime(v.ts)} · ${esc(FORMAS[v.forma] || v.forma || '')}</small></span><span class="iv-uv-v"><b class="num">${money(canc ? v.total : vLiq(v))}</b><i class="iv-uv-s ${canc ? 'c' : pago ? 'ok' : 'w'}">${canc ? 'Cancelada' : pago ? 'Pago' : 'A receber'}</i></span></button>`; };
+    return `<button class="iv-uv" data-act="cx-det" data-col="vendas" data-id="${esc(v.id)}"><span class="iv-uv-t"><b>${esc(v.cliente?.nome || 'Venda avulsa')}</b><small>${relTime(v.ts)} · ${esc(FORMAS[v.forma] || v.forma || '')}</small></span><span class="iv-uv-v"><b class="num">${money(canc ? v.total : vLiq(v))}</b><i class="iv-uv-s ${canc ? 'c' : pago ? 'ok' : 'w'}">${canc ? 'Cancelada' : pago ? 'Pago' : parcV(v) > 0 ? 'Parcial' : 'A receber'}</i></span></button>`; };
   return `<div class="iv-ult"><div class="iv-ult-h"><h2>Últimas vendas</h2><button class="iv-ult-all" data-act="go" data-v="vendas">Ver todas</button></div>
     <div class="iv-ult-l">${L.map(row).join('') || '<p class="sub" style="margin:8px 0">Nenhuma venda ainda.</p>'}</div></div>`;
 }
@@ -4025,7 +4036,7 @@ function gEntregas() {
     title: v.cliente?.nome || 'Cliente', val: money(v.total),
     meta: `${ic('pin', 'i')}<span>${esc(v.cliente?.endereco || 'Sem endereço')}</span>`,
     det: esc(itemsText(v.itens)) + (v.obs ? ' · ' + esc(v.obs) : ''),
-    pills: `${i === 0 ? '<span class="pill p-red">Próxima</span>' : ''}${v.pago ? '<span class="pill p-ok">Pago</span>' : '<span class="pill p-no">Cobrar</span>'}${formaPill(v.forma)}`,
+    pills: `${i === 0 ? '<span class="pill p-red">Próxima</span>' : ''}${v.pago ? '<span class="pill p-ok">Pago</span>' : parcV(v) > 0 ? parcPill(v, vFalta(v), 'Parcial') : '<span class="pill p-no">Cobrar</span>'}${formaPill(v.forma)}`,
     acts: `<button class="btn small green" data-act="status" data-id="${v.id}" data-v="entregue" ${W()}>Entregue</button>
       <button class="btn small" aria-label="Subir" data-act="mover" data-id="${v.id}" data-v="-1" ${W()} ${i === 0 ? 'disabled' : ''}>↑</button><button class="btn small" aria-label="Descer" data-act="mover" data-id="${v.id}" data-v="1" ${W()} ${i === r.length - 1 ? 'disabled' : ''}>↓</button>
       <button class="btn small ghost" data-act="track" data-id="${v.id}">Ver como cliente</button>` })).join('') || emptyBox('Nenhuma entrega na rota.')}</div>
@@ -4044,11 +4055,11 @@ function gCompras() {
   const tot = list.reduce((s, c) => s + cAberto(c), 0);
   const apT = aPagar();
   return pageHeaderFixo('Compras na roça', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="kp" aria-label="Período das compras: ${kPerLabel()}"><small>Período</small><span><b>${kPerLabel()}</b>${ic('down')}</span></button></div>`) +
-  `<div class="kpis cx-kpis"><div class="kpi"><small>Comprado no período</small><b>${money(tot)}</b></div><button class="kpi ${apT.length ? 'alert' : ''}" data-act="go-caixa-pagar" aria-label="Compras a pagar, todas em aberto: ${money(apT.reduce((s, c) => s + cAberto(c), 0))}. Ver no caixa"><small>Compras a pagar</small><b>${money(apT.reduce((s, c) => s + cAberto(c), 0))}</b><span class="s"><span>${apT.length} ${apT.length === 1 ? 'compra' : 'compras'}</span><span>Ver</span></span></button></div>
+  `<div class="kpis cx-kpis"><div class="kpi"><small>Comprado no período</small><b>${money(tot)}</b></div><button class="kpi ${apT.length ? 'alert' : ''}" data-act="go-caixa-pagar" aria-label="Compras a pagar, todas em aberto: ${money(apT.reduce((s, c) => s + cFalta(c), 0))}. Ver no caixa"><small>Compras a pagar</small><b>${money(apT.reduce((s, c) => s + cFalta(c), 0))}</b><span class="s"><span>${apT.length} ${apT.length === 1 ? 'compra' : 'compras'}</span><span>Ver</span></span></button></div>
   <div class="stack">${list.map(c => tcard({ act: 'editar-compra', id: c.id, title: c.fornecedor || 'Roça', val: money(c.total),
     meta: fmtDT(c.ts) + (c.obs ? ' · ' + esc(c.obs) : ''),
     det: esc((c.itens || []).map(i => `${fmtNum(i.qtd)}× ${i.nome} a ${money(i.custo)}`).join(', ')),
-    pills: `${c.pago ? '<span class="pill p-ok">Pago</span>' : '<span class="pill p-no">A pagar</span>'}${estPill('compras', c)}${formaPill(c.forma)}`,
+    pills: `${c.pago ? '<span class="pill p-ok">Pago</span>' : parcV(c) > 0 ? parcPill(c, cFalta(c), 'Parcial') : '<span class="pill p-no">A pagar</span>'}${estPill('compras', c)}${formaPill(c.forma)}`,
     acts: `${c.pago || !cAberto(c) ? '' : `<button class="btn small green" data-act="compra-paga" data-id="${c.id}" ${W()}>Marcar paga</button>`}${cAberto(c) > 0 ? `<button class="btn small ghost" data-act="estornar" data-col="compras" data-id="${c.id}" ${W()}>Estornar</button>` : ''}${estornos(c).length ? '' : `<button class="btn small ghost" data-act="apagar-compra" data-id="${c.id}" ${W()}>Apagar</button>`}` })).join('') || (S.compras.length ? emptyBox('Nenhuma compra neste período.', '') : emptyBox('Nenhuma compra registrada. Cada compra na roça soma no estoque e sai do caixa.', canWrite ? '<button class="btn primary" data-act="nova-compra">Registrar compra</button>' : ''))}</div>`;
 }
 const CTIPOS = { tudo: 'Tudo', vendas: 'Vendas', compras: 'Compras', despesas: 'Despesas', estornos: 'Estornos' };
@@ -4082,7 +4093,7 @@ function gCaixa() {
   const saldo = n2(ent - sai);
   const rec = aReceber().filter(v => inPeriod(v.ts, per)).sort((a, b) => a.ts - b.ts), pag = aPagar().filter(c => inPeriod(c.ts, per)).sort((a, b) => a.ts - b.ts);
   const dpag = despAPagar().filter(d => inPeriod(d.ts, per)).sort((a, b) => a.ts - b.ts);
-  const recT = rec.reduce((s, v) => s + vLiq(v), 0), pagT = pag.reduce((s, c) => s + cAberto(c), 0), dpagT = dpag.reduce((s, d) => s + restante('despesas', d), 0);
+  const recT = rec.reduce((s, v) => s + vFalta(v), 0), pagT = pag.reduce((s, c) => s + cFalta(c), 0), dpagT = dpag.reduce((s, d) => s + restante('despesas', d), 0);
   const filtrado = ui.cfp !== 'todas';
   const sel = [['cfp', 'Forma de pagamento', CFORMAS[ui.cfp]], ['cp', 'Período', cPerLabel()]];
   const head = pageHeaderFixo('Fluxo de caixa', '', `<div class="vsel cx-sel">${sel.map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${k === 'cfp' ? 'Pagamento' : l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`);
@@ -4108,10 +4119,10 @@ function gCaixa() {
   if (ui.cxv === 'pagar') ui.cxv = 'cpagar';
   if (ui.cxv === 'receber') {
     corpo = `<div class="sec-h"><h2>A receber · ${rec.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
-    <div class="card list">${rec.map(v => `<div class="li tc-li" data-act="cx-det" data-col="vendas" data-id="${v.id}" tabindex="0"><span class="av">${esc((v.cliente?.nome || 'A')[0])}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente avulso')}</b><small>${dtCurta(v.ts)} · ${esc(FORMAS[v.forma] || v.forma || '')}${estTot(v) ? ' · com estorno' : ''}</small></span><span class="cx-v"><span class="val">${money(vLiq(v))}</span><button class="link" data-act="pago" data-id="${v.id}" data-v="1" ${W()}>marcar recebido</button></span></div>`).join('') || '<div class="empty">Nada a receber. Todas as vendas estão pagas.</div>'}</div>`;
+    <div class="card list">${rec.map(v => `<div class="li tc-li" data-act="cx-det" data-col="vendas" data-id="${v.id}" tabindex="0"><span class="av">${esc((v.cliente?.nome || 'A')[0])}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente avulso')}</b><small>${dtCurta(v.ts)} · ${esc(FORMAS[v.forma] || v.forma || '')}${estTot(v) ? ' · com estorno' : ''}</small></span><span class="cx-v"><span class="val">${money(vFalta(v))}</span><button class="link" data-act="pago" data-id="${v.id}" data-v="1" ${W()}>marcar recebido</button></span></div>`).join('') || '<div class="empty">Nada a receber. Todas as vendas estão pagas.</div>'}</div>`;
   } else if (ui.cxv === 'cpagar') {
     corpo = `<div class="sec-h"><h2>Compras a pagar · ${pag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
-    <div class="card list">${pag.map(c => `<div class="li tc-li" data-act="cx-det" data-col="compras" data-id="${c.id}" tabindex="0"><span class="av out">${ic('basket')}</span><span style="min-width:0"><b>${esc(c.fornecedor || 'Roça')}</b><small>${fmtDT(c.ts)} · ${esc(c.obs || itemsText(c.itens))}</small></span><span class="cx-v"><span class="val">${money(cAberto(c))}</span><button class="link" data-act="compra-paga" data-id="${c.id}" ${W()}>marcar paga</button></span></div>`).join('')}${pag.length ? '' : '<div class="empty">Nenhuma compra a pagar.</div>'}</div>`;
+    <div class="card list">${pag.map(c => `<div class="li tc-li" data-act="cx-det" data-col="compras" data-id="${c.id}" tabindex="0"><span class="av out">${ic('basket')}</span><span style="min-width:0"><b>${esc(c.fornecedor || 'Roça')}</b><small>${fmtDT(c.ts)} · ${esc(c.obs || itemsText(c.itens))}</small></span><span class="cx-v"><span class="val">${money(cFalta(c))}</span><button class="link" data-act="compra-paga" data-id="${c.id}" ${W()}>marcar paga</button></span></div>`).join('')}${pag.length ? '' : '<div class="empty">Nenhuma compra a pagar.</div>'}</div>`;
   } else if (ui.cxv === 'dpagar') {
     corpo = `<div class="sec-h"><h2>Despesas a pagar · ${dpag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
     <div class="card list">${dpag.map(d => `<div class="li tc-li" data-act="cx-det" data-col="despesas" data-id="${d.id}" tabindex="0"><span class="av out">${ic('cash')}</span><span style="min-width:0"><b>${esc(d.descricao || 'Despesa')}</b><small>${dtCurta(d.ts)} · ${esc(catNome(d.categoria) || 'Despesa')}</small></span><span class="cx-v"><span class="val">${money(restante('despesas', d))}</span><button class="link" data-act="despesa-paga" data-id="${d.id}" ${W()}>marcar paga</button></span></div>`).join('')}${dpag.length ? '' : '<div class="empty">Nenhuma despesa a pagar.</div>'}</div>`;
@@ -4161,7 +4172,7 @@ function modalLanc(col, id, eid) {
     const pago = col === 'despesas' ? true : !!x.pago;
     const sit = col === 'despesas' ? 'Paga' : col === 'vendas' ? (x.status === 'cancelado' ? 'Cancelada' : pago ? 'Paga' : 'A receber') : (pago ? 'Paga' : 'A pagar');
     inner = `<div class="cx-big"><small>${col === 'vendas' ? 'Venda ' + origemTxt(x) : col === 'compras' ? 'Compra na roça' : 'Despesa · ' + (catNome(x.categoria) || 'Outros')}</small><b class="num ${pago ? sinalO : ''}">${pago ? (sinalO === 'in' ? '+ ' : '− ') : ''}${money(orig)}</b><div class="pills">${col === 'vendas' ? statusPill(x.status) + (x.status !== 'cancelado' ? pagoPill(x) : '') : pago ? '<span class="pill p-ok">Pago</span>' : '<span class="pill p-no">A pagar</span>'}${estPill(col, x)}${formaPill(x.forma)}</div></div>
-    <div class="cx-box cx-dl">${row(col === 'vendas' ? 'Cliente' : col === 'compras' ? 'Fornecedor' : 'Descrição', esc(nome))}${col === 'vendas' ? row('Endereço', esc(x.cliente?.endereco || '')) : ''}${row('Data', fmtDT(x.ts))}${col !== 'despesas' && pago && (x.pagoTs || x.ts) !== x.ts ? row('Pago em', fmtDT(x.pagoTs)) : ''}${row('Pagamento', x.forma ? esc(FORMAS[x.forma] || x.forma) : col === 'despesas' ? 'Não informada' : '')}${row('Itens', itensHTML(x.itens, campo))}${row('Observação', esc(x.obs || ''))}${est ? row('Valor original', money(orig)) + row('Estornado', '− ' + money(est)) + row(pago ? 'Valor final' : 'Falta ' + (col === 'vendas' ? 'receber' : 'pagar'), money(rest)) : (!pago ? row('Falta ' + (col === 'vendas' ? 'receber' : 'pagar'), money(rest)) : '')}</div>
+    <div class="cx-box cx-dl">${row(col === 'vendas' ? 'Cliente' : col === 'compras' ? 'Fornecedor' : 'Descrição', esc(nome))}${col === 'vendas' ? row('Endereço', esc(x.cliente?.endereco || '')) : ''}${row('Data', fmtDT(x.ts))}${col !== 'despesas' && Number(x.valorPago) > 0 ? row('Pago parcial', money(x.valorPago) + (x.parcialTs ? ' · ' + fmtDT(x.parcialTs) : '')) : ''}${col !== 'despesas' && pago && (x.pagoTs || x.ts) !== x.ts ? row('Pago em', fmtDT(x.pagoTs)) : ''}${row('Pagamento', x.forma ? esc(FORMAS[x.forma] || x.forma) : col === 'despesas' ? 'Não informada' : '')}${row('Itens', itensHTML(x.itens, campo))}${row('Observação', esc(x.obs || ''))}${est ? row('Valor original', money(orig)) + row('Estornado', '− ' + money(est)) + row(pago ? 'Valor final' : 'Falta ' + (col === 'vendas' ? 'receber' : 'pagar'), money(pago ? rest : n2(rest - parcV(x)))) : (!pago ? row('Falta ' + (col === 'vendas' ? 'receber' : 'pagar'), money(n2(rest - (col === 'despesas' ? 0 : parcV(x))))) : '')}</div>
     ${histEst}`;
   }
   const btns = [];
@@ -4185,7 +4196,7 @@ function modalEstorno(col, id, opts = {}) {
   if (!canWrite) { toast('Modo leitura: não dá para estornar.'); return; }
   const orig = valOrig(col, x), ja = estTot(x), rest = restante(col, x);
   if (rest <= 0) { toast('Este lançamento já foi todo estornado.'); return; }
-  const pago = col === 'despesas' ? true : !!x.pago;
+  const pago = col === 'despesas' ? true : !!x.pago || parcV(x) > 0;
   const campo = col === 'compras' ? 'custo' : 'preco';
   const itens = col === 'despesas' ? [] : (x.itens || []).map(i => ({ produtoId: i.produtoId, nome: i.nome, unit: Number(i[campo]) || 0, max: n2(i.qtd - estQtd(x, i.produtoId)) })).filter(i => i.max > 0);
   const nome = col === 'vendas' ? (x.cliente?.nome || 'cliente avulso') : col === 'compras' ? (x.fornecedor || 'roça') : (x.descricao || 'despesa');
@@ -4355,14 +4366,14 @@ function relDados() {
   const cs = S.compras.filter(c => inPeriod(c.ts, per));
   const ds = S.despesas.filter(d => inPeriod(d.ts, per));
   const comprado = cs.reduce((s, c) => s + cAberto(c), 0);
-  const compraAPagar = cs.filter(c => !c.pago).reduce((s, c) => s + cAberto(c), 0);
-  const vendaAReceber = vs.filter(v => !v.pago).reduce((s, v) => s + vLiq(v), 0);
+  const compraAPagar = cs.filter(c => !c.pago).reduce((s, c) => s + cFalta(c), 0);
+  const vendaAReceber = vs.filter(v => !v.pago).reduce((s, v) => s + vFalta(v), 0);
   const prod = {}; for (const v of vs) for (const i of v.itens || []) { const r = prod[i.nome] || (prod[i.nome] = { q: 0, v: 0 }); r.q += i.qtd; r.v += i.qtd * i.preco; }
   const resumo = [['Vendas', t.vendas], ['Pedidos', vs.length], ['Ticket médio', vs.length ? t.vendas / vs.length : 0], ['Custo dos morangos vendidos', t.cmv], ['Compras totais', comprado], ['Lucro bruto', t.lucroBruto], ['Despesas', t.despesas], ['Resultado', t.resultado]];
   const balanco = [['Vendido (receita)', t.vendas], ['Comprado na roça', comprado], ['Vendido − comprado', n2(t.vendas - comprado)], ['Compras ainda a pagar', compraAPagar], ['Vendas ainda a receber', vendaAReceber], ['Entrou no caixa', t.entradas], ['Saiu do caixa', t.saidas], ['Saldo do período no caixa', n2(t.entradas - t.saidas)]];
   return { per, t, vs, cs, ds, comprado, compraAPagar, vendaAReceber, resumo, balanco,
-    vendas: vs.slice().sort((a, b) => a.ts - b.ts).map(v => [new Date(v.ts).toLocaleString('pt-BR'), v.cliente?.nome || 'Cliente avulso', v.origem === 'app' ? 'App' : v.origem === 'chat' ? 'Chat' : 'Avulsa', FORMAS[v.forma] || v.forma || '', v.pago ? 'Pago' : 'Em aberto', itemsText(v.itens), vLiq(v)]),
-    compras: cs.slice().sort((a, b) => a.ts - b.ts).map(c => [new Date(c.ts).toLocaleString('pt-BR'), c.fornecedor || 'Roça', itemsText(c.itens), c.pago ? 'Pago' : 'Em aberto', cAberto(c)]),
+    vendas: vs.slice().sort((a, b) => a.ts - b.ts).map(v => [new Date(v.ts).toLocaleString('pt-BR'), v.cliente?.nome || 'Cliente avulso', v.origem === 'app' ? 'App' : v.origem === 'chat' ? 'Chat' : 'Avulsa', FORMAS[v.forma] || v.forma || '', v.pago ? 'Pago' : parcV(v) > 0 ? 'Parcial' : 'Em aberto', itemsText(v.itens), vLiq(v)]),
+    compras: cs.slice().sort((a, b) => a.ts - b.ts).map(c => [new Date(c.ts).toLocaleString('pt-BR'), c.fornecedor || 'Roça', itemsText(c.itens), c.pago ? 'Pago' : parcV(c) > 0 ? 'Parcial' : 'Em aberto', cAberto(c)]),
     despesas: ds.slice().sort((a, b) => a.ts - b.ts).map(d => [new Date(d.ts).toLocaleString('pt-BR'), d.descricao || 'Despesa', catNome(d.categoria) || 'Outros', restante('despesas', d)]),
     produtos: Object.entries(prod).sort((a, b) => b[1].v - a[1].v).map(([n, r]) => [n, r.q, r.v]) };
 }
@@ -4445,10 +4456,10 @@ function gRelatorios() {
   const maxW = Math.max(...lucroDow, 1);
   const byCat = {}; for (const d of D.ds) byCat[catNome(d.categoria) || 'Outros'] = (byCat[catNome(d.categoria) || 'Outros'] || 0) + restante('despesas', d);
   const ar = aReceber(), ap = aPagar();
-  const sArec = ar.reduce((s, v) => s + vLiq(v), 0), sApag = ap.reduce((s, c) => s + cAberto(c), 0);
+  const sArec = ar.reduce((s, v) => s + vFalta(v), 0), sApag = ap.reduce((s, c) => s + cFalta(c), 0);
   const dpg = despAPagar(), sDpag = dpg.reduce((s, d) => s + restante('despesas', d), 0);
   const dpgP = dpg.filter(d => inPeriod(d.ts, rPer())), sDpagP = dpgP.reduce((s, d) => s + restante('despesas', d), 0);
-  const pagoVs = vs.filter(v => v.pago).reduce((s, v) => s + vLiq(v), 0);
+  const pagoVs = vs.reduce((s, v) => s + (v.pago ? vLiq(v) : parcV(v)), 0);
   const novos = new Set(vs.map(v => v.clienteId || v.cliente?.nome).filter(Boolean)).size;
   const margem = t.vendas ? Math.round(t.lucroBruto / t.vendas * 100) : 0;
   const dif = n2(t.vendas - D.comprado), mx = Math.max(t.vendas, D.comprado, 1);
@@ -4557,7 +4568,7 @@ function cPedidos() {
   const statusTxt = v => { const pos = falta(v);
     if (pos >= 0) return `${pos === 0 ? 'Você é a próxima entrega!' : `Faltam ${pos} ${pos === 1 ? 'entrega' : 'entregas'} antes da sua`} · cerca de ${(pos + 1) * MIN_PER_STOP} min`;
     return { recebido: 'Recebemos seu pedido. Já vamos separar.', separado: 'Separado. Entra na próxima rota.', em_rota: 'Seu pedido está a caminho.', entregue: 'Entregue. Bom proveito!', cancelado: 'Este pedido foi cancelado.' }[v.status] || ''; };
-  const pagoP = v => v.pago ? '<span class="pill p-ok">Pago</span>' : v.clienteInformouPix ? '<span class="pill p-blue">Aguardando confirmação</span>' : v.status === 'cancelado' ? '' : '<span class="pill p-no">Pagar ' + (v.forma === 'pix' ? 'via Pix' : 'na entrega') + '</span>';
+  const pagoP = v => v.pago ? '<span class="pill p-ok">Pago</span>' : parcV(v) > 0 ? '<span class="pill p-no">Pago parcial · falta ' + money(vFalta(v)) + '</span>' : v.clienteInformouPix ? '<span class="pill p-blue">Aguardando confirmação</span>' : v.status === 'cancelado' ? '' : '<span class="pill p-no">Pagar ' + (v.forma === 'pix' ? 'via Pix' : 'na entrega') + '</span>';
   let topo = '';
   if (ord) {
     const idx = ETAPAS.indexOf(ord.status), pos = falta(ord);
@@ -5367,6 +5378,16 @@ function wireLines(f, kind, init) {
 function readLines(f) {
   return [...f.querySelectorAll('#lines .line')].map(r => ({ produtoId: r.querySelector('[name=p]').value, qtd: Number(r.querySelector('[name=q]').value) || 0, unit: Number(r.querySelector('[name=v]').value) || 0, pv: r.querySelector('[name=pv]') ? Number(r.querySelector('[name=pv]').value) || 0 : 0 })).filter(l => l.produtoId && l.qtd > 0);
 }
+const FORMAS_CURTO = { pix: 'Pix', dinheiro: 'Dinheiro', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado', cartao_entrega: 'Cartão entrega' };
+const formaOptsLinha = (name, list, sel) => `<div class="opts" style="flex-wrap:nowrap;gap:6px;margin-top:6px">${list.map(k => `<label class="opt" style="flex:1 1 0;min-width:0"><input type="radio" name="${name}" value="${k}" id="${name}-${k}" ${k === sel ? 'checked' : ''}><span style="display:block;padding:9px 0;text-align:center;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${FORMAS_CURTO[k] || FORMAS[k]}</span></label>`).join('')}</div>`;
+const parcBox = (pfx, ed, total0) => `<label class="nt-pref" for="${pfx}-parc"><span class="grow"><b>Pago parcial?</b><small>Já pagou só uma parte, o resto fica em aberto</small></span><input type="checkbox" class="lt-switch" id="${pfx}-parc" name="parcial" ${ed && !ed.pago && Number(ed.valorPago) > 0 ? 'checked' : ''}></label>
+      <div class="f full" id="${pfx}-parc-box" style="display:none;padding:8px 0 4px"><label for="${pfx}-vp">Valor já pago (R$)</label><input type="number" id="${pfx}-vp" name="valorPago" min="0" step="0.01" inputmode="decimal" value="${ed && !ed.pago && Number(ed.valorPago) > 0 ? esc(ed.valorPago) : ''}"></div>`;
+function ligarParcial(f, pfx) {
+  const pg = f.querySelector('#' + pfx + '-pago'), pc = f.querySelector('#' + pfx + '-parc'), bx = f.querySelector('#' + pfx + '-parc-box');
+  const sync = () => { bx.style.display = pc.checked ? '' : 'none'; };
+  f.addEventListener('change', e => { if (e.target === pg && pg.checked) pc.checked = false; if (e.target === pc && pc.checked) pg.checked = false; sync(); });
+  sync(); return { pg, pc, sync };
+}
 const formaOpts = (name, list, sel) => `<div class="opts">${list.map(k => `<label class="opt"><input type="radio" name="${name}" value="${k}" id="${name}-${k}" ${k === sel ? 'checked' : ''}><span>${FORMAS[k]}</span></label>`).join('')}</div>`;
 
 async function adjustStock(itens, sign) {
@@ -5393,9 +5414,12 @@ function modalVenda(cliId, editId, titulo) {
     <div class="f"><label for="v-tel">Telefone</label><input type="tel" id="v-tel" name="telefone" placeholder="Opcional" value="${esc(c0.telefone || '')}"></div>
     <div class="f full"><label for="v-end">Endereço (se for entregar)</label><input type="text" id="v-end" name="endereco" value="${esc(c0.endereco || '')}"></div>
     ${linesEditor('venda')}
-    <div class="f full"><span class="lbl">Forma de pagamento</span>${formaOpts('forma', formas, ed ? ed.forma : 'pix')}</div>
-    <div class="f"><label class="switch" for="v-pago"><input type="checkbox" id="v-pago" name="pago" ${!ed || ed.pago ? 'checked' : ''}> Já foi pago</label></div>
-    <div class="f"><label for="v-ent">Entrega</label>${entregaSel}</div>
+    <div class="f full"><span class="lbl">Forma de pagamento</span>${formaOptsLinha('forma', formas, ed ? ed.forma : 'pix')}</div>
+    <div class="f full nt-prefs">
+      <label class="nt-pref" for="v-pago"><span class="grow"><b>Já foi pago?</b><small>Desligado: fica como a receber</small></span><input type="checkbox" class="lt-switch" id="v-pago" name="pago" ${!ed || ed.pago ? 'checked' : ''}></label>
+      ${parcBox('v', ed)}
+    </div>
+    <div class="f full"><label for="v-ent">Entrega</label>${entregaSel}</div>
     <div class="f"><label for="v-data-b">Data</label>${dateField('v-data', 'data', dataOrig, 'Data da venda')}</div>
     <div class="f"><label for="v-obs">Observação</label><input type="text" id="v-obs" name="obs" value="${esc(ed?.obs || '')}"></div>
   </div>${ed && estornos(ed).length ? `<p class="cx-note" style="margin-top:10px">Esta venda tem ${estornos(ed).length === 1 ? 'um estorno' : estornos(ed).length + ' estornos'} (${money(estTot(ed))}). <button type="button" class="link" data-act="cx-det" data-col="vendas" data-id="${ed.id}" style="font-size:inherit;padding:0">Ver detalhes</button></p>` : ''}<div class="form-acts">${ed && !cancelada ? `<button type="button" class="btn ghost" data-act="cancelar" data-id="${ed.id}">Cancelar venda</button>` : ''}${ed && !cancelada && vLiq(ed) > 0 ? `<button type="button" class="btn ghost" data-act="estornar" data-col="vendas" data-id="${ed.id}" style="margin-right:auto">Estornar</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar venda'}</button></div>`,
@@ -5406,6 +5430,11 @@ function modalVenda(cliId, editId, titulo) {
     const itens = lines.map(l => { const p = prodById(l.produtoId), o = velho(l.produtoId); return { produtoId: l.produtoId, nome: p?.nome || o?.nome || '', qtd: l.qtd, preco: l.unit, custo: o?.custo ?? p?.custo ?? 0 }; });
     const pago = !!fd.get('pago');
     const status = fd.get('entrega');
+    const totalV = n2(itens.reduce((s, i) => s + i.qtd * i.preco, 0));
+    const vpIn = !pago && fd.get('parcial') !== null ? n2(Number(fd.get('valorPago')) || 0) : 0;
+    if (!pago && fd.get('parcial') !== null && !(vpIn > 0 && vpIn < totalV)) { toast('Em pago parcial, informe um valor maior que zero e menor que o total.'); return false; }
+    const vpFinal = pago ? Math.min(Number(ed?.valorPago) || 0, totalV) : vpIn;
+    const parcTs = vpFinal > 0 ? (ed && Number(ed.valorPago) === vpFinal && ed.parcialTs ? ed.parcialTs : (ed ? Date.now() : null)) : null;
     const cliente = { nome: String(fd.get('nome') || '').trim(), telefone: String(fd.get('telefone') || '').trim(), endereco: String(fd.get('endereco') || '').trim() };
     const cl = S.clientes.find(x => (x.nome || '').trim().toLowerCase() === cliente.nome.toLowerCase());
     const total = n2(itens.reduce((s, i) => s + i.qtd * i.preco, 0));
@@ -5413,7 +5442,7 @@ function modalVenda(cliId, editId, titulo) {
       const ts = fd.get('data') === dataOrig ? ed.ts : tsFromDate(fd.get('data'));
       if (ed.pago && !pago && estornos(ed).some(e => e.caixa !== false)) { toast('Esta venda tem devolução registrada no caixa. Não dá para desmarcar o pagamento.'); return false; }
       if (cancelada && pago !== !!ed.pago) { toast('Venda cancelada: o pagamento não muda mais.'); return false; }
-      const body = { ts, cliente, itens, total, forma: fd.get('forma'), pago, pagoTs: pago ? (ed.pago ? ed.pagoTs || ts : Date.now()) : null, status, obs: String(fd.get('obs') || '').trim() };
+      const body = { ts, cliente, itens, total, forma: fd.get('forma'), pago, pagoTs: pago ? (ed.pago ? ed.pagoTs || ts : Date.now()) : null, valorPago: vpFinal, parcialTs: parcTs, status, obs: String(fd.get('obs') || '').trim() };
       if (!pago) body.clienteInformouPix = false;
       if (cl) body.clienteId = cl.id;
       if (status === 'em_rota' && ed.status !== 'em_rota') body.ordemRota = nextOrdem();
@@ -5423,12 +5452,13 @@ function modalVenda(cliId, editId, titulo) {
       return safe(async () => { await patch('vendas', ed.id, body); if (delta.length) await adjustStock(delta.filter(i => prodById(i.produtoId)), -1); }, 'Venda atualizada.');
     }
     const ts = tsFromDate(fd.get('data'));
-    const body = { ts, cliente, itens, total, forma: fd.get('forma'), pago, pagoTs: pago ? ts : null, origem: 'avulsa', status, ordemRota: status === 'em_rota' ? nextOrdem() : null, obs: String(fd.get('obs') || '').trim() };
+    const body = { ts, cliente, itens, total, forma: fd.get('forma'), pago, pagoTs: pago ? ts : null, valorPago: vpFinal, parcialTs: vpFinal > 0 ? ts : null, origem: 'avulsa', status, ordemRota: status === 'em_rota' ? nextOrdem() : null, obs: String(fd.get('obs') || '').trim() };
     if (cl) body.clienteId = cl.id;
     return safe(async () => { await put('vendas', uid(), body); await adjustStock(itens, -1); }, 'Venda salva.');
   }, f => {
     wireLines(f, 'venda', ed?.itens);
-    f.addEventListener('change', e => { if (e.target.name === 'forma') f.querySelector('#v-pago').checked = e.target.value !== 'fiado'; });
+    const lp = ligarParcial(f, 'v');
+    f.addEventListener('change', e => { if (e.target.name === 'forma') { lp.pg.checked = e.target.value !== 'fiado'; if (lp.pg.checked) lp.pc.checked = false; lp.sync(); } });
     f.querySelector('#v-nome').addEventListener('change', e => { const c = S.clientes.find(x => (x.nome || '').toLowerCase() === e.target.value.trim().toLowerCase()); if (!c) return;
       const tel = f.querySelector('#v-tel'), end = f.querySelector('#v-end'); if (!tel.value) tel.value = c.telefone || ''; if (!end.value) end.value = cliEndereco(c); });
   });
@@ -5445,10 +5475,11 @@ function modalCompra(fornId, editId) {
   openModal(ed ? 'Editar compra' : 'Compra na roça', `<div class="fgrid">
     <div class="f full"><label for="c-forn">Produtor / roça</label><input type="text" id="c-forn" name="fornecedor" placeholder="Ex.: Sítio do Seu João" list="forn-list" autocomplete="off" value="${esc(ed ? ed.fornecedor || '' : fo?.nome || '')}"><datalist id="forn-list">${[...new Set([...sortedFornecedores().map(c => c.nome), ...S.compras.map(c => c.fornecedor)].filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
     ${linesEditor('compra')}
-    <div class="f full"><span class="lbl">Pagamento</span>${formaOpts('forma', formas, ed ? ed.forma : 'pix')}</div>
+    <div class="f full"><span class="lbl">Pagamento</span>${formaOptsLinha('forma', formas, ed ? ed.forma : 'pix')}</div>
     <div class="f full"><label for="c-data-b">Data</label>${dateField('c-data', 'data', dataOrig, 'Data da compra')}</div>
     <div class="f full nt-prefs">
       <label class="nt-pref" for="c-pago"><span class="grow"><b>Já foi pago?</b><small>Desligado: fica como a pagar</small></span><input type="checkbox" class="lt-switch" id="c-pago" name="pago" ${!ed || ed.pago ? 'checked' : ''}></label>
+      ${parcBox('c', ed)}
       <label class="nt-pref" for="c-custo"><span class="grow"><b>Atualizar o custo dos produtos?</b><small>Usa a média com o estoque que já existe</small></span><input type="checkbox" class="lt-switch" id="c-custo" name="custo" ${ed ? '' : 'checked'}></label>
     </div>
     <div class="f full"><label for="c-obs">Observação</label><input type="text" id="c-obs" name="obs" value="${esc(ed?.obs || '')}"></div>
@@ -5460,7 +5491,12 @@ function modalCompra(fornId, editId) {
     const itens = lines.map(l => ({ produtoId: l.produtoId, nome: prodById(l.produtoId)?.nome || (ed?.itens || []).find(i => i.produtoId === l.produtoId)?.nome || '', qtd: l.qtd, custo: l.unit }));
     const fn = String(fd.get('fornecedor')).trim(); const fc = S.fornecedores.find(x => norm(x.nome) === norm(fn));
     const ts = ed && fd.get('data') === dataOrig ? ed.ts : tsFromDate(fd.get('data'));
-    const body = { ts, fornecedor: fn, ...(fc ? { fornecedorId: fc.id } : {}), itens, total: n2(itens.reduce((s, i) => s + i.qtd * i.custo, 0)), forma: fd.get('forma'), pago: !!fd.get('pago'), obs: String(fd.get('obs') || '').trim() };
+    const totalC = n2(itens.reduce((s, i) => s + i.qtd * i.custo, 0)), pagoC = !!fd.get('pago');
+    const vpIn = !pagoC && fd.get('parcial') !== null ? n2(Number(fd.get('valorPago')) || 0) : 0;
+    if (!pagoC && fd.get('parcial') !== null && !(vpIn > 0 && vpIn < totalC)) { toast('Em pago parcial, informe um valor maior que zero e menor que o total.'); return false; }
+    const vpFinal = pagoC ? Math.min(Number(ed?.valorPago) || 0, totalC) : vpIn;
+    const parcTs = vpFinal > 0 ? (ed && Number(ed.valorPago) === vpFinal && ed.parcialTs ? ed.parcialTs : (ed ? Date.now() : ts)) : null;
+    const body = { ts, fornecedor: fn, ...(fc ? { fornecedorId: fc.id } : {}), itens, total: totalC, forma: fd.get('forma'), pago: pagoC, valorPago: vpFinal, parcialTs: parcTs, obs: String(fd.get('obs') || '').trim() };
     const upd = !!fd.get('custo');
     if (ed) {
       // estoque: tira o que a compra somou antes e soma o que ela soma agora, numa conta só
@@ -5481,7 +5517,7 @@ function modalCompra(fornId, editId) {
         const pv = (lns.find(l => l.produtoId === i.produtoId) || {}).pv; if (pv > 0) ch.preco = pv;
         await patch('produtos', p.id, ch); }
     }, 'Compra salva e estoque atualizado.');
-  }, f => { wireLines(f, 'compra', ed?.itens); f.addEventListener('change', e => { if (e.target.name === 'forma') f.querySelector('#c-pago').checked = e.target.value !== 'fiado'; }); });
+  }, f => { wireLines(f, 'compra', ed?.itens); const lp = ligarParcial(f, 'c'); f.addEventListener('change', e => { if (e.target.name === 'forma') { lp.pg.checked = e.target.value !== 'fiado'; if (lp.pg.checked) lp.pc.checked = false; lp.sync(); } }); });
 }
 
 /* cupom fiscal NFC-e: a chave de 44 números traz o CNPJ do emissor e o mês/ano da emissão. O valor não vem no QR code. */
@@ -5800,7 +5836,7 @@ function modalFornecedor(id) {
 const gClientes = () => gCadastros('c'), gFornecedores = () => gCadastros('f');
 function cadBuild() {
   const vsH = c => S.vendas.filter(v => v.clienteId === c.id || (v.cliente?.nome || '').trim().toLowerCase() === (c.nome || '').trim().toLowerCase()).sort((a, b) => b.ts - a.ts);
-  const cardCli = c => { const vs = cliVendas(c); const tot = vs.reduce((s, v) => s + (v.total || 0), 0); const dev = vs.filter(v => !v.pago).reduce((s, v) => s + (v.total || 0), 0); const ult = vs.reduce((m, v) => Math.max(m, v.ts), 0);
+  const cardCli = c => { const vs = cliVendas(c); const tot = vs.reduce((s, v) => s + (v.total || 0), 0); const dev = vs.filter(v => !v.pago).reduce((s, v) => s + Math.max(0, (v.total || 0) - parcV(v)), 0); const ult = vs.reduce((m, v) => Math.max(m, v.ts), 0);
     const aberto = true;
     const hist = aberto ? `<div class="c-hist" data-act="noop"><div class="c-hist-h"><b>Histórico de compras</b><span class="muted num">${vsH(c).length}</span></div>${vsH(c).map(v => `<div class="c-hist-r"><div class="c-hist-t"><b>${fmtDT(v.ts)}</b><span class="num">${money(v.total)}</span></div><small>${esc(itemsText(v.itens))}</small><div class="pills">${statusPill(v.status)}${v.status === 'cancelado' ? '' : pagoPill(v)}${formaPill(v.forma)}<span class="pill p-gray">${origemTxt(v)}</span></div></div>`).join('') || '<p class="sub" style="margin:0">Nenhuma compra ainda.</p>'}</div>` : '';
     return `<article class="item c-cli open"><div style="display:flex;gap:12px;align-items:center"><span class="chipico">${ic('user')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
@@ -5809,7 +5845,7 @@ function cadBuild() {
     ${c.referencia || c.obs ? `<small>${esc([c.referencia, c.obs].filter(Boolean).join(' · '))}</small>` : ''}
     ${hist}
     <div class="acts"><button class="btn small" data-act="venda-cliente" data-id="${c.id}" ${W()}>Nova venda</button><button class="btn small" data-act="abrir-conversa-cad" data-id="${c.id}">Mensagem${naoLidasG(c.id) ? ' (' + naoLidasG(c.id) + ')' : ''}</button><button class="btn small ghost" data-act="editar-cliente" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
-  const cardForn = c => { const cps = fornCompras(c); const tot = cps.reduce((s, x) => s + (x.total || 0), 0); const ap = cps.filter(x => !x.pago).reduce((s, x) => s + (x.total || 0), 0); const ult = cps.reduce((m, x) => Math.max(m, x.ts), 0);
+  const cardForn = c => { const cps = fornCompras(c); const tot = cps.reduce((s, x) => s + (x.total || 0), 0); const ap = cps.filter(x => !x.pago).reduce((s, x) => s + Math.max(0, (x.total || 0) - parcV(x)), 0); const ult = cps.reduce((m, x) => Math.max(m, x.ts), 0);
     return `<article class="item c-forn"><div style="display:flex;gap:12px;align-items:center"><span class="chipico g">${ic('basket')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
     <div class="pills"><span class="pill p-gray">Fornecedor</span><span class="pill p-gray">${c.tipo === 'empresa' ? 'Empresa' : 'Produtor'}</span>${ap > 0 ? `<span class="pill p-no">A pagar ${money(ap)}</span>` : cps.length ? '<span class="pill p-ok">Em dia</span>' : ''}</div>
     <div class="kv"><span>Compras</span><b class="num">${cps.length}</b><span>Total comprado</span><span class="num">${money(tot)}</span><span>Última compra</span><span>${ult ? fmtDT(ult) : '—'}</span>${c.pix ? `<span>Chave Pix</span><span style="overflow-wrap:anywhere">${esc(c.pix)}</span>` : ''}${c.banco || c.agencia || c.conta ? `<span>Banco</span><span style="overflow-wrap:anywhere">${esc([c.banco, c.agencia && 'Ag. ' + c.agencia, c.conta && (c.tipoConta === 'poupanca' ? 'Poup. ' : 'C/C ') + c.conta].filter(Boolean).join(' · '))}</span>` : ''}${c.titular || c.docTitular ? `<span>Titular</span><span style="overflow-wrap:anywhere">${esc([c.titular, c.docTitular].filter(Boolean).join(' · '))}</span>` : ''}</div>
@@ -6628,7 +6664,7 @@ function iaPrepara(l) {
   if (o.tipo === 'venda') { const c = S.clientes.find(x => norm(x.nome) === norm(o.pessoa)); if (c) o.clienteId = c.id; else if (o.pessoa) o.avisos.push('cliente novo: fica só como nome na venda'); }
   else { if (!o.pessoa) o.problemas.push('sem fornecedor'); const f = S.fornecedores.find(x => norm(x.nome) === norm(o.pessoa)); if (f) o.fornecedorId = f.id; }
   if (o.forma === 'fiado') o.pago = false;
-  if (o.pago === false && o.valorPago > 0 && o.valorPago < (o.total || 0)) o.avisos.push('pagou ' + money(o.valorPago) + ' de ' + money(o.total) + ': ficou como a receber/pagar o total; ajuste depois');
+  if (o.pago === false && o.valorPago > 0 && o.valorPago < (o.total || 0)) o.avisos.push('pagou ' + money(o.valorPago) + ' de ' + money(o.total) + ': lançado como pago parcial');
   return o;
 }
 const IA_TELAS = { inicio: 'Início', vendas: 'Vendas', entregas: 'Entregas', caixa: 'Caixa', relatorios: 'Relatórios', conversas: 'Chat', estoque: 'Estoque', compras: 'Compras na roça', noticias: 'Notícias', clientes: 'Clientes', fornecedores: 'Fornecedores', config: 'Configurações', notificacoes: 'Notificações', ajuda: 'Ajuda' };
@@ -6686,16 +6722,17 @@ async function iaGravar(o) {
   if (o.tipo === 'cliente') { const body = { nome: o.nome, tipo: 'pessoa', telefone: o.telefone, cep: o.cep, endereco: o.rua, numero: o.numero, bairro: o.bairro, cidade: o.cidade, referencia: '', obs: '', email: '', complemento: o.complemento }; const nid = uid(); await put('clientes', nid, { ...body, ts: Date.now() }); return vincularVendas(nid, body); }
   if (o.tipo === 'fornecedor') return put('fornecedores', uid(), { nome: o.nome, tipo: 'produtor', telefone: o.telefone, cep: o.cep, endereco: o.rua, numero: o.numero, bairro: o.bairro, cidade: o.cidade, referencia: '', produtos: '', pix: '', banco: '', agencia: '', conta: '', tipoConta: 'corrente', titular: '', docTitular: '', obs: '', ts: Date.now() });
   const ts = tsFromDate(o.data), forma = o.forma || (o.pago ? 'pix' : 'fiado');
+  const vpIA = !o.pago && o.valorPago > 0 && o.valorPago < (o.total || 0) ? n2(o.valorPago) : 0;
   if (o.tipo === 'despesa') return put('despesas', uid(), { descricao: o.descricao, categoria: o.categoria, valor: o.valor, pago: o.pago, fixa: false, forma: o.pago ? (['pix', 'dinheiro', 'debito', 'credito'].includes(o.forma) ? o.forma : 'pix') : '', ts, recorrente: false });
   if (o.tipo === 'venda') {
     const cl = o.clienteId ? S.clientes.find(x => x.id === o.clienteId) : null;
     const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, preco: i.un, custo: prodById(i.produtoId)?.custo || 0 }));
     const cliente = { nome: cl?.nome || o.pessoa, telefone: cl?.telefone || '', endereco: cl ? cliEndereco(cl) : '' };
-    await put('vendas', uid(), { ts, cliente, itens, total: o.total, forma, pago: o.pago, pagoTs: o.pago ? ts : null, origem: 'avulsa', status: 'entregue', ordemRota: null, obs: o.obs || 'Lançada com IA', ...(cl ? { clienteId: cl.id } : {}) });
+    await put('vendas', uid(), { ts, cliente, itens, total: o.total, forma, pago: o.pago, pagoTs: o.pago ? ts : null, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, origem: 'avulsa', status: 'entregue', ordemRota: null, obs: o.obs || 'Lançada com IA', ...(cl ? { clienteId: cl.id } : {}) });
     return adjustStock(itens, -1);
   }
   const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, custo: i.un }));
-  await put('compras', uid(), { ts, fornecedor: o.pessoa, ...(o.fornecedorId ? { fornecedorId: o.fornecedorId } : {}), itens, total: o.total, forma: ['pix', 'dinheiro', 'fiado'].includes(forma) ? forma : 'pix', pago: o.pago, obs: o.obs || 'Lançada com IA' });
+  await put('compras', uid(), { ts, fornecedor: o.pessoa, ...(o.fornecedorId ? { fornecedorId: o.fornecedorId } : {}), itens, total: o.total, forma: ['pix', 'dinheiro', 'fiado'].includes(forma) ? forma : 'pix', pago: o.pago, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, obs: o.obs || 'Lançada com IA' });
   for (const i of itens) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0;
     await patch('produtos', p.id, { estoque: n2((p.estoque || 0) + i.qtd), custo: n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo) }); }
 }
@@ -6939,7 +6976,7 @@ document.addEventListener('click', async e => {
     case 'escolher-estorno': { ui.sheet = null; render(); if (!canWrite) { toast('Modo leitura: não dá para estornar.'); break; } ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = '30d'; go('vendas'); toast('Toque em Estornar na venda que quer devolver.'); break; }
     case 'cx-ver': ui.sheet = null; ui.cxv = v; render(); window.scrollTo(0, 0); break;
     case 'cx-limpar': ui.ct = 'tudo'; ui.cfp = 'todas'; render(); break;
-    case 'cancelar': { const vd = S.vendas.find(x => x.id === id); if (vd && vd.pago) { if ($modal.innerHTML) closeModal(); modalEstorno('vendas', id, { cancelar: true }); break; } const volta = (vd?.itens || []).map(i => ({ produtoId: i.produtoId, qtd: n2(i.qtd - estQtd(vd, i.produtoId, true)) })).filter(i => i.qtd > 0); const naRota = vd?.status === 'em_rota'; modalConfirm(`Cancelar a venda de <b>${esc(vd?.cliente?.nome || 'cliente avulso')}</b>? Os itens voltam para o estoque${naRota ? ' e a rota de entrega é refeita sem esta parada' : ''}.`, 'Cancelar venda', () => safe(async () => { await patch('vendas', id, { status: 'cancelado', pago: false, pagoTs: null, clienteInformouPix: false, ordemRota: null }); await adjustStock(volta, 1); if (naRota) rtSemParada(id); }, naRota ? 'Venda cancelada. Rota refeita sem esta entrega.' : 'Venda cancelada.')); break; }
+    case 'cancelar': { const vd = S.vendas.find(x => x.id === id); if (vd && (vd.pago || parcV(vd) > 0)) { if ($modal.innerHTML) closeModal(); modalEstorno('vendas', id, { cancelar: true }); break; } const volta = (vd?.itens || []).map(i => ({ produtoId: i.produtoId, qtd: n2(i.qtd - estQtd(vd, i.produtoId, true)) })).filter(i => i.qtd > 0); const naRota = vd?.status === 'em_rota'; modalConfirm(`Cancelar a venda de <b>${esc(vd?.cliente?.nome || 'cliente avulso')}</b>? Os itens voltam para o estoque${naRota ? ' e a rota de entrega é refeita sem esta parada' : ''}.`, 'Cancelar venda', () => safe(async () => { await patch('vendas', id, { status: 'cancelado', pago: false, pagoTs: null, clienteInformouPix: false, ordemRota: null }); await adjustStock(volta, 1); if (naRota) rtSemParada(id); }, naRota ? 'Venda cancelada. Rota refeita sem esta entrega.' : 'Venda cancelada.')); break; }
     case 'apagar': { const r0 = S[t.dataset.col]?.find(x => x.id === id); if (r0 && estornos(r0).length) { toast('Este lançamento tem estorno e fica no histórico. Não dá para apagar.'); break; } } modalConfirm('Apagar este registro? Isso não pode ser desfeito.', 'Apagar', () => safe(() => del(t.dataset.col, id), 'Apagado.')); break;
     case 'apagar-compra': { const c = S.compras.find(x => x.id === id); if (c && estornos(c).length) { toast('Esta compra tem estorno e fica no histórico. Não dá para apagar.'); break; } modalConfirm('Apagar esta compra? Os itens saem do estoque e o valor sai do caixa.', 'Apagar compra', () => safe(async () => { await del('compras', id); await adjustStock(c.itens || [], -1); }, 'Compra apagada.')); break; }
     case 'compra-paga': await safe(() => patch('compras', id, { pago: true, pagoTs: Date.now() }), 'Compra marcada como paga.'); break;
