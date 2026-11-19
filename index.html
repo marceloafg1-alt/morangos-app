@@ -3933,7 +3933,7 @@ function gConfig() {
     ${cfgRow('list', 'Planilha modelo', 'baixar para cadastrar em lote', 'baixar-modelo', 'x')}
     ${cfgRow('receipt', 'Backup', ({ manual: 'manual', automatico: 'a cada 8 horas', alteracao: 'a cada alteração' })[bkCfg().modo] + ' · último: ' + bkQuando(bkCfg().ultimo), 'sheet', 'backup')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
-    ${cfgRow('bolt', 'Lançar com IA', iaChave() ? 'chave salva' : 'colocar a chave', 'sheet', 'ia-cfg')}
+    ${cfgRow('bolt', 'Lançar com IA', iaChave() ? 'chave salva · ' + (iaReais(iaUso()) < 0.01 ? '< R$ 0,01' : money(iaReais(iaUso()))) + ' no mês' : 'colocar a chave', 'sheet', 'ia-cfg')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
     ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
   </nav>
@@ -6505,6 +6505,9 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
    A chave da IA fica só neste aparelho (Configurações > Lançar com IA). A IA só devolve dados; nada entra sem você confirmar. */
 const IA_MODELO = 'claude-haiku-5-5';
 const IA_MAX_TXT = 30000, IA_MAX_ARQ = 15 * 1024 * 1024;
+/* preços do Haiku 5.5 em US$ por milhão de tokens (até 100 mil tokens por envio) e câmbio aproximado: ajuste aqui se mudar */
+const IA_USD_ENT = 0.10, IA_USD_SAI = 0.50, IA_USD_BRL = 5.5;
+const iaReais = u => (u.ent * IA_USD_ENT + u.sai * IA_USD_SAI) / 1e6 * IA_USD_BRL;
 const iaChave = () => String(ls.get('mmr-ia-chave', '') || '');
 const iaUso = () => { const m = new Date().toISOString().slice(0, 7), u = ls.get('mmr-ia-uso', null); return u && u.mes === m ? u : { mes: m, ent: 0, sai: 0, n: 0 }; };
 const iaFerramenta = {
@@ -6759,7 +6762,7 @@ function iaCfgSheet(wrap) {
     <div class="f"><label for="ia-chave">Chave da IA</label><input type="password" id="ia-chave" autocomplete="off" placeholder="${c ? 'chave salva (' + esc(c.slice(0, 7)) + '…)' : 'sk-ant-…'}"></div>
     <button class="lt-btn lt-block" style="margin-top:10px" data-act="ia-chave-salvar">Salvar chave</button>
     ${c ? '<button class="lt-btn lt-block" style="margin-top:8px" data-act="ia-chave-remover">Remover chave</button>' : ''}
-    <p class="muted" style="margin:12px 0 0;font-size:13px">Uso neste mês: ${u.n} ${u.n === 1 ? 'leitura' : 'leituras'} · ${(u.ent + u.sai).toLocaleString('pt-BR')} tokens.</p>`);
+    <p class="muted" style="margin:12px 0 0;font-size:13px">Uso neste mês, neste aparelho: ${u.n} ${u.n === 1 ? 'leitura' : 'leituras'} · ${(u.ent + u.sai).toLocaleString('pt-BR')} tokens · <b>cerca de ${iaReais(u) < 0.01 ? 'menos de R$ 0,01' : money(iaReais(u))}</b>.<br>Valor aproximado (dólar a R$ ${String(IA_USD_BRL).replace('.', ',')}). O saldo real fica em platform.claude.com, em Billing.</p>`);
 }
 const OPEN = { 'ia-lancar': () => modalIA(), 'nova-venda': () => modalVenda(), 'nova-compra': () => modalCompra(), 'nova-despesa': () => modalDespesa(), 'novo-produto': () => modalProduto(), 'nova-noticia': () => modalNoticia(), 'novo-cliente': () => modalCliente(), 'novo-fornecedor': () => modalFornecedor() };
 // Perfil: recolhe/expande a seção sem perder o que já foi digitado
