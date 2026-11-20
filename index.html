@@ -6940,6 +6940,9 @@ async function iaGravar(o) {
   for (const i of itens) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0;
     await patch('produtos', p.id, { estoque: n2((p.estoque || 0) + i.qtd), custo: n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo) }); }
 }
+/* texto da situação do pagamento: pago, pago parcial (com os valores) ou não pago */
+const iaParcial = o => !o.pago && o.valorPago > 0 && o.valorPago < (o.total || 0);
+const iaPagoTxt = o => o.pago ? 'pago' : iaParcial(o) ? 'pago parcial (' + money(o.valorPago) + ' de ' + money(o.total) + ')' : 'não pago';
 const IA_TIPO = { venda: ['Venda', 'receipt'], compra: ['Compra', 'basket'], despesa: ['Despesa', 'cash'], cliente: ['Novo cliente', 'user'], fornecedor: ['Novo fornecedor', 'morango'], acao: ['Ação no app', 'gear'] };
 function iaCard(o, i) {
   const bad = o.problemas.length, [tl, icn] = IA_TIPO[o.tipo] || IA_TIPO.venda;
@@ -6951,7 +6954,7 @@ function iaCard(o, i) {
   const det = o.tipo === 'despesa' ? `${esc(o.descricao)} · ${esc(catNome(o.categoria) || '')}` : o.itens.map(x => `${x.qtd}× ${esc(x.nome)} a ${money(x.un)}`).join(', ');
   const val = o.tipo === 'despesa' ? o.valor : o.total;
   return `<label class="nt-pref ia-i" style="align-items:flex-start;${bad ? 'opacity:.75' : ''}"><span class="nt-ic">${ic(icn)}</span><span class="grow"><b>${tl}${o.pessoa ? ' · ' + esc(o.pessoa) : ''} · ${money(val)}</b>
-    <small style="display:block">${det || '—'}</small><small style="display:block">${esc(FORMAS[o.forma] || (o.pago ? 'forma não informada' : ''))}${o.forma || o.pago ? ' · ' : ''}${o.pago ? 'pago' : 'não pago'} · ${esc(o.data.split('-').reverse().join('/'))}${o.tipo === 'venda' ? ' · entrega: ' + esc({ entregue: 'já entregue', separado: 'entregar depois', em_rota: 'na rota' }[o.entrega] || '') : ''}</small>
+    <small style="display:block">${det || '—'}</small><small style="display:block">${esc(FORMAS[o.forma] || (o.pago ? 'forma não informada' : ''))}${o.forma || o.pago || iaParcial(o) ? ' · ' : ''}${esc(iaPagoTxt(o))} · ${esc(o.data.split('-').reverse().join('/'))}${o.tipo === 'venda' ? ' · entrega: ' + esc({ entregue: 'já entregue', separado: 'entregar depois', em_rota: 'na rota' }[o.entrega] || '') : ''}</small>
     ${bad ? `<small style="display:block;color:#c0392b">⚠ Não dá para lançar: ${esc(o.problemas.join('; '))}. Cadastre e peça de novo.</small>` : ''}${o.avisos.map(a => `<small class="muted" style="display:block">ℹ ${esc(a)}</small>`).join('')}</span>
     <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : 'checked'}></label>`;
 }
@@ -7070,6 +7073,7 @@ O que fazer:
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
 - Se não for sobre o app, diga em uma frase que você cuida só do aplicativo.
 - "X comprou/levou" = venda para X. "Comprei de Y" = compra do fornecedor Y. Gasto com combustível, embalagem etc. = despesa.
+- Ao falar do pagamento, nunca diga "não pago" quando houve pagamento parcial: diga "pago parcial", com o valor pago e o total.
 - pago=true só se o dono disser que pagou ou recebeu o valor todo. Se pagou ou recebeu MENOS que o total (inclusive "metade", "50%", "um terço", "R$ 100 de entrada"), pago=false e informe valor_pago em reais, calculando sobre o total (quantidade x preço do pedido, ou o preço cadastrado quando ele não disser o preço): "50%" ou "metade" = valor_pago igual à metade do total. Vale para venda e para compra. "Fiado" ou "a prazo" = forma fiado e pago=false.
 - Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar.
 ${dados}
@@ -7083,7 +7087,7 @@ function vozResumo(o) {
   if (o.tipo === 'cliente' || o.tipo === 'fornecedor') return 'Cadastrar ' + o.tipo + ' ' + o.nome;
   const v = o.tipo === 'despesa' ? o.valor : o.total, f = FORMAS[o.forma] || '';
   const nome = { venda: 'Lançar venda', compra: 'Lançar compra', despesa: 'Lançar despesa' }[o.tipo];
-  return nome + (o.tipo === 'despesa' ? ' de ' + o.descricao : o.pessoa ? ' de ' + o.pessoa : '') + ', ' + money(v) + (f ? ', ' + f : '') + ', ' + (o.pago ? 'pago' : 'não pago');
+  return nome + (o.tipo === 'despesa' ? ' de ' + o.descricao : o.pessoa ? ' de ' + o.pessoa : '') + ', ' + money(v) + (f ? ', ' + f : '') + ', ' + iaPagoTxt(o);
 }
 function vozPill() {
   let box = document.getElementById('voz-box');
