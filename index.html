@@ -2449,9 +2449,41 @@ html.rt-lock, html.rt-lock body { overflow: hidden; }
 .lt[data-visual="aurora"] .cx-dt .in{color:#8FF0B8}
 .lt[data-visual="aurora"][data-tema="nude"] .lt-hero.iv-hero :is(span,b,small,div,i){color:var(--onA)}
 .lt:not([data-visual="bento"]) .cx-hero.folha :is(span,b,small,div){color:#fff}
+
+/* campo de uma linha feito com caixa de texto (sem faixa de preenchimento do Android) */
+textarea.l1 { display: block; height: 48px !important; min-height: 48px !important; max-height: 48px; padding: 12px 14px !important; line-height: 22px; resize: none !important; overflow: hidden; white-space: nowrap; box-sizing: border-box; width: 100%; font-size: 16px; }
+.cep-row textarea.l1 { flex: 1; min-width: 0; }
+.est-it textarea.l1 { text-align: center; }
 </style>
 <div id="toast-root"></div>
 
+<script>
+/* Campos de uma linha como caixa de texto de 1 linha: o Android não oferece preenchimento automático (faixa acima do teclado) em caixas de texto */
+(function () {
+  const d = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML'); if (!d || !d.set) return;
+  const conv = h => {
+    if (typeof h !== 'string' || h.indexOf('<input') < 0) return h;
+    const t = document.createElement('template'); d.set.call(t, h); let ch = false;
+    t.content.querySelectorAll('input').forEach(i => {
+      const ty = (i.getAttribute('type') || 'text').toLowerCase();
+      if ((ty !== 'text' && ty !== 'tel') || i.hasAttribute('list') || i.getAttribute('autocomplete') === 'username') return;
+      const ta = document.createElement('textarea');
+      for (const a of i.attributes) { if (a.name !== 'type' && a.name !== 'value') ta.setAttribute(a.name, a.value); }
+      ta.setAttribute('rows', '1'); ta.setAttribute('data-l1', ty); ta.classList.add('l1');
+      if (ty === 'tel' && !ta.hasAttribute('inputmode')) ta.setAttribute('inputmode', 'tel');
+      ta.textContent = i.getAttribute('value') || '';
+      i.replaceWith(ta); ch = true;
+    });
+    return ch ? d.get.call(t) : h;
+  };
+  Object.defineProperty(Element.prototype, 'innerHTML', { get: d.get, set(v) { d.set.call(this, conv(v)); }, configurable: true });
+  document.addEventListener('keydown', e => {
+    const el = e.target; if (e.key !== 'Enter' || !el || !el.matches || !el.matches('textarea.l1')) return;
+    e.preventDefault(); if (el.form) el.form.requestSubmit(); else el.blur();
+  }, true);
+  document.addEventListener('input', e => { const el = e.target; if (el && el.matches && el.matches('textarea.l1') && /[\r\n]/.test(el.value)) el.value = el.value.replace(/[\r\n]+/g, ' '); }, true);
+})();
+</script>
 <script>
 (() => {
 'use strict';
@@ -5367,7 +5399,7 @@ function openModal(title, inner, onSubmit, onOpen) {
   const f = document.getElementById('mform');
   f.addEventListener('submit', async e => { e.preventDefault(); const btn = f.querySelector('[type=submit]'); if (btn) btn.disabled = true; const ok = await onSubmit(f); if (btn) btn.disabled = false; if (ok !== false) closeModal(); });
   onOpen && onOpen(f);
-  setTimeout(() => f.querySelector('input,select')?.focus(), 30);
+  setTimeout(() => f.querySelector('input,textarea,select')?.focus(), 30);
 }
 function closeModal() { $modal.innerHTML = ''; document.getElementById('nav-root').innerHTML = nav(); }
 const todayInput = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
