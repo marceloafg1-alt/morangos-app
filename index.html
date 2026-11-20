@@ -6759,6 +6759,7 @@ const iaFerramenta = {
       forma: { type: 'string', enum: ['pix', 'dinheiro', 'debito', 'credito', 'fiado', ''] },
       entrega: { type: 'string', enum: ['entregue', 'separado', 'em_rota', ''], description: 'Só para venda. entregue: só se o texto disser que já foi entregue, retirada ou levada na hora. separado: se disser que a entrega está pendente, a entregar ou para entregar depois. em_rota: se disser que já saiu para entrega. Vazio se o texto não disser nada sobre entrega.' },
       pago: { type: 'boolean', description: 'true se o pagamento já foi feito.' },
+      pago_informado: { type: 'boolean', description: 'true SÓ se o conteúdo diz se já foi pago ou não (vale fiado e pagamento parcial). false se não fala nada sobre pagamento.' },
       valor_pago: { type: 'number', description: 'Quanto já foi pago, se for pagamento parcial. 0 se não informado.' },
       data: { type: 'string', description: 'AAAA-MM-DD, ou vazio se não foi dita (vale hoje).' },
       observacao: { type: 'string', description: 'SÓ preencha se o usuário mandou expressamente colocar algo na observação ("coloque na observação..."). Caso contrário, deixe vazio.' } }, required: ['tipo'] } },
@@ -6778,6 +6779,7 @@ Regras:
 - pago=true só se o texto disser que pagou. Se pagou menos que o total (inclusive "metade"), pago=false e informe valor_pago em reais, calculando com o preço cadastrado quando o texto não disser o valor. "Fiado" ou "a prazo" = forma fiado e pago=false.
 - Observação: nunca crie observação por conta própria nem resuma o texto nela. Só use o campo observacao se o usuário mandar colocar algo na observação.
 - Nunca invente valores, quantidades ou datas. Se faltar, deixe 0 ou vazio.
+- Não preencha o que o conteúdo não diz: data vazia se não foi dita; entrega vazia se não falou de entrega; pago_informado=false se não falou de pagamento; forma vazia se não disse como pagou; categoria da despesa vazia se não der para associar; preco_unitario 0 numa compra sem preço. O app pergunta o que faltar.
 Hoje é ${todayInput()}.
 Produtos cadastrados: ${S.produtos.filter(p => p.ativo !== false).map(p => `${p.nome} (${p.unidade || 'un'}, R$ ${n2(p.preco)})`).join('; ') || 'nenhum'}.
 Clientes cadastrados: ${S.clientes.slice(0, 300).map(c => c.nome).join('; ') || 'nenhum'}.
@@ -6955,8 +6957,8 @@ function iaCard(o, i) {
   const val = o.tipo === 'despesa' ? o.valor : o.total;
   return `<label class="nt-pref ia-i" style="align-items:flex-start;${bad ? 'opacity:.75' : ''}"><span class="nt-ic">${ic(icn)}</span><span class="grow"><b>${tl}${o.pessoa ? ' · ' + esc(o.pessoa) : ''} · ${money(val)}</b>
     <small style="display:block">${det || '—'}</small><small style="display:block">${esc(FORMAS[o.forma] || (o.pago ? 'forma não informada' : ''))}${o.forma || o.pago || iaParcial(o) ? ' · ' : ''}${esc(iaPagoTxt(o))} · ${esc(o.data.split('-').reverse().join('/'))}${o.tipo === 'venda' ? ' · entrega: ' + esc({ entregue: 'já entregue', separado: 'entregar depois', em_rota: 'na rota' }[o.entrega] || '') : ''}</small>
-    ${bad ? `<small style="display:block;color:#c0392b">⚠ Não dá para lançar: ${esc(o.problemas.join('; '))}. Cadastre e peça de novo.</small>` : ''}${o.avisos.map(a => `<small class="muted" style="display:block">ℹ ${esc(a)}</small>`).join('')}</span>
-    <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : 'checked'}></label>`;
+    ${bad ? `<small style="display:block;color:#c0392b">⚠ Não dá para lançar: ${esc(o.problemas.join('; '))}. Cadastre e peça de novo.</small>` : ''}${(o.falta || []).length ? `<small style="display:block;color:#b8860b">❓ Falta informar: ${esc(o.falta.join(', '))}. Escreva no campo acima e leia de novo, ou ligue para lançar assim mesmo.</small>` : ''}${o.avisos.map(a => `<small class="muted" style="display:block">ℹ ${esc(a)}</small>`).join('')}</span>
+    <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : (o.falta || []).length ? '' : 'checked'}></label>`;
 }
 function modalIA(iniArq = [], autoLer = false, ctx = '') {
   const chave = iaChave(); let lista = [], arquivos = [...iniArq];
@@ -6997,7 +6999,7 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
         const texto = (ctx && (partes.length || imgs.length || pdfs.length) ? ctx + '\n\n' : '') + partes.join('\n\n'); if (!texto.trim() && !pdfs.length && !imgs.length) throw new Error('Escreva um texto, envie um arquivo ou tire uma foto.');
         if (texto.length > IA_MAX_TXT) throw new Error('Conteúdo grande demais (' + texto.length + ' caracteres; máximo ' + IA_MAX_TXT + '). Envie em partes.');
         const r = await iaChamar(texto, pdfs, imgs);
-        lista = r.lanc.map(iaPrepara); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
+        lista = r.lanc.map(iaPrepara); lista.forEach((o, i) => { o.falta = o.problemas.length ? [] : iaFalta(r.lanc[i], o); }); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
         res.innerHTML = (lista.length ? `<div class="nt-prefs">${lista.map(iaCard).join('')}</div><small class="muted">Confira. Desligue o que não quiser lançar.</small>` : '<div class="note">A IA não achou nenhum lançamento nesse conteúdo.</div>')
           + (r.sobra.length ? `<div class="note" style="margin-top:8px"><b>Não entendi:</b><br>${r.sobra.map(esc).join('<br>')}</div>` : '');
         atualiza();
@@ -7069,6 +7071,8 @@ O que fazer:
 - Dúvida sobre como usar o app: responda em "fala" usando SÓ a Ajuda abaixo; se não estiver lá, diga que não sabe. lancamentos vazio.
 - Pedido para executar algo (venda, compra, despesa, cadastro de cliente ou fornecedor, mudar tema, abrir tela, período padrão, número do WhatsApp, preço ou estoque de produto, marcar venda paga, situação de entrega): preencha lancamentos e, em "fala", diga no passado e bem curto o que foi pedido (ex.: "Abri Vendas.").
 - Isto é uma conversa: use as falas anteriores para entender pedidos curtos como "e ontem?" ou "abre essa tela". Se o dono agradecer ou se despedir, responda só com uma despedida curta.
+- Se o dono responder a uma pergunta sua, use os "Dados já entendidos" do histórico, complete o lançamento e devolva o lançamento COMPLETO (não só o que ele acabou de dizer). Se ele mandar lançar assim mesmo, preencha só o que tiver.
+- Não invente o que o dono não disse: se não falou a data, deixe data vazia; se não falou da entrega, deixe entrega vazia; se não falou do pagamento, pago_informado=false; se não falou da forma, deixe forma vazia; se não falou a categoria da despesa, deixe categoria vazia; se não falou o preço de uma compra, deixe preco_unitario 0. O app pergunta o que faltar.
 - A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
 - Se não for sobre o app, diga em uma frase que você cuida só do aplicativo.
@@ -7194,6 +7198,25 @@ function vozContinua() {
   VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) vozFimConversa(); }, 10000);
 }
 function vozLembra(user, assistente) { VOZ.hist.push({ role: 'user', content: String(user) }, { role: 'assistant', content: String(assistente || 'Ok.') }); while (VOZ.hist.length > 8) VOZ.hist.splice(0, 2); }
+/* o que ainda falta o dono dizer antes de lançar (o app pergunta em voz alta) */
+function iaFalta(l, o) {
+  const q = [], n = x => Number(x) || 0;
+  if (l.tipo === 'venda' || l.tipo === 'compra') {
+    const ehV = l.tipo === 'venda', itens = l.itens || [];
+    if (!String(l.pessoa || '').trim()) q.push(ehV ? 'o nome do cliente' : 'o nome do fornecedor');
+    if (!itens.length) q.push('quais produtos e quantidades');
+    itens.forEach(i => { const nome = i.produto || 'o produto'; if (!(n(i.quantidade) > 0)) q.push('a quantidade de ' + nome); else if (!ehV && !(n(i.preco_unitario) > 0) && !(n(l.valor) > 0)) q.push('o valor pago por ' + nome); });
+    if (l.pago_informado !== true) q.push('se já foi pago');
+    if ((l.pago === true || n(l.valor_pago) > 0) && !l.forma) q.push('como foi pago: Pix, dinheiro ou cartão');
+    if (ehV && !l.entrega) q.push('se já foi entregue');
+  } else if (l.tipo === 'despesa') {
+    if (!String(l.descricao || '').trim()) q.push('o que foi pago');
+    if (!(n(l.valor) > 0)) q.push('o valor');
+    if (!l.categoria || o.avisos.some(a => /categoria/.test(a))) q.push('a categoria da despesa');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(l.data || '')) q.push('a data, se foi hoje');
+  }
+  return q;
+}
 async function vozComando(texto) {
   if (VOZ_FIM.test(vozNormTxt(texto))) { VOZ.estado = 'pensando'; VOZ.buf = ''; clearTimeout(VOZ.tBuf); const f = vozDiz('De nada! Até logo.'); VOZ.hist = []; await f; return vozFimConversa(); }
   VOZ.ocupado = true; clearTimeout(VOZ.tBuf); VOZ.buf = ''; VOZ.estado = 'pensando'; vozMsg('Você disse: “' + texto + '”', 20000);
@@ -7201,6 +7224,15 @@ async function vozComando(texto) {
     if (!iaChave()) throw new Error('Falta a chave da IA. Coloque em Configurações, Lançar com IA.');
     const r = await iaChamar(texto, [], [], { sistema: vozSistema(), ferramenta: vozFerramenta(), hist: VOZ.hist });
     const lista = r.lanc.map(iaPrepara); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
+    const assim = /assim mesmo|deixa assim|pode lancar assim|lanca assim|sem isso/.test(vozNormTxt(texto));
+    const faltas = assim ? [] : r.lanc.map((l, i) => iaFalta(l, lista[i]));
+    if (faltas.some(f => f.length)) {
+      const nomeL = l => ({ venda: 'a venda', compra: 'a compra', despesa: 'a despesa' }[l.tipo] || '') + (l.pessoa ? ' de ' + l.pessoa : l.tipo === 'despesa' && l.descricao ? ' de ' + l.descricao : '');
+      const multi = r.lanc.filter((_, i) => faltas[i].length).length > 1;
+      const perg = 'Antes de lançar, preciso saber ' + r.lanc.map((l, i) => faltas[i].length ? (multi ? 'sobre ' + nomeL(l) + ': ' : '') + faltas[i].join(', ') : '').filter(Boolean).join('. ') + '.';
+      VOZ.ocupado = false; vozLembra(texto, perg + ' [Dados já entendidos: ' + JSON.stringify(r.lanc) + ']');
+      VOZ.estado = 'espera'; await vozDiz(perg); vozContinua(); return;
+    }
     const ok = lista.filter(o => !o.problemas.length), ruins = lista.filter(o => o.problemas.length);
     let fala = r.fala.trim(); if (ruins.length) fala = (fala ? fala + ' ' : '') + 'Não consegui fazer: ' + ruins.map(o => o.problemas.join(', ')).join('; ') + '.';
     if (ok.length && !ok.every(o => o.tipo === 'acao' && VOZ_SEGURAS.includes(o.acao))) {
