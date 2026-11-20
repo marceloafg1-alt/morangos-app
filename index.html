@@ -2462,6 +2462,9 @@ html.rt-lock, html.rt-lock body { overflow: hidden; }
 textarea.l1 { display: block; height: 48px !important; min-height: 48px !important; max-height: 48px; padding: 12px 14px !important; line-height: 22px; resize: none !important; overflow: hidden; white-space: nowrap; box-sizing: border-box; width: 100%; font-size: 16px; }
 .cep-row textarea.l1 { flex: 1; min-width: 0; }
 .est-it textarea.l1 { text-align: center; }
+
+.fx textarea.l1 { border: 0 !important; background: transparent !important; height: 100% !important; min-height: 0 !important; max-height: none !important; padding: 13px 0 0 !important; box-sizing: border-box; text-align: right; flex: 1; min-width: 0; box-shadow: none !important; outline: 0; line-height: 22px; }
+.bs-search textarea.l1 { flex: 1; min-width: 0; height: auto !important; min-height: 0 !important; border: 0 !important; outline: 0; background: none !important; box-shadow: none !important; padding: 0 !important; font-size: 16.5px; color: var(--ink); }
 </style>
 <div id="toast-root"></div>
 
@@ -2474,11 +2477,13 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
     const t = document.createElement('template'); d.set.call(t, h); let ch = false;
     t.content.querySelectorAll('input').forEach(i => {
       const ty = (i.getAttribute('type') || 'text').toLowerCase();
-      if ((ty !== 'text' && ty !== 'tel') || i.hasAttribute('list') || i.getAttribute('autocomplete') === 'username') return;
+      const num = ty === 'number' && !i.hasAttribute('max') && !/^e-q/.test(i.id);
+      if (!(ty === 'text' || ty === 'tel' || num || (ty === 'search' && i.id === 'pk-q')) || i.hasAttribute('list') || i.getAttribute('autocomplete') === 'username') return;
       const ta = document.createElement('textarea');
       for (const a of i.attributes) { if (a.name !== 'type' && a.name !== 'value') ta.setAttribute(a.name, a.value); }
       ta.setAttribute('rows', '1'); ta.setAttribute('data-l1', ty); ta.classList.add('l1');
       if (ty === 'tel' && !ta.hasAttribute('inputmode')) ta.setAttribute('inputmode', 'tel');
+      if (num) { ta.removeAttribute('min'); ta.removeAttribute('step'); if (!ta.hasAttribute('inputmode')) ta.setAttribute('inputmode', 'decimal'); }
       ta.textContent = i.getAttribute('value') || '';
       i.replaceWith(ta); ch = true;
     });
@@ -2489,7 +2494,8 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
     const el = e.target; if (e.key !== 'Enter' || !el || !el.matches || !el.matches('textarea.l1')) return;
     e.preventDefault(); if (el.form) el.form.requestSubmit(); else el.blur();
   }, true);
-  document.addEventListener('input', e => { const el = e.target; if (el && el.matches && el.matches('textarea.l1') && /[\r\n]/.test(el.value)) el.value = el.value.replace(/[\r\n]+/g, ' '); }, true);
+  document.addEventListener('input', e => { const el = e.target; if (el && el.matches && el.matches('textarea.l1[data-l1="number"]')) { let v = el.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''); const k = v.indexOf('.'); if (k >= 0) v = v.slice(0, k + 1) + v.slice(k + 1).replace(/\./g, ''); if (v !== el.value) el.value = v; }
+     if (el && el.matches && el.matches('textarea.l1') && /[\r\n]/.test(el.value)) el.value = el.value.replace(/[\r\n]+/g, ' '); }, true);
 })();
 </script>
 <script>
