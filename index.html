@@ -4004,7 +4004,7 @@ function gConfig() {
     ${cfgRow('receipt', 'Backup', ({ manual: 'manual', automatico: 'a cada 8 horas', alteracao: 'a cada alteração' })[bkCfg().modo] + ' · último: ' + bkQuando(bkCfg().ultimo), 'sheet', 'backup')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('bolt', 'Lançar com IA', iaChave() ? 'chave salva · ' + (iaReais(iaUso()) < 0.01 ? '< R$ 0,01' : money(iaReais(iaUso()))) + ' no mês' : 'colocar a chave', 'sheet', 'ia-cfg')}
-    ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi andy' : 'desligado', 'sheet', 'voz-cfg')}
+    ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi Andy' : 'desligado', 'sheet', 'voz-cfg')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
     ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
   </nav>
@@ -7045,7 +7045,7 @@ function iaCfgSheet(wrap) {
     ${c ? '<button class="lt-btn lt-block" style="margin-top:8px" data-act="ia-chave-remover">Remover chave</button>' : ''}
     <p class="muted" style="margin:12px 0 0;font-size:13px">Uso neste mês, neste aparelho: ${u.n} ${u.n === 1 ? 'leitura' : 'leituras'} · ${(u.ent + u.sai).toLocaleString('pt-BR')} tokens · <b>cerca de ${iaReais(u) < 0.01 ? 'menos de R$ 0,01' : money(iaReais(u))}</b>.<br>Valor aproximado (dólar a R$ ${String(IA_USD_BRL).replace('.', ',')}). O saldo real fica em platform.claude.com, em Billing.</p>`);
 }
-/* ===== Assistente de voz "oi andy" (só na Gestão) =====
+/* ===== Assistente de voz "oi Andy" (só na Gestão) =====
    Ouve a palavra de ativação, entende o pedido com a IA e responde em voz. Dúvidas vêm da Ajuda; abrir telas e mudar
    configurações são feitos na hora; o que mexe em dados (vendas, compras, despesas, cadastros, preços, estoque) só é feito depois do "sim". */
 const VOZ_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -7105,7 +7105,7 @@ function vozPill() {
     box.querySelector('.voz-pill').addEventListener('click', () => { if (!VOZ.arrastou) vozToque(); }); vozArrasta(box.querySelector('.voz-pill'));
     box.querySelector('.voz-card').addEventListener('click', e => { const b = e.target.closest('[data-voz]'); if (b) vozConfirma(b.dataset.voz === 'sim'); }); document.body.appendChild(box); }
   vozPosiciona();
-  const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi andy”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
+  const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi Andy”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
   const pill = box.querySelector('.voz-pill'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
   const card = box.querySelector('.voz-card'), msg = VOZ.msg;
   card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">Sim, fazer</button></div>' : '');
@@ -7263,7 +7263,7 @@ async function vozConfirma(sim, tempo) {
 }
 function vozCfgSheet(wrap) {
   const on = vozLigado();
-  return wrap('Assistente de voz', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Diga <b>“oi andy”</b> e fale o que precisa: tirar dúvidas do app (Ajuda), abrir telas, mudar a aparência e configurações ou lançar vendas, compras e despesas. Usa a chave da IA de <b>Lançar com IA</b>.</p>
+  return wrap('Assistente de voz', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Diga <b>“oi Andy”</b> e fale o que precisa: tirar dúvidas do app (Ajuda), abrir telas, mudar a aparência e configurações ou lançar vendas, compras e despesas. Usa a chave da IA de <b>Lançar com IA</b>.</p>
     <p class="muted" style="margin:0 0 10px;font-size:13.5px">Abrir telas e mudar configurações ele faz na hora. O que mexe em vendas, compras, despesas, cadastros, preços ou estoque ele repete e só faz depois de você dizer <b>sim</b>.</p>
     <p class="muted" style="margin:0 0 10px;font-size:13px">Funciona no Chrome e no Edge (computador e Android), com o app aberto e a tela ligada. Permita o microfone quando o navegador pedir. No Chrome, o áudio é processado pelo serviço de voz do Google. Toque no botão do microfone na tela para falar sem a palavra de ativação.</p>
     ${(() => { const vs = vozVozes(), uri = ls.get('mmr-voz-voz', ''); return `<div class="f"><label for="voz-sel">Voz</label><select id="voz-sel"><option value="">Automática (padrão do aparelho)</option>${vs.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === uri ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('')}</select>${vs.length ? '' : '<small class="muted">Nenhuma voz em português encontrada neste aparelho. Ele usa a voz padrão.</small>'}</div>
