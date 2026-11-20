@@ -7093,10 +7093,18 @@ function vozPill() {
   if (!box) { box = document.createElement('div'); box.id = 'voz-box'; box.innerHTML = '<div class="voz-card" hidden></div><button type="button" class="voz-pill"></button>';
     box.querySelector('.voz-pill').addEventListener('click', vozToque);
     box.querySelector('.voz-card').addEventListener('click', e => { const b = e.target.closest('[data-voz]'); if (b) vozConfirma(b.dataset.voz === 'sim'); }); document.body.appendChild(box); }
+  vozPosiciona();
   const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi moranguete”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
   const pill = box.querySelector('.voz-pill'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
   const card = box.querySelector('.voz-card'), msg = VOZ.msg;
   card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">Sim, fazer</button></div>' : '');
+}
+/* quando abre um cartão por baixo (lançamento, formulário, filtro), o botão da voz sobe para ficar acima dele */
+function vozPosiciona() {
+  const box = document.getElementById('voz-box'); if (!box) return;
+  let topo = Infinity;
+  document.querySelectorAll('.bs, .fab-pop, .modal').forEach(el => { const r = el.getBoundingClientRect(); if (r.height > 40 && r.bottom > innerHeight - 4 && r.top < topo) topo = r.top; });
+  box.style.bottom = topo === Infinity ? '' : Math.min(Math.max(innerHeight - topo + 10, 0), innerHeight - 56) + 'px';
 }
 function vozMsg(t, ms = 9000) { VOZ.msg = t; clearTimeout(VOZ.tMsg); if (t && VOZ.estado !== 'confirma') VOZ.tMsg = setTimeout(() => { if (VOZ.estado !== 'confirma') { VOZ.msg = ''; vozPill(); } }, ms); vozPill(); }
 function vozIniciaRec() {
@@ -7198,7 +7206,9 @@ document.addEventListener('input', e => { if (e.target && e.target.id === 'voz-e
 function vozTeste() { if (!('speechSynthesis' in window)) { toast('Este navegador não fala.'); return; } try { vozParaRec(); speechSynthesis.cancel(); const u = vozFalaObj('Oi! Eu sou o Moranguete. Assim é a minha voz.'); u.onend = u.onerror = () => setTimeout(vozIniciaRec, 250); speechSynthesis.speak(u); } catch { /* ok */ } }
 function vozInit() {
   try { speechSynthesis.addEventListener('voiceschanged', () => { if (ui.sheet && ui.sheet.type === 'voz-cfg') render(); }); } catch { /* ok */ }
-  setInterval(vozPill, 2000);
+  setInterval(() => { vozPill(); vozPosiciona(); }, 2000);
+  let tPos = 0; const agenda = () => { cancelAnimationFrame(tPos); tPos = requestAnimationFrame(vozPosiciona); setTimeout(vozPosiciona, 350); };
+  new MutationObserver(agenda).observe(document.body, { childList: true, subtree: true }); addEventListener('resize', agenda);
   document.addEventListener('visibilitychange', () => { if (document.hidden) vozParaRec(); else vozIniciaRec(); });
   if (vozLigado()) { vozPill(); vozIniciaRec(); }
 }
