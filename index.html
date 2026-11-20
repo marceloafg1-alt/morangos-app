@@ -4004,6 +4004,7 @@ function gConfig() {
     ${cfgRow('receipt', 'Backup', ({ manual: 'manual', automatico: 'a cada 8 horas', alteracao: 'a cada alteração' })[bkCfg().modo] + ' · último: ' + bkQuando(bkCfg().ultimo), 'sheet', 'backup')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('bolt', 'Lançar com IA', iaChave() ? 'chave salva · ' + (iaReais(iaUso()) < 0.01 ? '< R$ 0,01' : money(iaReais(iaUso()))) + ' no mês' : 'colocar a chave', 'sheet', 'ia-cfg')}
+    ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi moranguete' : 'desligado', 'sheet', 'voz-cfg')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
     ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
   </nav>
@@ -5438,6 +5439,7 @@ function sheetHTML() {
     <div class="ap-sec"><span class="ap-l">Modo</span><div class="lt-chips">${[['sistema', 'Sistema'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => `<button class="lt-chip ${look.modo === k ? 'on' : ''}" data-act="look" data-k="modo" data-v="${k}" aria-pressed="${look.modo === k}" ${look.visual === 'aurora' && k !== 'claro' ? 'disabled' : ''}>${l}</button>`).join('')}</div>${look.visual === 'aurora' ? '<small class="muted">O Aurora só existe no modo claro.</small>' : ''}</div>
     <div class="ap-sec"><span class="ap-l">Cor</span>${look.visual === 'bento' ? '<small class="muted">O Bento usa a paleta própria (preto, lima e tons pastel).</small>' : ''}<div class="ap-cores">${(window.LT_TEMAS || []).map(([k, l, a, b]) => `<button class="ap-cor" style="background:linear-gradient(135deg,${a},${b})" data-act="look" data-k="tema" data-v="${k}" aria-label="${l}" aria-pressed="${look.tema === k}" title="${l}" ${look.visual === 'bento' ? 'disabled' : ''}>${look.tema === k ? icOwn('check') : ''}</button>`).join('')}</div></div>`);
   if (s.type === 'ia-cfg') return iaCfgSheet(wrap);
+  if (s.type === 'voz-cfg') return vozCfgSheet(wrap);
   if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
   if (s.type === 'cat-cfg') return catCfgSheet(wrap);
   if (s.type === 'per-cfg') { const atual = perPadrao(); return wrap('Período padrão', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período que aparece ao abrir Vendas, Entregas, Compras, Caixa e Relatórios. Você ainda pode trocar na própria tela; ao sair, ela volta para este. Vale para este aparelho.</p><div class="bs-list">${Object.entries(PERIODOS).map(([v, l]) => `<button class="bs-row" data-act="per-padrao" data-v="${v}" aria-pressed="${atual === v}"><span class="grow">${l}</span>${atual === v ? ic('check') : ''}</button>`).join('')}</div>`); }
@@ -6812,18 +6814,18 @@ async function iaLerArquivo(file) {
   if (['csv', 'txt', 'tsv', 'md'].includes(ext) || /^text\//.test(file.type)) return { texto: `Arquivo ${nome}:\n` + await file.text(), nome };
   throw new Error(nome + ': tipo não aceito. Use foto, PDF, CSV, Excel ou texto.');
 }
-async function iaChamar(texto, pdfs, imgs = []) {
+async function iaChamar(texto, pdfs, imgs = [], voz = null) {
   const chave = iaChave(); if (!chave) throw new Error('Falta a chave da IA. Coloque em Configurações > Lançar com IA.');
   const content = [...imgs.map(m => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: m.img } })), ...pdfs.map(p => ({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.pdf } })), { type: 'text', text: texto || 'Leia o que foi anexado e registre os lançamentos.' }];
   const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': chave, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: IA_MODELO, max_tokens: 8000, system: iaSistema(), tools: [iaFerramenta], tool_choice: { type: 'tool', name: iaFerramenta.name }, messages: [{ role: 'user', content }] }) });
+    body: JSON.stringify({ model: IA_MODELO, max_tokens: voz ? 2000 : 8000, system: voz ? voz.sistema : iaSistema(), tools: [voz ? voz.ferramenta : iaFerramenta], tool_choice: { type: 'tool', name: (voz ? voz.ferramenta : iaFerramenta).name }, messages: [{ role: 'user', content }] }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { const m = j?.error?.message || ''; throw new Error(r.status === 401 ? 'A chave da IA não foi aceita. Confira em Configurações > Lançar com IA.' : r.status === 429 ? 'Muitos envios seguidos. Espere um minuto e tente de novo.' : 'A IA não respondeu agora' + (m ? ' (' + m + ')' : '') + '.'); }
   const u = iaUso(); u.ent += j.usage?.input_tokens || 0; u.sai += j.usage?.output_tokens || 0; u.n++; ls.set('mmr-ia-uso', u);
   const tu = (j.content || []).find(c => c.type === 'tool_use');
   if (!tu) throw new Error('A IA não devolveu lançamentos. Tente reescrever o texto.');
-  return { lanc: Array.isArray(tu.input?.lancamentos) ? tu.input.lancamentos : [], sobra: Array.isArray(tu.input?.nao_entendido) ? tu.input.nao_entendido : [] };
+  return { lanc: Array.isArray(tu.input?.lancamentos) ? tu.input.lancamentos : [], sobra: Array.isArray(tu.input?.nao_entendido) ? tu.input.nao_entendido : [], fala: String(tu.input?.fala || '') };
 }
 /* casa o nome falado com o cadastro; devolve o produto ou null */
 function iaAchaProduto(nome) {
@@ -7038,6 +7040,145 @@ function iaCfgSheet(wrap) {
     ${c ? '<button class="lt-btn lt-block" style="margin-top:8px" data-act="ia-chave-remover">Remover chave</button>' : ''}
     <p class="muted" style="margin:12px 0 0;font-size:13px">Uso neste mês, neste aparelho: ${u.n} ${u.n === 1 ? 'leitura' : 'leituras'} · ${(u.ent + u.sai).toLocaleString('pt-BR')} tokens · <b>cerca de ${iaReais(u) < 0.01 ? 'menos de R$ 0,01' : money(iaReais(u))}</b>.<br>Valor aproximado (dólar a R$ ${String(IA_USD_BRL).replace('.', ',')}). O saldo real fica em platform.claude.com, em Billing.</p>`);
 }
+/* ===== Assistente de voz "oi moranguete" (só na Gestão) =====
+   Ouve a palavra de ativação, entende o pedido com a IA e responde em voz. Dúvidas vêm da Ajuda; abrir telas e mudar
+   configurações são feitos na hora; o que mexe em dados (vendas, compras, despesas, cadastros, preços, estoque) só é feito depois do "sim". */
+const VOZ_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const VOZ_WAKE = /moran\s*g[uü]?\s*e\s*t[ei]\w*|morango\s*ete/i;
+const VOZ_SEGURAS = ['tema', 'abrir_tela', 'periodo_padrao', 'whatsapp_numero'];
+const vozLigado = () => !!ls.get('mmr-voz', false);
+const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', tMsg: 0, tJan: 0, tConf: 0 };
+P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>';
+function vozFerramenta() {
+  const f = JSON.parse(JSON.stringify(iaFerramenta));
+  f.name = 'atender'; f.description = 'Responde ao dono em voz e, se ele pediu, registra lançamentos ou ações no app.';
+  f.input_schema.properties.fala = { type: 'string', description: 'O que será dito em voz alta: no máximo 3 frases curtas, sem listas nem símbolos.' };
+  f.input_schema.required = ['fala', 'lancamentos'];
+  return f;
+}
+function vozSistema() {
+  const base = iaSistema(), dados = base.slice(base.indexOf('Hoje é'));
+  const ajuda = AJ_G.map(([s, qs]) => '## ' + s + '\n' + qs.map(([q, a]) => q + ' ' + a.replace(/<li>/g, ' - ').replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim()).join('\n')).join('\n');
+  return `Você é o Moranguete, assistente de voz do aplicativo de gestão "Morangos Made in Roça". O dono fala com você e sua resposta será LIDA EM VOZ ALTA: frases curtas, sem listas, sem símbolos, sem markdown. Use sempre a ferramenta atender; em "fala" vai o que será dito.
+O que fazer:
+- Dúvida sobre como usar o app: responda em "fala" usando SÓ a Ajuda abaixo; se não estiver lá, diga que não sabe. lancamentos vazio.
+- Pedido para executar algo (venda, compra, despesa, cadastro de cliente ou fornecedor, mudar tema, abrir tela, período padrão, número do WhatsApp, preço ou estoque de produto, marcar venda paga, situação de entrega): preencha lancamentos e, em "fala", diga no passado e bem curto o que foi pedido (ex.: "Abri Vendas.").
+- A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
+- Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
+- Se não for sobre o app, diga em uma frase que você cuida só do aplicativo.
+- "X comprou/levou" = venda para X. "Comprei de Y" = compra do fornecedor Y. Gasto com combustível, embalagem etc. = despesa.
+- pago=true só se o dono disser que pagou. "Fiado" ou "a prazo" = forma fiado e pago=false. Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar.
+${dados}
+
+AJUDA DO APP:
+${ajuda}`;
+}
+const vozPode = () => ui.mode === 'gestao';
+function vozResumo(o) {
+  if (o.tipo === 'acao') return o.resumo;
+  if (o.tipo === 'cliente' || o.tipo === 'fornecedor') return 'Cadastrar ' + o.tipo + ' ' + o.nome;
+  const v = o.tipo === 'despesa' ? o.valor : o.total, f = FORMAS[o.forma] || '';
+  const nome = { venda: 'Lançar venda', compra: 'Lançar compra', despesa: 'Lançar despesa' }[o.tipo];
+  return nome + (o.tipo === 'despesa' ? ' de ' + o.descricao : o.pessoa ? ' de ' + o.pessoa : '') + ', ' + money(v) + (f ? ', ' + f : '') + ', ' + (o.pago ? 'pago' : 'não pago');
+}
+function vozPill() {
+  let box = document.getElementById('voz-box');
+  if (!(vozLigado() && vozPode())) { if (box) box.remove(); return; }
+  if (!document.getElementById('voz-css')) { const st = document.createElement('style'); st.id = 'voz-css'; st.textContent = `#voz-box{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);z-index:95;display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:min(360px,calc(100vw - 24px))}
+#voz-box .voz-card{background:var(--card,#fff);color:var(--ink,#111);border:1px solid rgba(128,128,128,.35);border-radius:16px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:14px;line-height:1.35}
+#voz-box .voz-card .voz-b{display:flex;gap:8px;margin-top:10px}#voz-box .voz-card button{flex:1;border-radius:12px;border:1px solid rgba(128,128,128,.4);padding:9px;font-weight:600;background:transparent;color:inherit;cursor:pointer}#voz-box .voz-card button.p{background:#d6336c;color:#fff;border-color:#d6336c}
+#voz-box .voz-pill{display:flex;align-items:center;gap:8px;border-radius:999px;border:1px solid rgba(128,128,128,.4);background:var(--card,#fff);color:var(--ink,#111);padding:9px 14px;font-size:13.5px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2);cursor:pointer}
+#voz-box .voz-pill svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}#voz-box .voz-pill.on{background:#d6336c;color:#fff;border-color:#d6336c}`; document.head.appendChild(st); }
+  if (!box) { box = document.createElement('div'); box.id = 'voz-box'; box.innerHTML = '<div class="voz-card" hidden></div><button type="button" class="voz-pill"></button>';
+    box.querySelector('.voz-pill').addEventListener('click', vozToque);
+    box.querySelector('.voz-card').addEventListener('click', e => { const b = e.target.closest('[data-voz]'); if (b) vozConfirma(b.dataset.voz === 'sim'); }); document.body.appendChild(box); }
+  const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi moranguete”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
+  const pill = box.querySelector('.voz-pill'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
+  const card = box.querySelector('.voz-card'), msg = VOZ.msg;
+  card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">Sim, fazer</button></div>' : '');
+}
+function vozMsg(t, ms = 9000) { VOZ.msg = t; clearTimeout(VOZ.tMsg); if (t && VOZ.estado !== 'confirma') VOZ.tMsg = setTimeout(() => { if (VOZ.estado !== 'confirma') { VOZ.msg = ''; vozPill(); } }, ms); vozPill(); }
+function vozIniciaRec() {
+  if (!VOZ_SR || !vozLigado() || VOZ.rec || VOZ.falando || VOZ.negado || document.hidden) return;
+  const r = new VOZ_SR(); r.lang = 'pt-BR'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 1;
+  r.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) vozOuviu(e.results[i][0].transcript); };
+  r.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { VOZ.negado = true; vozPill(); toast('Permita o microfone no navegador para usar a voz.'); } };
+  r.onend = () => { if (VOZ.rec === r) VOZ.rec = null; if (vozLigado() && !VOZ.negado && !VOZ.falando) setTimeout(vozIniciaRec, 400); };
+  VOZ.rec = r; try { r.start(); } catch { VOZ.rec = null; }
+}
+function vozParaRec() { const r = VOZ.rec; VOZ.rec = null; if (r) { r.onend = null; try { r.abort(); } catch { /* ok */ } } }
+function vozDiz(txt) {
+  vozMsg(txt, 12000);
+  return new Promise(ok => {
+    if (!('speechSynthesis' in window)) return ok();
+    vozParaRec(); VOZ.falando = true; vozPill();
+    const u = new SpeechSynthesisUtterance(txt); u.lang = 'pt-BR'; u.rate = 1.05;
+    const v = speechSynthesis.getVoices().find(x => /^pt[-_]BR/i.test(x.lang)); if (v) u.voice = v;
+    let feito = false; const fim = () => { if (feito) return; feito = true; VOZ.falando = false; vozPill(); setTimeout(vozIniciaRec, 250); ok(); };
+    u.onend = fim; u.onerror = fim; setTimeout(fim, 40000);
+    try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch { fim(); }
+  });
+}
+function vozVolta() { VOZ.estado = 'espera'; VOZ.pend = null; vozPill(); }
+async function vozAbreJanela() {
+  VOZ.estado = 'comando'; clearTimeout(VOZ.tJan); await vozDiz('Oi! Pode falar, estou ouvindo.');
+  if (VOZ.estado === 'comando') VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando') { vozVolta(); vozMsg(''); } }, 10000);
+}
+function vozToque() {
+  if (VOZ.negado || !VOZ.rec) { VOZ.negado = false; VOZ.estado = 'espera'; vozIniciaRec(); }
+  if (VOZ.estado === 'espera') vozAbreJanela(); else if (VOZ.estado === 'comando') { vozVolta(); vozMsg(''); }
+}
+function vozOuviu(t) {
+  if (VOZ.ocupado || !vozPode()) return;
+  if (VOZ.estado === 'confirma') { const n = norm(t).normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (/\b(sim|pode|confirma|confirmo|isso|claro|manda|faz|ok)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
+  if (VOZ.estado === 'comando') { clearTimeout(VOZ.tJan); return vozComando(t); }
+  const m = VOZ_WAKE.exec(t); if (!m) return;
+  const resto = t.slice(m.index + m[0].length).replace(/^[\s,.!?:;-]+/, '').trim();
+  if (resto.length > 2) vozComando(resto); else vozAbreJanela();
+}
+async function vozComando(texto) {
+  VOZ.ocupado = true; VOZ.estado = 'pensando'; vozMsg('Você disse: “' + texto + '”', 20000);
+  try {
+    if (!iaChave()) throw new Error('Falta a chave da IA. Coloque em Configurações, Lançar com IA.');
+    const r = await iaChamar(texto, [], [], { sistema: vozSistema(), ferramenta: vozFerramenta() });
+    const lista = r.lanc.map(iaPrepara); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
+    const ok = lista.filter(o => !o.problemas.length), ruins = lista.filter(o => o.problemas.length);
+    let fala = r.fala.trim(); if (ruins.length) fala = (fala ? fala + ' ' : '') + 'Não consegui fazer: ' + ruins.map(o => o.problemas.join(', ')).join('; ') + '.';
+    if (ok.length && !ok.every(o => o.tipo === 'acao' && VOZ_SEGURAS.includes(o.acao))) {
+      VOZ.pend = ok; VOZ.estado = 'confirma'; VOZ.ocupado = false;
+      await vozDiz((ruins.length ? 'Algo não deu certo. ' : '') + 'Vou fazer isto: ' + ok.map(vozResumo).join('. ') + '. Posso fazer? Diga sim ou não.');
+      clearTimeout(VOZ.tConf); VOZ.tConf = setTimeout(() => { if (VOZ.estado === 'confirma') vozConfirma(false, true); }, 20000);
+      return;
+    }
+    ok.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
+    for (const o of ok) await safe(() => iaGravar(o));
+    VOZ.ocupado = false; vozVolta();
+    await vozDiz(fala || (ok.length ? ok.map(o => o.resumo).join('. ') : 'Não entendi. Pode repetir?'));
+  } catch (e) { VOZ.ocupado = false; vozVolta(); await vozDiz(e.message || 'Não deu certo. Tente de novo.'); }
+}
+async function vozConfirma(sim, tempo) {
+  if (VOZ.estado !== 'confirma' || VOZ.ocupado) return;
+  clearTimeout(VOZ.tConf); const pend = VOZ.pend || []; VOZ.ocupado = true; vozVolta(); vozMsg('');
+  if (!sim) { VOZ.ocupado = false; return vozDiz(tempo ? 'Sem resposta, não fiz nada.' : 'Ok, não fiz nada.'); }
+  pend.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
+  let feitos = 0; for (const o of pend) { if (await safe(() => iaGravar(o))) feitos++; }
+  VOZ.ocupado = false;
+  await vozDiz(feitos === pend.length ? 'Pronto, feito.' : 'Fiz ' + feitos + ' de ' + pend.length + '. Confira no app.');
+}
+function vozCfgSheet(wrap) {
+  const on = vozLigado();
+  return wrap('Assistente de voz', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Diga <b>“oi moranguete”</b> e fale o que precisa: tirar dúvidas do app (Ajuda), abrir telas, mudar a aparência e configurações ou lançar vendas, compras e despesas. Usa a chave da IA de <b>Lançar com IA</b>.</p>
+    <p class="muted" style="margin:0 0 10px;font-size:13.5px">Abrir telas e mudar configurações ele faz na hora. O que mexe em vendas, compras, despesas, cadastros, preços ou estoque ele repete e só faz depois de você dizer <b>sim</b>.</p>
+    <p class="muted" style="margin:0 0 10px;font-size:13px">Funciona no Chrome e no Edge (computador e Android), com o app aberto e a tela ligada. Permita o microfone quando o navegador pedir. No Chrome, o áudio é processado pelo serviço de voz do Google. Toque no botão do microfone na tela para falar sem a palavra de ativação.</p>
+    ${VOZ_SR ? '' : '<div class="note" style="margin-bottom:10px">Este navegador não tem reconhecimento de voz. Use o Chrome ou o Edge.</div>'}
+    <button class="lt-btn lt-block" data-act="voz-toggle" ${VOZ_SR ? '' : 'disabled'}>${on ? 'Desligar assistente de voz' : 'Ligar assistente de voz'}</button>`);
+}
+function vozInit() {
+  setInterval(vozPill, 2000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) vozParaRec(); else vozIniciaRec(); });
+  if (vozLigado()) { vozPill(); vozIniciaRec(); }
+}
 const OPEN = { 'ia-lancar': () => modalIA(), 'nova-venda': () => modalVenda(), 'nova-compra': () => modalCompra(), 'nova-despesa': () => modalDespesa(), 'novo-produto': () => modalProduto(), 'nova-noticia': () => modalNoticia(), 'novo-cliente': () => modalCliente(), 'novo-fornecedor': () => modalFornecedor() };
 // Perfil: recolhe/expande a seção sem perder o que já foi digitado
 document.addEventListener('click', e => { const h = e.target.closest('[data-act="perfil-toggle"]'); if (!h) return; const sec = h.closest('.pf-sec'); const abre = !sec.classList.contains('open'); sec.classList.toggle('open', abre); h.setAttribute('aria-expanded', String(abre)); ls.set('mmr-pf-abertas', { ...(ls.get('mmr-pf-abertas', {}) || {}), [sec.dataset.sec]: abre }); });
@@ -7124,6 +7265,7 @@ document.addEventListener('click', async e => {
     case 'cat-voltar': closeModal(); ui.sheet = { type: 'cat-cfg' }; render(); break;
     case 'rota-gps': rotaGps(); break;
     case 'ia-chave-salvar': { const k = (document.getElementById('ia-chave')?.value || '').trim(); if (!k) { toast('Cole a chave primeiro.'); break; } ls.set('mmr-ia-chave', k); toast('Chave salva neste aparelho.'); render(); break; }
+    case 'voz-toggle': { const on = !vozLigado(); ls.set('mmr-voz', on); if (on) { VOZ.negado = false; VOZ.estado = 'espera'; if (!iaChave()) toast('Coloque a chave da IA em Lançar com IA.'); vozIniciaRec(); } else { vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.msg = ''; } vozPill(); render(); break; }
     case 'ia-chave-remover': ls.set('mmr-ia-chave', ''); toast('Chave removida.'); render(); break;
     case 'per-padrao': { const pv = PERIODOS[v] ? v : '7d'; ls.set('mmr-periodo-padrao', pv); for (const k of Object.values(PER_PAG)) if (ui[k] !== 'custom') ui[k] = pv; ui.sheet = null; render(); toast('Período padrão: ' + PERIODOS[pv] + '.'); break; }
     case 'bk-modo': { const cf = bkCfg(); if (v !== 'manual' && !cf.clientId) { toast('Para o automático, coloque o ID do Google Drive abaixo.'); } bkSalvarCfg({ modo: v }); render(); if (v !== 'manual' && cf.clientId) bkDispara(); break; }
@@ -7459,6 +7601,7 @@ function bkDispara() {
 
 render();
 boot();
+vozInit();
 })();
 </script>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}</script></body></html>
