@@ -5441,7 +5441,7 @@ function openModal(title, inner, onSubmit, onOpen) {
   const f = document.getElementById('mform');
   f.addEventListener('submit', async e => { e.preventDefault(); const btn = f.querySelector('[type=submit]'); if (btn) btn.disabled = true; const ok = await onSubmit(f); if (btn) btn.disabled = false; if (ok !== false) closeModal(); });
   onOpen && onOpen(f);
-  setTimeout(() => f.querySelector('input,textarea,select')?.focus(), 30);
+  setTimeout(() => { const p1 = f.querySelector('input,textarea,select'); if (p1 && !p1.hasAttribute('list') && !p1.classList.contains('sel-hidden')) p1.focus(); }, 30); /* campo de escolher cliente/fornecedor abre a lista, não o teclado */
 }
 function closeModal() { $modal.innerHTML = ''; document.getElementById('nav-root').innerHTML = nav(); }
 const todayInput = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
