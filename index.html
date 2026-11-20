@@ -5415,15 +5415,6 @@ function openModal(title, inner, onSubmit, onOpen) {
   document.getElementById('nav-root').innerHTML = nav();
   if (['Novo cliente', 'Novo fornecedor', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g); g.innerHTML = btnImportar.replace('class="lt-iconbtn"', 'class="bs-x" style="margin-right:0"');
-    if (title === 'Venda avulsa') { // na Venda avulsa: upload lê a planilha padrão do sistema (.xlsx) ou, se for foto, usa a IA; a câmera sempre usa a IA
-      const ub = g.querySelector('button'); ub.removeAttribute('data-act'); ub.setAttribute('aria-label', 'Enviar planilha ou foto'); ub.title = 'Planilha padrão (.xlsx) ou foto para a IA ler';
-      ub.addEventListener('click', () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; inp.addEventListener('change', () => { const f = inp.files[0]; if (!f) return;
-        if (/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|heic|heif|bmp)$/i.test(f.name)) { closeModal(); modalIA([f], true); } else { closeModal(); lerPlanilhaPadrao(f); } }); inp.click(); }); }
-    if (title === 'Venda avulsa') { // câmera: tira a foto e abre o Lançar com IA já com ela anexada e lendo
-      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'bs-x'; cb.style.marginRight = '0'; cb.setAttribute('aria-label', 'Tirar foto para a IA'); cb.title = 'Tirar foto para a IA ler';
-      cb.innerHTML = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
-      cb.addEventListener('click', () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment'); inp.addEventListener('change', () => { if (inp.files.length) { closeModal(); modalIA([...inp.files], true); } }); inp.click(); });
-      g.appendChild(cb); }
     g.appendChild(x); } }
   if (title === 'Lançar com IA') { // upload e câmera no topo, ao lado do título (mesmo estilo do upload da Venda avulsa)
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g);
