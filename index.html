@@ -5331,7 +5331,17 @@ function openModal(title, inner, onSubmit, onOpen) {
   $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" data-act="close-modal" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
   document.getElementById('nav-root').innerHTML = nav();
   if (['Novo cliente', 'Novo fornecedor', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
-    const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g); g.innerHTML = btnImportar.replace('class="lt-iconbtn"', 'class="bs-x" style="margin-right:0"'); g.appendChild(x); } }
+    const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g); g.innerHTML = btnImportar.replace('class="lt-iconbtn"', 'class="bs-x" style="margin-right:0"');
+    if (title === 'Venda avulsa') { // na Venda avulsa: upload lê a planilha padrão do sistema (.xlsx) ou, se for foto, usa a IA; a câmera sempre usa a IA
+      const ub = g.querySelector('button'); ub.removeAttribute('data-act'); ub.setAttribute('aria-label', 'Enviar planilha ou foto'); ub.title = 'Planilha padrão (.xlsx) ou foto para a IA ler';
+      ub.addEventListener('click', () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; inp.addEventListener('change', () => { const f = inp.files[0]; if (!f) return;
+        if (/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|heic|heif|bmp)$/i.test(f.name)) { closeModal(); modalIA([f], true); } else { closeModal(); lerPlanilhaPadrao(f); } }); inp.click(); }); }
+    if (title === 'Venda avulsa') { // câmera: tira a foto e abre o Lançar com IA já com ela anexada e lendo
+      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'bs-x'; cb.style.marginRight = '0'; cb.setAttribute('aria-label', 'Tirar foto para a IA'); cb.title = 'Tirar foto para a IA ler';
+      cb.innerHTML = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+      cb.addEventListener('click', () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment'); inp.addEventListener('change', () => { if (inp.files.length) { closeModal(); modalIA([...inp.files], true); } }); inp.click(); });
+      g.appendChild(cb); }
+    g.appendChild(x); } }
   if (title === 'Lançar com IA') { // upload e câmera no topo, ao lado do título (mesmo estilo do upload da Venda avulsa)
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g);
       const sv = p => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -6081,12 +6091,15 @@ function plPrevia(R, nomeArq) {
     <div class="form-acts"><button type="button" class="btn" data-act="close-modal">${nNovos ? 'Cancelar' : 'Fechar'}</button>${nNovos ? `<button type="submit" class="btn primary">Importar ${pl(nNovos, 'registro', 'registros')}</button>` : ''}</div>`,
     async () => { const ok = await safe(() => plAplicar(R)); if (ok) toast(`Importado: ${pl(R.clientes.length, 'cliente', 'clientes')}, ${pl(R.fornecedores.length, 'fornecedor', 'fornecedores')} e ${pl(R.vendas.length, 'venda', 'vendas')}.${nPul ? ' Repetidos foram pulados.' : ''}`); return ok; });
 }
+async function lerPlanilhaPadrao(f) {
+  if (!/\.xlsx$/i.test(f.name)) { toast('Envie a planilha em .xlsx (o modelo de Configurações).'); return; }
+  try { const wb = await plLerXLSX(await f.arrayBuffer()); await plBuscarCeps(wb); plPrevia(plPlanejar(wb), f.name); }
+  catch (e) { console.error(e); toast(e.message === 'sem-suporte' ? 'Este navegador não consegue abrir planilhas. Atualize o navegador.' : 'Não consegui ler este arquivo. Use o modelo .xlsx de Configurações.'); }
+}
 function escolherPlanilha() {
   let inp = document.getElementById('pl-arquivo'); if (!inp) { inp = document.createElement('input'); inp.type = 'file'; inp.id = 'pl-arquivo'; inp.hidden = true; inp.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; document.body.appendChild(inp);
     inp.addEventListener('change', async () => { const f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
-      if (!/\.xlsx$/i.test(f.name)) { toast('Envie a planilha em .xlsx (o modelo de Configurações).'); return; }
-      try { const wb = await plLerXLSX(await f.arrayBuffer()); await plBuscarCeps(wb); plPrevia(plPlanejar(wb), f.name); }
-      catch (e) { console.error(e); toast(e.message === 'sem-suporte' ? 'Este navegador não consegue abrir planilhas. Atualize o navegador.' : 'Não consegui ler este arquivo. Use o modelo .xlsx de Configurações.'); } }); }
+      await lerPlanilhaPadrao(f); }); }
   inp.click();
 }
 const btnImportar = `<button type="button" class="lt-iconbtn" data-act="importar-planilha" aria-label="Importar planilha" title="Importar planilha">${'<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg>'}</button>`;
@@ -6775,8 +6788,8 @@ function iaCard(o, i) {
     ${bad ? `<small style="display:block;color:#c0392b">⚠ Não dá para lançar: ${esc(o.problemas.join('; '))}. Cadastre e peça de novo.</small>` : ''}${o.avisos.map(a => `<small class="muted" style="display:block">ℹ ${esc(a)}</small>`).join('')}</span>
     <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : 'checked'}></label>`;
 }
-function modalIA() {
-  const chave = iaChave(); let lista = [], arquivos = [];
+function modalIA(iniArq = [], autoLer = false) {
+  const chave = iaChave(); let lista = [], arquivos = [...iniArq];
   const sem = !chave ? `<div class="note" style="margin-bottom:10px">Falta a chave da IA. <button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button></div>` : '';
   openModal('Lançar com IA', `${sem}<div class="fgrid">
     <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" placeholder="Ex.: Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80." style="width:100%"></textarea>
@@ -6802,6 +6815,7 @@ function modalIA() {
     const pega = e => { arquivos.push(...e.target.files); e.target.value = ''; pinta(); };
     f.querySelector('#ia-arq').addEventListener('change', pega); f.querySelector('#ia-foto').addEventListener('change', pega);
     document.getElementById('ia-up').addEventListener('click', () => f.querySelector('#ia-arq').click()); document.getElementById('ia-cam').addEventListener('click', () => f.querySelector('#ia-foto').click());
+    pinta();
     const atualiza = () => { okb.disabled = !f.querySelector('[data-ia]:checked'); };
     res.addEventListener('change', atualiza);
     btn.addEventListener('click', async () => {
@@ -6820,6 +6834,7 @@ function modalIA() {
       } catch (e) { res.innerHTML = `<div class="note">${esc(e.message || 'Não deu certo. Tente de novo.')}</div>`; }
       btn.disabled = false; btn.textContent = 'Ler com a IA';
     });
+    if (autoLer && chave && arquivos.length) btn.click();
   });
 }
 function iaCfgSheet(wrap) {
