@@ -5400,7 +5400,7 @@ function openModal(title, inner, onSubmit, onOpen) {
       const sv = p => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
       const mk = (rot, p, cam) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'bs-x'; b.style.marginRight = '0'; b.setAttribute('aria-label', rot); b.title = rot; b.innerHTML = sv(p);
         b.addEventListener('click', () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = cam ? 'image/*' : 'image/*,.pdf,.csv,.xlsx,.xls,.ods,.txt,.tsv,application/pdf'; if (cam) inp.setAttribute('capture', 'environment'); inp.multiple = !cam;
-          inp.addEventListener('change', () => { if (inp.files.length) { closeModal(); modalIA([...inp.files], true, 'Estes dados vieram da tela Nova despesa: trate como DESPESA (cupom fiscal, nota, conta ou recibo), a menos que claramente seja outra coisa.'); } }); inp.click(); }); g.appendChild(b); };
+          inp.addEventListener('change', () => { if (inp.files.length) iaPreencheDespesa([...inp.files]); }); inp.click(); }); g.appendChild(b); };
       mk('Enviar arquivo ou foto para a IA ler a despesa', '<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/>', false);
       mk('Tirar foto para a IA ler a despesa', '<path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>', true);
       g.appendChild(x); } }
@@ -6849,6 +6849,34 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
     });
     if (autoLer && chave && arquivos.length) btn.click();
   });
+}
+/* Despesa: a foto ou o arquivo é lido pela IA e preenche o próprio card; o que faltar fica destacado para você completar */
+async function iaPreencheDespesa(files) {
+  const f = document.getElementById('mform'); if (!f) return;
+  let st = document.getElementById('d-ia-st');
+  if (!st) { st = document.createElement('div'); st.id = 'd-ia-st'; st.className = 'note'; st.style.margin = '0 0 10px'; f.prepend(st); }
+  const say = t => { st.textContent = t; };
+  if (!iaChave()) { st.innerHTML = 'Falta a chave da IA. <button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button>'; return; }
+  say('Lendo com a IA…');
+  try {
+    const partes = [], pdfs = [], imgs = [];
+    for (const file of files) { const r = await iaLerArquivo(file); if (r.img) imgs.push(r); else if (r.pdf) pdfs.push(r); else partes.push(r.texto); }
+    const texto = 'Estes dados vieram da tela Nova despesa: leia como DESPESA (cupom fiscal, nota, conta ou recibo). Devolva a despesa com descrição (nome do estabelecimento ou do que foi pago), categoria, valor total, data e se está paga.' + (partes.length ? '\n\n' + partes.join('\n\n') : '');
+    if (texto.length > IA_MAX_TXT) throw new Error('Conteúdo grande demais. Envie em partes.');
+    const r = await iaChamar(texto, pdfs, imgs);
+    const ds = r.lanc.filter(l => l.tipo === 'despesa'), l = ds[0] || null;
+    if (!l) { say('A IA não achou uma despesa nesse arquivo. Preencha à mão ou tente outra foto.'); return; }
+    const o = iaPrepara(l), tem = [], falta = [];
+    const marca = (el, ok) => { if (!el) return; el.style.outline = ok ? '' : '2px solid #c0392b'; el.style.outlineOffset = '1px'; if (!ok) el.addEventListener('input', () => { el.style.outline = ''; }, { once: true }); };
+    const d = f.querySelector('#d-desc'); d.value = o.descricao || ''; marca(d, !!o.descricao); (o.descricao ? tem : falta).push('descrição');
+    const c = f.querySelector('#d-cat'); if (c && [...c.options].some(x => x.value === o.categoria) && !o.avisos.some(a => /categoria/.test(a))) { c.value = o.categoria; c.dispatchEvent(new Event('change', { bubbles: true })); tem.push('categoria'); }
+    const v = f.querySelector('#d-val'); v.value = o.valor > 0 ? o.valor : ''; marca(v, o.valor > 0); (o.valor > 0 ? tem : falta).push('valor');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(l.data || '')) { const h = f.querySelector('#d-data'), b = f.querySelector('#d-data-b span'); if (h) { h.value = l.data; if (b) b.textContent = dataBR(l.data); tem.push('data'); } }
+    if (typeof l.pago === 'boolean') { const p = f.querySelector('#d-pago'); if (p) { p.checked = l.pago; p.dispatchEvent(new Event('change', { bubbles: true })); tem.push('situação de pagamento'); } }
+    if (o.forma && ['pix', 'dinheiro', 'debito', 'credito'].includes(o.forma)) { const rd = f.querySelector(`input[name="forma"][value="${o.forma}"]`); if (rd) { rd.checked = true; tem.push('forma de pagamento'); } }
+    say('A IA preencheu: ' + (tem.join(', ') || 'nada') + '.' + (falta.length ? ' Falta preencher: ' + falta.join(', ') + ' (destacado).' : ' Confira e toque em Salvar.') + (ds.length > 1 ? ` Encontrei ${ds.length} despesas e preenchi a primeira; lance as outras depois.` : ''));
+    (falta.length ? (!o.descricao ? d : v) : null)?.focus();
+  } catch (e) { say(e.message || 'Não deu certo. Tente de novo.'); }
 }
 function iaCfgSheet(wrap) {
   const c = iaChave(), u = iaUso();
