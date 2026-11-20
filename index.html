@@ -7111,9 +7111,20 @@ function vozPill() {
   card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">Sim, fazer</button></div>' : '');
 }
 /* quando abre um cartão por baixo (lançamento, formulário, filtro), o botão da voz sobe para ficar acima dele */
+/* posição do botão: fica na memória (vale até fechar a página), e também salva no aparelho; se o aparelho estiver sem espaço, a memória segura a posição */
+function vozPosLe() {
+  if (VOZ.pos !== undefined) return VOZ.pos;
+  let p = ls.get('mmr-voz-pos', null);
+  if (!p) { try { p = JSON.parse(sessionStorage.getItem('mmr-voz-pos') || 'null'); } catch { p = null; } }
+  VOZ.pos = p && typeof p.l === 'number' ? p : null; return VOZ.pos;
+}
+function vozPosGrava(p) {
+  VOZ.pos = p; ls.set('mmr-voz-pos', p); try { sessionStorage.setItem('mmr-voz-pos', JSON.stringify(p)); } catch { /* ok */ }
+  if (p) { try { if (localStorage.getItem('mmr-voz-pos') !== JSON.stringify(p) && !VOZ.avisouPos) { VOZ.avisouPos = true; toast('O aparelho está sem espaço para guardar a posição do botão depois de fechar o app.'); } } catch { /* ok */ } }
+}
 function vozPosiciona() {
   const box = document.getElementById('voz-box'); if (!box) return;
-  const pos = ls.get('mmr-voz-pos', null);
+  const pos = vozPosLe();
   if (pos && typeof pos.l === 'number') { /* você mexeu no botão: fica onde você deixou */
     const l = Math.min(Math.max(pos.l, 4), Math.max(4, innerWidth - 60)), t = Math.min(Math.max(pos.t, 4), Math.max(4, innerHeight - 50));
     Object.assign(box.style, { left: l + 'px', top: t + 'px', right: 'auto', bottom: 'auto', flexDirection: t < innerHeight / 2 ? 'column-reverse' : 'column', alignItems: l > innerWidth / 2 ? 'flex-end' : 'flex-start' }); return;
@@ -7129,9 +7140,9 @@ function vozArrasta(pill) {
   pill.addEventListener('pointermove', e => {
     if (!ini) return; const dx = e.clientX - ini.x, dy = e.clientY - ini.y;
     if (!ini.mov && Math.hypot(dx, dy) < 8) return; ini.mov = true;
-    ls.set('mmr-voz-pos', { l: Math.round(ini.l + dx), t: Math.round(ini.t + dy) }); vozPosiciona();
+    VOZ.pos = { l: Math.round(ini.l + dx), t: Math.round(ini.t + dy) }; vozPosiciona();
   });
-  const fim = () => { if (ini && ini.mov) { VOZ.arrastou = true; setTimeout(() => { VOZ.arrastou = false; }, 80); } ini = null; };
+  const fim = () => { if (ini && ini.mov) { vozPosGrava(VOZ.pos); VOZ.arrastou = true; setTimeout(() => { VOZ.arrastou = false; }, 80); } ini = null; };
   pill.addEventListener('pointerup', fim); pill.addEventListener('pointercancel', fim);
 }
 function vozMsg(t, ms = 9000) { VOZ.msg = t; clearTimeout(VOZ.tMsg); if (t && VOZ.estado !== 'confirma') VOZ.tMsg = setTimeout(() => { if (VOZ.estado !== 'confirma') { VOZ.msg = ''; vozPill(); } }, ms); vozPill(); }
@@ -7269,7 +7280,7 @@ function vozCfgSheet(wrap) {
       <button class="lt-btn lt-block" style="margin-bottom:6px" data-act="voz-conversa">Conversa contínua: ${vozConversa() ? 'ligada' : 'desligada'}</button>
       <p class="muted" style="margin:0 0 12px;font-size:13px">Ligada, ele continua ouvindo uns 10 segundos depois de responder e lembra da conversa. Diga “obrigado” ou “tchau” para encerrar.</p>
       <p class="muted" style="margin:0 0 8px;font-size:13px">Dá para <b>arrastar o botão do microfone</b> para onde quiser. Sem arrastar, ele sobe sozinho para não ficar na frente dos cartões.</p>
-      ${ls.get('mmr-voz-pos', null) ? '<button class="lt-btn lt-block" style="margin-bottom:12px" data-act="voz-pos-reset">Voltar o botão ao lugar de antes</button>' : ''}
+      ${vozPosLe() ? '<button class="lt-btn lt-block" style="margin-bottom:12px" data-act="voz-pos-reset">Voltar o botão ao lugar de antes</button>' : ''}
       <div class="f" style="margin-bottom:12px"><label for="voz-esp">Esperar depois que eu parar de falar: <b id="voz-esp-v">${vozEspera().toFixed(1).replace('.', ',')} s</b></label><input type="range" id="voz-esp" min="1" max="6" step="0.5" value="${vozEspera()}"><small class="muted">Aumente se ele responder antes de você terminar.</small></div>`; })()}
     ${VOZ_SR ? '' : '<div class="note" style="margin-bottom:10px">Este navegador não tem reconhecimento de voz. Use o Chrome ou o Edge.</div>'}
     <button class="lt-btn lt-block" data-act="voz-toggle" ${VOZ_SR ? '' : 'disabled'}>${on ? 'Desligar assistente de voz' : 'Ligar assistente de voz'}</button>`);
@@ -7373,7 +7384,7 @@ document.addEventListener('click', async e => {
     case 'ia-chave-salvar': { const k = (document.getElementById('ia-chave')?.value || '').trim(); if (!k) { toast('Cole a chave primeiro.'); break; } ls.set('mmr-ia-chave', k); toast('Chave salva neste aparelho.'); render(); break; }
     case 'voz-teste': vozTeste(); break;
     case 'voz-conversa': ls.set('mmr-voz-conversa', !vozConversa()); render(); break;
-    case 'voz-pos-reset': ls.set('mmr-voz-pos', null); vozPosiciona(); render(); break;
+    case 'voz-pos-reset': vozPosGrava(null); vozPosiciona(); render(); break;
     case 'voz-toggle': { const on = !vozLigado(); ls.set('mmr-voz', on); if (on) { VOZ.negado = false; VOZ.estado = 'espera'; if (!iaChave()) toast('Coloque a chave da IA em Lançar com IA.'); vozIniciaRec(); } else { vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.msg = ''; } vozPill(); render(); break; }
     case 'ia-chave-remover': ls.set('mmr-ia-chave', ''); toast('Chave removida.'); render(); break;
     case 'per-padrao': { const pv = PERIODOS[v] ? v : '7d'; ls.set('mmr-periodo-padrao', pv); for (const k of Object.values(PER_PAG)) if (ui[k] !== 'custom') ui[k] = pv; ui.sheet = null; render(); toast('Período padrão: ' + PERIODOS[pv] + '.'); break; }
