@@ -5119,6 +5119,23 @@ function enhanceSelects(root) {
   document.addEventListener('focusin', () => setTimeout(chk, 60)); document.addEventListener('focusout', () => setTimeout(chk, 60));
 })();
 
+/* Sem a faixa de sugestões do Android (nome, endereço, cartão, senha) acima do teclado: campos de texto sem preenchimento automático.
+   Login e senha ficam como estão. */
+(function () {
+  const sk = ['password', 'checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color', 'hidden'];
+  const off = el => {
+    if (!el || !el.matches || !el.matches('input,textarea,select')) return;
+    if (sk.includes(el.type) || ['current-password', 'new-password', 'username'].includes(el.getAttribute('autocomplete'))) return;
+    if (el.getAttribute('autocomplete') !== 'off') el.setAttribute('autocomplete', 'off');
+    el.setAttribute('data-lpignore', 'true'); el.setAttribute('data-1p-ignore', 'true'); el.setAttribute('data-form-type', 'other');
+  };
+  document.addEventListener('focusin', e => off(e.target), true);
+  document.addEventListener('touchstart', e => off(e.target), true);
+  const all = root => root.querySelectorAll && root.querySelectorAll('input,textarea,select').forEach(off);
+  all(document);
+  new MutationObserver(m => m.forEach(r => r.addedNodes.forEach(n => { if (n.nodeType === 1) { off(n); all(n); } }))).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
 /* ---------------- barra inferior e folhas ---------------- */
 const popOpen = () => !!ui.sheet || !!document.getElementById('modal-root').innerHTML;
 /* Menu inferior da Gestão: o que aparece na barra e o que vai para o menu de 3 pontinhos */
