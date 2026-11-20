@@ -6937,6 +6937,12 @@ function iaPreparaAcao(o, l) {
         o.exec = async () => { vozLixeiraSalva(col, pl); await excluirExec(col, c[0].id, pl, false); };
       }
     }
+  } else if (l.acao === 'abrir_filtro') {
+    const VC = { movimentacoes: 'mov', saldo: 'saldo', a_receber: 'receber', contas_a_pagar: 'cpagar', despesas_a_pagar: 'dpagar', vendas: 'vendas', compras: 'compras', despesas: 'despesas', estornos: 'estornos' }, NV = { movimentacoes: 'movimentações', saldo: 'detalhe do saldo', a_receber: 'contas a receber', contas_a_pagar: 'contas a pagar (compras)', despesas_a_pagar: 'despesas a pagar', vendas: 'vendas', compras: 'compras', despesas: 'despesas', estornos: 'estornos' };
+    if (!IA_TELAS[l.tela]) o.problemas.push('tela não reconhecida');
+    const pg = PER_PAG[l.tela === 'relatorios' ? 'relatorios' : l.tela], per = PERIODOS[l.periodo] ? l.periodo : '';
+    o.resumo = 'Abrir ' + (IA_TELAS[l.tela] || '?') + (l.tela === 'caixa' && VC[l.visao_caixa] ? ', ' + NV[l.visao_caixa] : '') + (per && pg ? ', período ' + PERIODOS[per] : '');
+    o.exec = async () => { if (per && pg) ui[pg] = per; if (l.tela === 'caixa' && VC[l.visao_caixa]) ui.cxv = VC[l.visao_caixa]; ui.voltaCfg = ['estoque', 'clientes', 'fornecedores', 'noticias', 'ajuda'].includes(l.tela); go(l.tela); };
   } else if (l.acao === 'desfazer_exclusao') {
     const it = vozLixeira()[0]; if (!it) o.problemas.push('não há exclusão para desfazer');
     o.resumo = it ? 'Desfazer a exclusão da ' + it.tipoNome + ' ' + it.nome + ', ' + money(it.valor) + '. Ela volta com o caixa e o estoque.' : 'Desfazer exclusão';
@@ -7077,6 +7083,23 @@ function iaCfgSheet(wrap) {
    configurações são feitos na hora; o que mexe em dados (vendas, compras, despesas, cadastros, preços, estoque) só é feito depois do "sim". */
 const VOZ_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const VOZ_WAKE = /\bandy\b/i;
+/* resumo dos números do app, para o Andy responder perguntas (quem me deve, contas a pagar, vendas do mês...) */
+function vozDados() {
+  const L = [], soma = (arr, f) => n2(arr.reduce((s, x) => s + f(x), 0));
+  L.push('Saldo do caixa (tudo): ' + money(saldoGeral()) + '.');
+  for (const [k, nome] of [['hoje', 'Hoje'], ['7d', 'Últimos 7 dias'], ['30d', 'Últimos 30 dias'], ['mes', 'Este mês']]) {
+    const t = totals(k);
+    L.push(`${nome}: vendas ${money(t.vendas)} (${t.vs.length} pedidos), entradas no caixa ${money(t.entradas)}, saídas ${money(t.saidas)}, compras ${money(t.compras)}, despesas ${money(t.despesas)}, lucro bruto ${money(t.lucroBruto)}, resultado ${money(t.resultado)}.`);
+  }
+  const agrupa = (arr, nomeDe, valDe) => { const m = {}; for (const x of arr) { const n = nomeDe(x) || 'Sem nome'; (m[n] = m[n] || { v: 0, q: 0, ts: Infinity }); m[n].v += valDe(x); m[n].q++; m[n].ts = Math.min(m[n].ts, x.ts); } return Object.entries(m).sort((a, b) => b[1].v - a[1].v); };
+  const lista = (g, max) => g.slice(0, max).map(([n, o]) => `${n} ${money(n2(o.v))} (${o.q} ${o.q === 1 ? 'lançamento' : 'lançamentos'}, o mais antigo de ${fmtDT(o.ts)})`).join('; ') + (g.length > max ? `; e mais ${g.length - max}` : '');
+  const rec = aReceber(), ap = aPagar(), dp = despAPagar();
+  L.push('A RECEBER (clientes que devem): total ' + money(soma(rec, vFalta)) + '. ' + (lista(agrupa(rec, v => v.cliente?.nome || 'Cliente avulso', vFalta), 25) || 'ninguém deve.'));
+  L.push('A PAGAR em compras (fornecedores a quem devo): total ' + money(soma(ap, cFalta)) + '. ' + (lista(agrupa(ap, c => c.fornecedor || 'Roça', cFalta), 25) || 'nada.'));
+  L.push('DESPESAS A PAGAR: total ' + money(soma(dp, d => restante('despesas', d))) + '. ' + (dp.sort((a, b) => a.ts - b.ts).slice(0, 30).map(d => `${d.descricao || 'Despesa'} ${money(restante('despesas', d))} (${fmtDT(d.ts)})`).join('; ') || 'nada.'));
+  L.push('ESTOQUE: ' + (S.produtos.filter(p => p.ativo !== false).slice(0, 40).map(p => `${p.nome} ${p.estoque || 0} ${p.unidade || 'un'}`).join('; ') || 'sem produtos') + '.');
+  return L.join('\n');
+}
 /* achar o lançamento a excluir e guardar uma cópia (lixeira) para poder desfazer */
 const vozLixeira = () => { const l = ls.get('mmr-lixeira', []); return Array.isArray(l) ? l : []; };
 function vozLixeiraSalva(col, pl) {
@@ -7092,7 +7115,7 @@ function vozAchaLanc(col, l) {
   if (l.mais_recente && r.length) r = [r[0]];
   return r;
 }
-const VOZ_SEGURAS = ['tema', 'abrir_tela', 'periodo_padrao', 'whatsapp_numero'];
+const VOZ_SEGURAS = ['tema', 'abrir_tela', 'abrir_filtro', 'periodo_padrao', 'whatsapp_numero'];
 const vozNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const vozLigado = () => !!ls.get('mmr-voz', false);
 const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', buf: '', hist: [], tMsg: 0, tJan: 0, tConf: 0, tBuf: 0 };
@@ -7101,8 +7124,9 @@ P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.
 function vozFerramenta() {
   const f = JSON.parse(JSON.stringify(iaFerramenta));
   const it = f.input_schema.properties.lancamentos.items.properties;
-  it.acao.enum = [...it.acao.enum, 'excluir', 'desfazer_exclusao'];
-  it.acao.description += ' excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz.';
+  it.acao.enum = [...it.acao.enum, 'excluir', 'desfazer_exclusao', 'abrir_filtro'];
+  it.visao_caixa = { type: 'string', enum: ['movimentacoes', 'saldo', 'a_receber', 'contas_a_pagar', 'despesas_a_pagar', 'vendas', 'compras', 'despesas', 'estornos', ''], description: 'Só para acao abrir_filtro com tela caixa: a_receber = contas a receber (quem deve); contas_a_pagar = compras a pagar; despesas_a_pagar = despesas a pagar; vendas, compras, despesas = lista só daquele tipo.' };
+  it.acao.description += ' excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz. abrir_filtro: abre a tela pedida (use tela) já com o período (use periodo) e, no caixa, a lista pedida (use visao_caixa), por exemplo "relatório só de contas a receber".';
   it.colecao = { type: 'string', enum: ['venda', 'compra', 'despesa', ''], description: 'Só para acao excluir.' };
   it.mais_recente = { type: 'boolean', description: 'Só para acao excluir: true se ele pediu a última/mais recente.' };
   f.name = 'atender'; f.description = 'Responde ao dono em voz e, se ele pediu, registra lançamentos ou ações no app.';
@@ -7120,6 +7144,7 @@ O que fazer:
 - Isto é uma conversa: use as falas anteriores para entender pedidos curtos como "e ontem?" ou "abre essa tela". Se o dono agradecer ou se despedir, responda só com uma despedida curta.
 - Se o dono responder a uma pergunta sua, use os "Dados já entendidos" do histórico, complete o lançamento e devolva o lançamento COMPLETO (não só o que ele acabou de dizer). Se ele mandar lançar assim mesmo, preencha só o que tiver.
 - Não invente o que o dono não disse: se não falou a data, deixe data vazia; se não falou da entrega, deixe entrega vazia; se não falou do pagamento, pago_informado=false; se não falou da forma, deixe forma vazia; se não falou a categoria da despesa, deixe categoria vazia; se não falou o preço de uma compra, deixe preco_unitario 0. O app pergunta o que faltar.
+- Perguntas sobre números (quem me deve, para quem devo, despesas a pagar, vendas, lucro, saldo, estoque): responda em "fala" usando SÓ os DADOS DO APP abaixo, com o total e os 5 maiores itens no máximo; se houver mais, diga que abriu a tela com a lista completa e use acao=abrir_filtro. Pedido de relatório ou lista (por exemplo "relatório só de contas a receber", "só de despesas", "vendas de ontem"): use acao=abrir_filtro com tela, periodo e visao_caixa, e diga em "fala" o total.
 - Excluir: use acao=excluir para apagar UMA venda, compra ou despesa por pedido, com colecao e o que ele disser para achar (pessoa ou descricao, valor, data) ou mais_recente=true. Nunca exclua mais de um lançamento por pedido nem em lote: se ele pedir "apaga todas" ou "apaga tudo", diga em "fala" que só exclui um de cada vez e lancamentos vazio. Para trazer de volta a última exclusão use acao=desfazer_exclusao.
 - A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
@@ -7129,6 +7154,9 @@ O que fazer:
 - pago=true só se o dono disser que pagou ou recebeu o valor todo. Se pagou ou recebeu MENOS que o total (inclusive "metade", "50%", "um terço", "R$ 100 de entrada"), pago=false e informe valor_pago em reais, calculando sobre o total (quantidade x preço do pedido, ou o preço cadastrado quando ele não disser o preço): "50%" ou "metade" = valor_pago igual à metade do total. Vale para venda e para compra. "Fiado" ou "a prazo" = forma fiado e pago=false.
 - Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar.
 ${dados}
+
+DADOS DO APP (agora):
+${vozDados()}
 
 AJUDA DO APP:
 ${ajuda}`;
