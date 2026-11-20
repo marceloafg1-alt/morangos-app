@@ -5126,7 +5126,9 @@ function enhanceSelects(root) {
   const off = el => {
     if (!el || !el.matches || !el.matches('input,textarea,select')) return;
     if (sk.includes(el.type) || ['current-password', 'new-password', 'username'].includes(el.getAttribute('autocomplete'))) return;
-    if (el.getAttribute('autocomplete') !== 'off') el.setAttribute('autocomplete', 'off');
+    if (el.getAttribute('autocomplete') !== 'nope') el.setAttribute('autocomplete', 'nope');
+    if (el.hasAttribute('name') && !el.dataset.nm) { el.dataset.nm = el.getAttribute('name'); el.setAttribute('name', 'f' + Math.random().toString(36).slice(2, 9)); }
+    el.setAttribute('spellcheck', 'false'); el.setAttribute('aria-autocomplete', 'none');
     el.setAttribute('data-lpignore', 'true'); el.setAttribute('data-1p-ignore', 'true'); el.setAttribute('data-form-type', 'other');
   };
   document.addEventListener('focusin', e => off(e.target), true);
