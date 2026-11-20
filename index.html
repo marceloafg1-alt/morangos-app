@@ -4893,8 +4893,7 @@ const AJ_G = [
     ['O que acontece quando toco num lançamento?', 'Abre o detalhe: valor, cliente ou fornecedor, data, data do pagamento, forma, itens, observação e os estornos que já teve. Os botões mudam conforme o tipo: <b>Editar venda</b>, <b>Editar compra</b>, <b>Estornar</b> (ou <b>Estornar mais</b>) e <b>Apagar</b> (só despesa sem estorno). Num estorno, <b>Ver venda original</b> leva ao lançamento de origem.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
     ['Como usar os filtros Pagamento e Período do Caixa?', '<b>Pagamento</b> mostra só uma forma: Pix, Dinheiro, Cartão de débito, Cartão de crédito, Cartão na entrega, Fiado ou Não informada. Útil para conferir a gaveta (Dinheiro) ou o extrato do banco (Pix). <b>Período</b> muda o saldo, os seis cards e as movimentações. <b>Limpar filtros</b> volta para todas as formas. Ao sair do Caixa, os filtros voltam ao <b>Período padrão</b>.', [['Abrir Caixa', 'go-caixa-ver', 'mov'], ['Abrir Período padrão', 'sheet', 'per-cfg']]],
     ['O que tem no botão + do Caixa?', '<b>Nova despesa</b>, <b>Nova venda</b>, <b>Nova compra</b>, <b>Estornar venda</b>, <b>A receber</b> (abre a lista no Caixa) e <b>Relatório</b>.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
-    ['Como lançar uma despesa?', '<ol><li>No <b>Caixa</b>, toque no <b>+</b> e em <b>Nova despesa</b>.</li><li>Escreva a <b>Descrição</b> (ou use <b>Ler QR Code</b> do cupom).</li><li>Escolha a <b>Categoria</b>, o <b>Valor</b> e a <b>Data</b>.</li><li><b>Está pago?</b> Desligado, a despesa fica <b>a pagar</b>: aparece no card A pagar do Caixa e só sai do caixa quando você tocar em <b>marcar paga</b>. Se a data for hoje ou já passou, ela também aparece em <b>Pendências → Pagar</b>.</li><li><b>Despesa fixa?</b> Ligue para aluguel, internet, contador e parecidos.</li><li><b>Lançamento recorrente?</b> Escolha repetir diária, semanal ou mensal e, se quiser, uma data final. Sem data final, o app lança por 12 meses. As repetições futuras ficam agendadas e só saem do caixa quando a data de cada uma chega.</li><li>Escolha em <b>Pago com</b>: Pix, Dinheiro, Débito ou Crédito, e toque em <b>Salvar</b>.</li></ol>', [['Lançar despesa', 'nova-despesa']]],
-    ['Como ler o QR Code do cupom fiscal?', 'Ao lançar a despesa, toque em <b>Ler QR Code</b> e tire uma foto do QR do cupom (perto e com boa luz). O app guarda a chave da nota e o CNPJ da loja. O QR não traz o valor: toque em <b>Abrir o cupom na SEFAZ</b> para ver o total e digite em Valor. Depois o cupom aparece no detalhe da despesa.', [['Lançar despesa', 'nova-despesa']]],
+    ['Como lançar uma despesa?', '<ol><li>No <b>Caixa</b>, toque no <b>+</b> e em <b>Nova despesa</b>.</li><li>Escreva a <b>Descrição</b> (ou toque no ícone de <b>câmera</b> no topo para a IA ler a foto do cupom).</li><li>Escolha a <b>Categoria</b>, o <b>Valor</b> e a <b>Data</b>.</li><li><b>Está pago?</b> Desligado, a despesa fica <b>a pagar</b>: aparece no card A pagar do Caixa e só sai do caixa quando você tocar em <b>marcar paga</b>. Se a data for hoje ou já passou, ela também aparece em <b>Pendências → Pagar</b>.</li><li><b>Despesa fixa?</b> Ligue para aluguel, internet, contador e parecidos.</li><li><b>Lançamento recorrente?</b> Escolha repetir diária, semanal ou mensal e, se quiser, uma data final. Sem data final, o app lança por 12 meses. As repetições futuras ficam agendadas e só saem do caixa quando a data de cada uma chega.</li><li>Escolha em <b>Pago com</b>: Pix, Dinheiro, Débito ou Crédito, e toque em <b>Salvar</b>.</li></ol>', [['Lançar despesa', 'nova-despesa']]],
     ['Como criar ou mudar as categorias de despesa?', 'Em <b>Configurações → Categorias de despesa</b>. Toque numa categoria para mudar o nome, a cor ou apagar, ou crie uma nova. Elas aparecem ao lançar a despesa e no relatório <b>Despesas por categoria</b>.', [['Abrir Categorias de despesa', 'sheet', 'cat-cfg']]],
     ['Como devolver dinheiro (estorno)?', '<ol><li>Toque em <b>Estornar</b> na venda, compra ou no lançamento do caixa.</li><li>Escolha <b>Tudo</b> ou <b>Só uma parte</b> (quantos itens voltaram).</li><li>Diga se os itens voltam ao estoque e como o dinheiro foi devolvido.</li><li>Escreva o <b>motivo</b> e confirme.</li></ol>O lançamento original continua no histórico. Se ainda não estava pago, o estorno só abate do valor em aberto e não mexe no caixa.', [['Estornar uma venda', 'escolher-estorno'], ['Ver estornos', 'go-caixa-ver', 'estornos']]],
     ['Por que não consigo apagar um lançamento?', 'Lançamentos com estorno ficam no histórico para o caixa continuar certo. Vendas são canceladas (não apagadas), e só uma venda cancelada sem estorno pode ser apagada. Despesas sem estorno podem ser apagadas no detalhe.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
@@ -5396,6 +5395,15 @@ function openModal(title, inner, onSubmit, onOpen) {
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g);
       const sv = p => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
       g.innerHTML = `<button type="button" class="bs-x" id="ia-up" style="margin-right:0" aria-label="Enviar arquivo" title="Enviar arquivo ou foto">${sv('<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/>')}</button><button type="button" class="bs-x" id="ia-cam" style="margin-right:0" aria-label="Tirar foto" title="Tirar foto">${sv('<path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>')}</button>`; g.appendChild(x); } }
+  if (title === 'Lançar despesa') { // upload e câmera no topo: a IA lê o cupom, a nota ou a conta e monta a despesa
+    const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g);
+      const sv = p => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+      const mk = (rot, p, cam) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'bs-x'; b.style.marginRight = '0'; b.setAttribute('aria-label', rot); b.title = rot; b.innerHTML = sv(p);
+        b.addEventListener('click', () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = cam ? 'image/*' : 'image/*,.pdf,.csv,.xlsx,.xls,.ods,.txt,.tsv,application/pdf'; if (cam) inp.setAttribute('capture', 'environment'); inp.multiple = !cam;
+          inp.addEventListener('change', () => { if (inp.files.length) { closeModal(); modalIA([...inp.files], true, 'Estes dados vieram da tela Nova despesa: trate como DESPESA (cupom fiscal, nota, conta ou recibo), a menos que claramente seja outra coisa.'); } }); inp.click(); }); g.appendChild(b); };
+      mk('Enviar arquivo ou foto para a IA ler a despesa', '<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/>', false);
+      mk('Tirar foto para a IA ler a despesa', '<path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>', true);
+      g.appendChild(x); } }
   const f = document.getElementById('mform');
   f.addEventListener('submit', async e => { e.preventDefault(); const btn = f.querySelector('[type=submit]'); if (btn) btn.disabled = true; const ok = await onSubmit(f); if (btn) btn.disabled = false; if (ok !== false) closeModal(); });
   onOpen && onOpen(f);
@@ -5587,57 +5595,13 @@ function modalCompra(fornId, editId) {
   }, f => { wireLines(f, 'compra', ed?.itens); const lp = ligarParcial(f, 'c'); f.addEventListener('change', e => { if (e.target.name === 'forma') { lp.pg.checked = e.target.value !== 'fiado'; if (lp.pg.checked) lp.pc.checked = false; lp.sync(); } }); });
 }
 
-/* cupom fiscal NFC-e: a chave de 44 números traz o CNPJ do emissor e o mês/ano da emissão. O valor não vem no QR code. */
+/* cupom fiscal NFC-e: o detalhe de despesas antigas ainda mostra a chave e o CNPJ que já tinham sido guardados */
 const nfceCNPJ = c => c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-function nfceCampos(fd) {
-  const chave = String(fd.get('nfceChave') || ''); if (!chave) return {};
-  const url = String(fd.get('nfceUrl') || '');
-  return { nfceChave: chave, nfceCnpj: String(fd.get('nfceCnpj') || ''), ...(url ? { nfceUrl: url } : {}) };
-}
-function nfceUsar(txt) {
-  const raw = String(txt || '').trim(), m = raw.replace(/\s/g, '').match(/\d{44}/), st = document.getElementById('d-nfce-st');
-  if (!m) { toast('Não achei a chave de 44 números. Confira o link ou a foto.'); return false; }
-  const chave = m[0], aa = chave.slice(2, 4), mm = chave.slice(4, 6), cnpj = chave.slice(6, 20);
-  if (+mm < 1 || +mm > 12) { toast('Essa chave não parece de nota fiscal.'); return false; }
-  document.getElementById('d-nfce-chave').value = chave;
-  document.getElementById('d-nfce-cnpj').value = cnpj;
-  document.getElementById('d-nfce-url').value = /^https?:\/\//i.test(raw) ? raw : '';
-  if (st) {
-    const url = /^https?:\/\//i.test(raw) ? raw : '';
-    st.textContent = `Cupom lido: emitido em ${mm}/20${aa}, CNPJ ${nfceCNPJ(cnpj)}. O QR code não traz o valor nem a data exata.`;
-    if (url) { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Abrir o cupom na SEFAZ para ver o total'; a.style.display = 'block'; a.style.marginTop = '6px'; st.appendChild(a); }
-  }
-  toast('Cupom lido.'); return true;
-}
-function carregarJsQR() {
-  if (window.jsQR) return Promise.resolve();
-  return new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js'; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
-}
-async function nfceDeFoto(file) {
-  if (!file) return;
-  try {
-    const bmp = await createImageBitmap(file);
-    let txt = '';
-    if ('BarcodeDetector' in window) { const r = await new BarcodeDetector({ formats: ['qr_code'] }).detect(bmp); if (r.length) txt = r[0].rawValue; }
-    if (!txt) {
-      await carregarJsQR();
-      const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
-      const g = c.getContext('2d'); g.drawImage(bmp, 0, 0);
-      const im = g.getImageData(0, 0, c.width, c.height); const q = window.jsQR && window.jsQR(im.data, im.width, im.height);
-      if (q) txt = q.data;
-    }
-    if (!txt) { toast('Não achei o QR code na foto. Tente de novo, mais perto e com boa luz.'); return; }
-    nfceUsar(txt);
-  } catch { toast('Não consegui ler a foto. Cole o link do cupom.'); }
-}
 
 function modalDespesa() {
   openModal('Lançar despesa', `<div class="fgrid">
     <div class="f full"><label for="d-desc">Descrição</label>
-      <div style="display:flex;gap:8px;align-items:center"><input type="text" id="d-desc" name="descricao" required placeholder="Ex.: Gasolina da entrega" style="flex:1;min-width:0"><button type="button" class="btn small ghost" data-act="nfce-foto" style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none">${ic('camera')}<span>Ler QR Code</span></button></div>
-      <input type="file" id="d-nfce-foto" accept="image/*" capture="environment" hidden>
-      <small id="d-nfce-st" class="muted" style="display:block;margin-top:6px"></small>
-      <input type="hidden" id="d-nfce-chave" name="nfceChave"><input type="hidden" id="d-nfce-url" name="nfceUrl"><input type="hidden" id="d-nfce-cnpj" name="nfceCnpj">
+      <div style="display:flex;gap:8px;align-items:center"><input type="text" id="d-desc" name="descricao" required placeholder="Ex.: Gasolina da entrega" style="flex:1;min-width:0"></div>
     </div>
     <div class="f"><label for="d-cat">Categoria</label><select id="d-cat" name="categoria">${catLista().map(c => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')}</select></div>
     <div class="f"><label for="d-val">Valor (R$)</label><input type="number" id="d-val" name="valor" min="0" step="0.01" required inputmode="decimal"></div>
@@ -5657,7 +5621,7 @@ function modalDespesa() {
   async f => { const fd = new FormData(f); const valor = Number(fd.get('valor')); const desc = String(fd.get('descricao')).trim();
     if (!desc || !(valor > 0)) { toast('Preencha a descrição e o valor.'); return false; }
     const paga = fd.get('pago') !== null;
-    const base = { descricao: desc, categoria: fd.get('categoria'), valor: n2(valor), pago: paga, fixa: fd.get('fixa') !== null, forma: paga ? (fd.get('forma') || '') : '', ...nfceCampos(fd) };
+    const base = { descricao: desc, categoria: fd.get('categoria'), valor: n2(valor), pago: paga, fixa: fd.get('fixa') !== null, forma: paga ? (fd.get('forma') || '') : '' };
     const ini = tsFromDate(fd.get('data'));
     if (fd.get('recorrente') === null) return safe(() => put('despesas', uid(), { ...base, ts: ini, recorrente: false }), 'Despesa lançada.');
     const freq = fd.get('freq') || 'mensal', fimS = fd.get('fim');
@@ -5672,8 +5636,7 @@ function modalDespesa() {
     return safe(async () => { for (const t of datas) await put('despesas', uid(), { ...base, ts: t, recorrente: true, freq, grupo }); }, datas.length + (datas.length === 1 ? ' despesa lançada.' : ' despesas lançadas.'));
   },
   f => { const tog = () => { f.querySelector('#rec-box').style.display = f.querySelector('#d-rec').checked ? 'grid' : 'none'; f.querySelector('#forma-box').style.display = f.querySelector('#d-pago').checked ? '' : 'none'; };
-    f.addEventListener('change', tog); tog();
-    f.querySelector('#d-nfce-foto').addEventListener('change', e => nfceDeFoto(e.target.files && e.target.files[0])); });
+    f.addEventListener('change', tog); tog(); });
 }
 
 function modalProduto(id) {
@@ -6838,7 +6801,7 @@ function iaCard(o, i) {
     ${bad ? `<small style="display:block;color:#c0392b">⚠ Não dá para lançar: ${esc(o.problemas.join('; '))}. Cadastre e peça de novo.</small>` : ''}${o.avisos.map(a => `<small class="muted" style="display:block">ℹ ${esc(a)}</small>`).join('')}</span>
     <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : 'checked'}></label>`;
 }
-function modalIA(iniArq = [], autoLer = false) {
+function modalIA(iniArq = [], autoLer = false, ctx = '') {
   const chave = iaChave(); let lista = [], arquivos = [...iniArq];
   const sem = !chave ? `<div class="note" style="margin-bottom:10px">Falta a chave da IA. <button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button></div>` : '';
   openModal('Lançar com IA', `${sem}<div class="fgrid">
@@ -6874,7 +6837,7 @@ function modalIA(iniArq = [], autoLer = false) {
       btn.disabled = true; btn.textContent = 'Lendo…'; res.innerHTML = ''; okb.disabled = true;
       try {
         for (const file of arquivos) { const r = await iaLerArquivo(file); if (r.img) imgs.push(r); else if (r.pdf) pdfs.push(r); else partes.push(r.texto); }
-        const texto = partes.join('\n\n'); if (!texto.trim() && !pdfs.length && !imgs.length) throw new Error('Escreva um texto, envie um arquivo ou tire uma foto.');
+        const texto = (ctx && (partes.length || imgs.length || pdfs.length) ? ctx + '\n\n' : '') + partes.join('\n\n'); if (!texto.trim() && !pdfs.length && !imgs.length) throw new Error('Escreva um texto, envie um arquivo ou tire uma foto.');
         if (texto.length > IA_MAX_TXT) throw new Error('Conteúdo grande demais (' + texto.length + ' caracteres; máximo ' + IA_MAX_TXT + '). Envie em partes.');
         const r = await iaChamar(texto, pdfs, imgs);
         lista = r.lanc.map(iaPrepara); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
@@ -6975,7 +6938,6 @@ document.addEventListener('click', async e => {
     case 'wa-salvar': { const d = (document.getElementById('wa-num')?.value || '').replace(/\D/g, ''); if (d && d.length < 10) { toast('Número incompleto. Use DDD e número.'); break; } const num = d && d.length <= 11 ? '55' + d : d; ls.set('mmr-wa-numero', num); ui.sheet = null; render(); toast(num ? 'Número salvo.' : 'Número apagado.'); break; }
     case 'rota-mapa': rotaMapaAbrir(); break;
     case 'rota-cfg-salvar': rotaCfgSalvar(); break;
-    case 'nfce-foto': document.getElementById('d-nfce-foto')?.click(); break;
     case 'cat-nova': ui.sheet = null; render(); modalCategoria(); break;
     case 'cat-editar': ui.sheet = null; render(); modalCategoria(id); break;
     case 'cat-apagar': catApagar(id); break;
