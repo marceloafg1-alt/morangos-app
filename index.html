@@ -4266,10 +4266,9 @@ function modalLanc(col, id, eid) {
 }
 
 /* excluir venda, compra ou despesa (mesmo com estorno): o caixa e o estoque se ajustam na hora */
-function excluirLanc(col, id) {
-  if (!canWrite) { toast('Modo leitura: não dá para excluir.'); return; }
-  const x = S[col].find(y => y.id === id); if (!x) return;
-  if ($modal.innerHTML) closeModal();
+/* o que acontece ao excluir (usado pela tela de confirmação e pelo assistente de voz) */
+function excluirPlano(col, id) {
+  const x = S[col].find(y => y.id === id); if (!x) return null;
   const tipoNome = { vendas: 'venda', compras: 'compra', despesas: 'despesa' }[col];
   const nome = col === 'vendas' ? (x.cliente?.nome || 'Cliente avulso') : col === 'compras' ? (x.fornecedor || 'Roça') : (x.descricao || 'Despesa');
   const liq = cashMoves('tudo').filter(m => m.col === col && m.id === id).reduce((s, m) => s + (m.tipo === 'in' ? m.valor : -m.valor), 0);
@@ -4282,16 +4281,26 @@ function excluirLanc(col, id) {
     mexe > 0 ? `O caixa aumenta ${money(mexe)}.` : mexe < 0 ? `O caixa diminui ${money(-mexe)}.` : 'Não muda o saldo do caixa (ainda não tinha sido pago).',
     volta.length ? `Os itens voltam para o estoque (${esc(itemsText(volta))}).` : '', sai.length ? `Os itens saem do estoque (${esc(itemsText(sai))}).` : '',
     estornos(x).length ? `Os ${estornos(x).length} estorno(s) deste lançamento também são excluídos.` : ''].filter(Boolean).join(' ');
+  return { x, tipoNome, nome, mexe, volta, sai, prox, efeitos, valor: valOrig(col, x) };
+}
+async function excluirExec(col, id, pl, comProx) {
+  await del(col, id);
+  if (comProx) for (const d of pl.prox) await del('despesas', d.id);
+  if (pl.volta.length) await adjustStock(pl.volta, 1);
+  if (pl.sai.length) await adjustStock(pl.sai, -1);
+  if (col === 'vendas' && pl.x.status === 'em_rota') await rtSemParada(id);
+}
+function excluirLanc(col, id) {
+  if (!canWrite) { toast('Modo leitura: não dá para excluir.'); return; }
+  const pl = excluirPlano(col, id); if (!pl) return;
+  if ($modal.innerHTML) closeModal();
+  const { x, tipoNome, nome, mexe, volta, sai, prox, efeitos } = pl;
   openModal('Excluir ' + tipoNome, `<p style="margin:0">Excluir ${tipoNome} <b>${esc(nome)}</b> (${money(valOrig(col, x))})? ${efeitos} Isso não pode ser desfeito.</p>${prox.length ? `<label class="nt-pref" for="x-prox" style="margin-top:12px"><span class="grow"><b>Excluir também as próximas (${prox.length})</b><small>As repetições seguintes desta despesa recorrente</small></span><input type="checkbox" class="lt-switch" id="x-prox" name="prox"></label>` : ''}
     <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary">Excluir ${tipoNome}</button></div>`,
   async f => {
     const comProx = prox.length && new FormData(f).get('prox') !== null;
     return safe(async () => {
-      await del(col, id);
-      if (comProx) for (const d of prox) await del('despesas', d.id);
-      if (volta.length) await adjustStock(volta, 1);
-      if (sai.length) await adjustStock(sai, -1);
-      if (col === 'vendas' && x.status === 'em_rota') await rtSemParada(id);
+      await excluirExec(col, id, pl, comProx);
     }, comProx ? (prox.length + 1) + ' despesas excluídas.' : tipoNome[0].toUpperCase() + tipoNome.slice(1) + ' excluída.' + (mexe ? ' Caixa atualizado.' : ''));
   });
 }
@@ -6914,6 +6923,24 @@ function iaPreparaAcao(o, l) {
     const v = vendaDe(false); if (!v) o.problemas.push('não achei venda de "' + (o.pessoa || '?') + '"'); if (!IA_STATUS[l.status]) o.problemas.push('situação da entrega não reconhecida');
     o.resumo = v ? `Entrega da venda de ${v.cliente?.nome} (${money(v.total)}): ${IA_STATUS[l.status] || '?'}` : 'Mudar entrega de venda';
     o.exec = async () => { await setStatus(v.id, l.status); };
+  } else if (l.acao === 'excluir') {
+    const col = { venda: 'vendas', compra: 'compras', despesa: 'despesas' }[l.colecao];
+    if (!col) o.problemas.push('não entendi se é venda, compra ou despesa');
+    else if (!canWrite) o.problemas.push('modo leitura: não dá para excluir');
+    else {
+      const c = vozAchaLanc(col, l);
+      if (!c.length) o.problemas.push('não achei esse lançamento (diga o nome, o valor ou a data)');
+      else if (c.length > 1) o.problemas.push('achei ' + c.length + ' lançamentos parecidos: ' + c.slice(0, 4).map(x => money(valOrig(col, x)) + ' em ' + fmtDT(x.ts)).join('; ') + '. Diga o valor ou a data para eu achar o certo');
+      else {
+        const pl = excluirPlano(col, c[0].id), un = t => { const e = document.createElement('textarea'); e.innerHTML = t; return e.value; };
+        o.resumo = 'Excluir ' + (col === 'despesas' ? 'a despesa ' : 'a ' + pl.tipoNome + ' de ') + pl.nome + ', ' + money(pl.valor) + ', de ' + fmtDT(pl.x.ts) + '. ' + un(pl.efeitos) + ' Isso não pode ser desfeito.';
+        o.exec = async () => { vozLixeiraSalva(col, pl); await excluirExec(col, c[0].id, pl, false); };
+      }
+    }
+  } else if (l.acao === 'desfazer_exclusao') {
+    const it = vozLixeira()[0]; if (!it) o.problemas.push('não há exclusão para desfazer');
+    o.resumo = it ? 'Desfazer a exclusão da ' + it.tipoNome + ' ' + it.nome + ', ' + money(it.valor) + '. Ela volta com o caixa e o estoque.' : 'Desfazer exclusão';
+    o.exec = async () => { await put(it.col, it.id, it.body); if (it.volta && it.volta.length) await adjustStock(it.volta, -1); if (it.sai && it.sai.length) await adjustStock(it.sai, 1); const L = vozLixeira(); L.shift(); ls.set('mmr-lixeira', L); };
   } else o.problemas.push('ação não reconhecida');
   return o;
 }
@@ -7050,6 +7077,21 @@ function iaCfgSheet(wrap) {
    configurações são feitos na hora; o que mexe em dados (vendas, compras, despesas, cadastros, preços, estoque) só é feito depois do "sim". */
 const VOZ_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const VOZ_WAKE = /\bandy\b/i;
+/* achar o lançamento a excluir e guardar uma cópia (lixeira) para poder desfazer */
+const vozLixeira = () => { const l = ls.get('mmr-lixeira', []); return Array.isArray(l) ? l : []; };
+function vozLixeiraSalva(col, pl) {
+  const b = { ...pl.x }; delete b.id; const L = vozLixeira();
+  L.unshift({ col, id: pl.x.id, body: b, volta: pl.volta, sai: pl.sai, nome: pl.nome, tipoNome: pl.tipoNome, valor: pl.valor, ts: Date.now() }); ls.set('mmr-lixeira', L.slice(0, 15));
+}
+function vozAchaLanc(col, l) {
+  const q = norm(l.pessoa || l.descricao || ''), val = n2(l.valor), dia = /^\d{4}-\d{2}-\d{2}$/.test(l.data || '') ? l.data : '';
+  if (!q && !(val > 0) && !dia && !l.mais_recente) return [];
+  const nomeDe = x => col === 'vendas' ? (x.cliente?.nome || '') : col === 'compras' ? (x.fornecedor || '') : (x.descricao || '');
+  const iso = ts => { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  let r = S[col].filter(x => (!q || norm(nomeDe(x)).includes(q) || q.includes(norm(nomeDe(x)))) && (!(val > 0) || Math.abs(valOrig(col, x) - val) < 0.01) && (!dia || iso(x.ts) === dia)).sort((a, b) => b.ts - a.ts);
+  if (l.mais_recente && r.length) r = [r[0]];
+  return r;
+}
 const VOZ_SEGURAS = ['tema', 'abrir_tela', 'periodo_padrao', 'whatsapp_numero'];
 const vozNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const vozLigado = () => !!ls.get('mmr-voz', false);
@@ -7058,6 +7100,11 @@ const vozEspera = () => { const v = Number(ls.get('mmr-voz-espera', 2.5)); retur
 P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>';
 function vozFerramenta() {
   const f = JSON.parse(JSON.stringify(iaFerramenta));
+  const it = f.input_schema.properties.lancamentos.items.properties;
+  it.acao.enum = [...it.acao.enum, 'excluir', 'desfazer_exclusao'];
+  it.acao.description += ' excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz.';
+  it.colecao = { type: 'string', enum: ['venda', 'compra', 'despesa', ''], description: 'Só para acao excluir.' };
+  it.mais_recente = { type: 'boolean', description: 'Só para acao excluir: true se ele pediu a última/mais recente.' };
   f.name = 'atender'; f.description = 'Responde ao dono em voz e, se ele pediu, registra lançamentos ou ações no app.';
   f.input_schema.properties.fala = { type: 'string', description: 'O que será dito em voz alta: no máximo 3 frases curtas, sem listas nem símbolos.' };
   f.input_schema.required = ['fala', 'lancamentos'];
@@ -7073,6 +7120,7 @@ O que fazer:
 - Isto é uma conversa: use as falas anteriores para entender pedidos curtos como "e ontem?" ou "abre essa tela". Se o dono agradecer ou se despedir, responda só com uma despedida curta.
 - Se o dono responder a uma pergunta sua, use os "Dados já entendidos" do histórico, complete o lançamento e devolva o lançamento COMPLETO (não só o que ele acabou de dizer). Se ele mandar lançar assim mesmo, preencha só o que tiver.
 - Não invente o que o dono não disse: se não falou a data, deixe data vazia; se não falou da entrega, deixe entrega vazia; se não falou do pagamento, pago_informado=false; se não falou da forma, deixe forma vazia; se não falou a categoria da despesa, deixe categoria vazia; se não falou o preço de uma compra, deixe preco_unitario 0. O app pergunta o que faltar.
+- Excluir: use acao=excluir para apagar UMA venda, compra ou despesa por pedido, com colecao e o que ele disser para achar (pessoa ou descricao, valor, data) ou mais_recente=true. Nunca exclua mais de um lançamento por pedido nem em lote: se ele pedir "apaga todas" ou "apaga tudo", diga em "fala" que só exclui um de cada vez e lancamentos vazio. Para trazer de volta a última exclusão use acao=desfazer_exclusao.
 - A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
 - Se não for sobre o app, diga em uma frase que você cuida só do aplicativo.
@@ -7108,7 +7156,7 @@ function vozPill() {
   const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi Andy”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
   const pill = box.querySelector('.voz-pill'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
   const card = box.querySelector('.voz-card'), msg = VOZ.msg;
-  card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">Sim, fazer</button></div>' : '');
+  card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">' + (VOZ.estrito ? 'Sim, excluir' : 'Sim, fazer') + '</button></div>' : '');
 }
 /* quando abre um cartão por baixo (lançamento, formulário, filtro), o botão da voz sobe para ficar acima dele */
 /* posição do botão: só vale até você mudar de tela ou atualizar a página; depois ele volta ao lugar fixo */
@@ -7176,6 +7224,8 @@ function vozToque() {
 }
 function vozOuviu(t) {
   if (VOZ.ocupado || !vozPode()) return;
+  if (VOZ.estado === 'confirma' && VOZ.estrito) { const n = norm(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/\b(sim|confirmo|confirma|pode excluir|pode apagar|pode deletar)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
   if (VOZ.estado === 'confirma') { const n = norm(t).normalize('NFD').replace(/[̀-ͯ]/g, '');
     if (/\b(sim|pode|confirma|confirmo|isso|claro|manda|faz|ok)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
   if (VOZ.estado === 'comando') { clearTimeout(VOZ.tJan); return vozJunta(t); }
@@ -7237,10 +7287,14 @@ async function vozComando(texto) {
       VOZ.estado = 'espera'; await vozDiz(perg); vozContinua(); return;
     }
     const ok = lista.filter(o => !o.problemas.length), ruins = lista.filter(o => o.problemas.length);
+    if (ok.some(o => o.acao === 'excluir') && (ok.length + ruins.length) > 1) {
+      const perg = 'Eu excluo um lançamento de cada vez e sozinho. Qual você quer excluir primeiro?'; VOZ.ocupado = false; vozLembra(texto, perg);
+      VOZ.estado = 'espera'; await vozDiz(perg); vozContinua(); return;
+    }
     let fala = r.fala.trim(); if (ruins.length) fala = (fala ? fala + ' ' : '') + 'Não consegui fazer: ' + ruins.map(o => o.problemas.join(', ')).join('; ') + '.';
     if (ok.length && !ok.every(o => o.tipo === 'acao' && VOZ_SEGURAS.includes(o.acao))) {
-      VOZ.pend = ok; VOZ.estado = 'confirma'; VOZ.ocupado = false;
-      const perg = (ruins.length ? 'Algo não deu certo. ' : '') + 'Vou fazer isto: ' + ok.map(vozResumo).join('. ') + '. Posso fazer? Diga sim ou não.'; vozLembra(texto, perg);
+      VOZ.pend = ok; VOZ.estado = 'confirma'; VOZ.ocupado = false; VOZ.estrito = ok.some(o => o.acao === 'excluir');
+      const perg = (ruins.length ? 'Algo não deu certo. ' : '') + 'Vou fazer isto: ' + ok.map(vozResumo).join('. ') + '. ' + (VOZ.estrito ? 'Para excluir, diga sim. Para cancelar, diga não.' : 'Posso fazer? Diga sim ou não.'); vozLembra(texto, perg);
       await vozDiz(perg);
       clearTimeout(VOZ.tConf); VOZ.tConf = setTimeout(() => { if (VOZ.estado === 'confirma') vozConfirma(false, true); }, 20000);
       return;
@@ -7253,7 +7307,7 @@ async function vozComando(texto) {
 }
 async function vozConfirma(sim, tempo) {
   if (VOZ.estado !== 'confirma' || VOZ.ocupado) return;
-  clearTimeout(VOZ.tConf); const pend = VOZ.pend || []; VOZ.ocupado = true; vozVolta(); vozMsg('');
+  clearTimeout(VOZ.tConf); VOZ.estrito = false; const pend = VOZ.pend || []; VOZ.ocupado = true; vozVolta(); vozMsg('');
   if (!sim) { VOZ.ocupado = false; const d = tempo ? 'Sem resposta, não fiz nada.' : 'Ok, não fiz nada.'; vozLembra(tempo ? '(sem resposta)' : 'não', d); await vozDiz(d); return vozContinua(); }
   pend.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
   let feitos = 0; for (const o of pend) { if (await safe(() => iaGravar(o))) feitos++; }
