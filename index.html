@@ -7070,7 +7070,8 @@ O que fazer:
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
 - Se não for sobre o app, diga em uma frase que você cuida só do aplicativo.
 - "X comprou/levou" = venda para X. "Comprei de Y" = compra do fornecedor Y. Gasto com combustível, embalagem etc. = despesa.
-- pago=true só se o dono disser que pagou. "Fiado" ou "a prazo" = forma fiado e pago=false. Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar.
+- pago=true só se o dono disser que pagou ou recebeu o valor todo. Se pagou ou recebeu MENOS que o total (inclusive "metade", "50%", "um terço", "R$ 100 de entrada"), pago=false e informe valor_pago em reais, calculando sobre o total (quantidade x preço do pedido, ou o preço cadastrado quando ele não disser o preço): "50%" ou "metade" = valor_pago igual à metade do total. Vale para venda e para compra. "Fiado" ou "a prazo" = forma fiado e pago=false.
+- Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar.
 ${dados}
 
 AJUDA DO APP:
