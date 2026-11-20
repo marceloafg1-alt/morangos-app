@@ -6819,7 +6819,7 @@ async function iaChamar(texto, pdfs, imgs = [], voz = null) {
   const content = [...imgs.map(m => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: m.img } })), ...pdfs.map(p => ({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.pdf } })), { type: 'text', text: texto || 'Leia o que foi anexado e registre os lançamentos.' }];
   const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': chave, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: IA_MODELO, max_tokens: voz ? 2000 : 8000, system: voz ? voz.sistema : iaSistema(), tools: [voz ? voz.ferramenta : iaFerramenta], tool_choice: { type: 'tool', name: (voz ? voz.ferramenta : iaFerramenta).name }, messages: [{ role: 'user', content }] }) });
+    body: JSON.stringify({ model: IA_MODELO, max_tokens: voz ? 2000 : 8000, system: voz ? voz.sistema : iaSistema(), tools: [voz ? voz.ferramenta : iaFerramenta], tool_choice: { type: 'tool', name: (voz ? voz.ferramenta : iaFerramenta).name }, messages: [...(voz && voz.hist ? voz.hist : []), { role: 'user', content }] }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { const m = j?.error?.message || ''; throw new Error(r.status === 401 ? 'A chave da IA não foi aceita. Confira em Configurações > Lançar com IA.' : r.status === 429 ? 'Muitos envios seguidos. Espere um minuto e tente de novo.' : 'A IA não respondeu agora' + (m ? ' (' + m + ')' : '') + '.'); }
   const u = iaUso(); u.ent += j.usage?.input_tokens || 0; u.sai += j.usage?.output_tokens || 0; u.n++; ls.set('mmr-ia-uso', u);
@@ -7046,8 +7046,9 @@ function iaCfgSheet(wrap) {
 const VOZ_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const VOZ_WAKE = /moran\s*g[uü]?\s*e\s*t[ei]\w*|morango\s*ete/i;
 const VOZ_SEGURAS = ['tema', 'abrir_tela', 'periodo_padrao', 'whatsapp_numero'];
+const vozNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const vozLigado = () => !!ls.get('mmr-voz', false);
-const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', buf: '', tMsg: 0, tJan: 0, tConf: 0, tBuf: 0 };
+const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', buf: '', hist: [], tMsg: 0, tJan: 0, tConf: 0, tBuf: 0 };
 const vozEspera = () => { const v = Number(ls.get('mmr-voz-espera', 2.5)); return v >= 1 && v <= 6 ? v : 2.5; };
 P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>';
 function vozFerramenta() {
@@ -7064,6 +7065,7 @@ function vozSistema() {
 O que fazer:
 - Dúvida sobre como usar o app: responda em "fala" usando SÓ a Ajuda abaixo; se não estiver lá, diga que não sabe. lancamentos vazio.
 - Pedido para executar algo (venda, compra, despesa, cadastro de cliente ou fornecedor, mudar tema, abrir tela, período padrão, número do WhatsApp, preço ou estoque de produto, marcar venda paga, situação de entrega): preencha lancamentos e, em "fala", diga no passado e bem curto o que foi pedido (ex.: "Abri Vendas.").
+- Isto é uma conversa: use as falas anteriores para entender pedidos curtos como "e ontem?" ou "abre essa tela". Se o dono agradecer ou se despedir, responda só com uma despedida curta.
 - A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
 - Se não for sobre o app, diga em uma frase que você cuida só do aplicativo.
@@ -7177,34 +7179,47 @@ function vozParcial(t) {
   clearTimeout(VOZ.tJan); vozMsg('Ouvindo: “' + (VOZ.buf + ' ' + t).trim() + '”', 30000);
   if (VOZ.buf) vozAgenda(); else VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) { vozVolta(); vozMsg(''); } }, 15000);
 }
+const VOZ_FIM = /^(muito )?(obrigad[oa]|valeu|tchau|ate logo|pode parar|era so isso|so isso|encerrar|encerra|chega)( por hoje| moranguete| tudo)?$/;
+const vozConversa = () => ls.get('mmr-voz-conversa', true) !== false;
+function vozFimConversa() { clearTimeout(VOZ.tJan); VOZ.hist = []; VOZ.buf = ''; vozVolta(); vozMsg(''); }
+/* depois de responder, continua ouvindo por uns segundos para você seguir a conversa sem chamar de novo */
+function vozContinua() {
+  if (!vozConversa()) return vozFimConversa();
+  VOZ.estado = 'comando'; vozPill(); clearTimeout(VOZ.tJan);
+  VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) vozFimConversa(); }, 10000);
+}
+function vozLembra(user, assistente) { VOZ.hist.push({ role: 'user', content: String(user) }, { role: 'assistant', content: String(assistente || 'Ok.') }); while (VOZ.hist.length > 8) VOZ.hist.splice(0, 2); }
 async function vozComando(texto) {
+  if (VOZ_FIM.test(vozNormTxt(texto))) { VOZ.estado = 'pensando'; VOZ.buf = ''; clearTimeout(VOZ.tBuf); const f = vozDiz('De nada! Até logo.'); VOZ.hist = []; await f; return vozFimConversa(); }
   VOZ.ocupado = true; clearTimeout(VOZ.tBuf); VOZ.buf = ''; VOZ.estado = 'pensando'; vozMsg('Você disse: “' + texto + '”', 20000);
   try {
     if (!iaChave()) throw new Error('Falta a chave da IA. Coloque em Configurações, Lançar com IA.');
-    const r = await iaChamar(texto, [], [], { sistema: vozSistema(), ferramenta: vozFerramenta() });
+    const r = await iaChamar(texto, [], [], { sistema: vozSistema(), ferramenta: vozFerramenta(), hist: VOZ.hist });
     const lista = r.lanc.map(iaPrepara); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
     const ok = lista.filter(o => !o.problemas.length), ruins = lista.filter(o => o.problemas.length);
     let fala = r.fala.trim(); if (ruins.length) fala = (fala ? fala + ' ' : '') + 'Não consegui fazer: ' + ruins.map(o => o.problemas.join(', ')).join('; ') + '.';
     if (ok.length && !ok.every(o => o.tipo === 'acao' && VOZ_SEGURAS.includes(o.acao))) {
       VOZ.pend = ok; VOZ.estado = 'confirma'; VOZ.ocupado = false;
-      await vozDiz((ruins.length ? 'Algo não deu certo. ' : '') + 'Vou fazer isto: ' + ok.map(vozResumo).join('. ') + '. Posso fazer? Diga sim ou não.');
+      const perg = (ruins.length ? 'Algo não deu certo. ' : '') + 'Vou fazer isto: ' + ok.map(vozResumo).join('. ') + '. Posso fazer? Diga sim ou não.'; vozLembra(texto, perg);
+      await vozDiz(perg);
       clearTimeout(VOZ.tConf); VOZ.tConf = setTimeout(() => { if (VOZ.estado === 'confirma') vozConfirma(false, true); }, 20000);
       return;
     }
     ok.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
     for (const o of ok) await safe(() => iaGravar(o));
-    VOZ.ocupado = false; vozVolta();
-    await vozDiz(fala || (ok.length ? ok.map(o => o.resumo).join('. ') : 'Não entendi. Pode repetir?'));
+    VOZ.ocupado = false; const dito = fala || (ok.length ? ok.map(o => o.resumo).join('. ') : 'Não entendi. Pode repetir?'); vozLembra(texto, dito);
+    VOZ.estado = 'espera'; await vozDiz(dito); vozContinua();
   } catch (e) { VOZ.ocupado = false; vozVolta(); await vozDiz(e.message || 'Não deu certo. Tente de novo.'); }
 }
 async function vozConfirma(sim, tempo) {
   if (VOZ.estado !== 'confirma' || VOZ.ocupado) return;
   clearTimeout(VOZ.tConf); const pend = VOZ.pend || []; VOZ.ocupado = true; vozVolta(); vozMsg('');
-  if (!sim) { VOZ.ocupado = false; return vozDiz(tempo ? 'Sem resposta, não fiz nada.' : 'Ok, não fiz nada.'); }
+  if (!sim) { VOZ.ocupado = false; const d = tempo ? 'Sem resposta, não fiz nada.' : 'Ok, não fiz nada.'; vozLembra(tempo ? '(sem resposta)' : 'não', d); await vozDiz(d); return vozContinua(); }
   pend.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
   let feitos = 0; for (const o of pend) { if (await safe(() => iaGravar(o))) feitos++; }
   VOZ.ocupado = false;
-  await vozDiz(feitos === pend.length ? 'Pronto, feito.' : 'Fiz ' + feitos + ' de ' + pend.length + '. Confira no app.');
+  const d = feitos === pend.length ? 'Pronto, feito.' : 'Fiz ' + feitos + ' de ' + pend.length + '. Confira no app.'; vozLembra('sim', d);
+  await vozDiz(d); vozContinua();
 }
 function vozCfgSheet(wrap) {
   const on = vozLigado();
@@ -7214,6 +7229,8 @@ function vozCfgSheet(wrap) {
     ${(() => { const vs = vozVozes(), uri = ls.get('mmr-voz-voz', ''); return `<div class="f"><label for="voz-sel">Voz</label><select id="voz-sel"><option value="">Automática (padrão do aparelho)</option>${vs.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === uri ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('')}</select>${vs.length ? '' : '<small class="muted">Nenhuma voz em português encontrada neste aparelho. Ele usa a voz padrão.</small>'}</div>
       <div class="f" style="margin-top:8px"><label for="voz-vel">Velocidade: <b id="voz-vel-v">${vozVel().toFixed(2).replace('.', ',')}×</b></label><input type="range" id="voz-vel" min="0.7" max="1.5" step="0.05" value="${vozVel()}"></div>
       <button class="lt-btn lt-block" style="margin:8px 0 12px" data-act="voz-teste">Ouvir a voz</button>
+      <button class="lt-btn lt-block" style="margin-bottom:6px" data-act="voz-conversa">Conversa contínua: ${vozConversa() ? 'ligada' : 'desligada'}</button>
+      <p class="muted" style="margin:0 0 12px;font-size:13px">Ligada, ele continua ouvindo uns 10 segundos depois de responder e lembra da conversa. Diga “obrigado” ou “tchau” para encerrar.</p>
       <p class="muted" style="margin:0 0 8px;font-size:13px">Dá para <b>arrastar o botão do microfone</b> para onde quiser. Sem arrastar, ele sobe sozinho para não ficar na frente dos cartões.</p>
       ${ls.get('mmr-voz-pos', null) ? '<button class="lt-btn lt-block" style="margin-bottom:12px" data-act="voz-pos-reset">Voltar o botão ao lugar de antes</button>' : ''}
       <div class="f" style="margin-bottom:12px"><label for="voz-esp">Esperar depois que eu parar de falar: <b id="voz-esp-v">${vozEspera().toFixed(1).replace('.', ',')} s</b></label><input type="range" id="voz-esp" min="1" max="6" step="0.5" value="${vozEspera()}"><small class="muted">Aumente se ele responder antes de você terminar.</small></div>`; })()}
@@ -7318,6 +7335,7 @@ document.addEventListener('click', async e => {
     case 'rota-gps': rotaGps(); break;
     case 'ia-chave-salvar': { const k = (document.getElementById('ia-chave')?.value || '').trim(); if (!k) { toast('Cole a chave primeiro.'); break; } ls.set('mmr-ia-chave', k); toast('Chave salva neste aparelho.'); render(); break; }
     case 'voz-teste': vozTeste(); break;
+    case 'voz-conversa': ls.set('mmr-voz-conversa', !vozConversa()); render(); break;
     case 'voz-pos-reset': ls.set('mmr-voz-pos', null); vozPosiciona(); render(); break;
     case 'voz-toggle': { const on = !vozLigado(); ls.set('mmr-voz', on); if (on) { VOZ.negado = false; VOZ.estado = 'espera'; if (!iaChave()) toast('Coloque a chave da IA em Lançar com IA.'); vozIniciaRec(); } else { vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.msg = ''; } vozPill(); render(); break; }
     case 'ia-chave-remover': ls.set('mmr-ia-chave', ''); toast('Chave removida.'); render(); break;
