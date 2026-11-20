@@ -3408,6 +3408,10 @@ function cashMoves(periodo) {
   }
   return m.filter(x => inPeriod(x.ts, periodo)).sort((a, b) => b.ts - a.ts);
 }
+/* despesas com data futura (repetições de fixas/recorrentes): ainda não saíram do caixa, mas aparecem no card Despesas como agendadas */
+function despAgendadas(periodo) {
+  return S.despesas.filter(d => d.ts >= fimDeHoje() && restante('despesas', d) > 0 && inPeriod(d.ts, periodo)).map(d => ({ ts: d.ts, tipo: 'out', k: 'despesas', agendada: true, desc: d.descricao || 'Despesa', det: (catNome(d.categoria) || 'Despesa') + ' · agendada' + (d.fixa ? ' · fixa' : ''), forma: d.forma || '', valor: restante('despesas', d), col: 'despesas', id: d.id }));
+}
 function totals(periodo) {
   const vs = vendasValidas().filter(v => inPeriod(v.ts, periodo));
   const vendas = vs.reduce((s, v) => s + vLiq(v), 0);
@@ -4035,7 +4039,7 @@ function gAtividade() { return pageHeader('Atividade') + `<div class="feed">${ac
 function vendaItem(v) {
   const next = { recebido: ['separado', 'Separar'], separado: ['em_rota', 'Pôr na rota'], em_rota: ['entregue', 'Entregue'] }[v.status];
   const temEst = estornos(v).length > 0;
-  const acts = v.status === 'cancelado' ? (temEst ? `<button class="btn small ghost" data-act="cx-det" data-col="vendas" data-id="${v.id}">Ver estorno</button>` : `<button class="btn small ghost" data-act="apagar" data-col="vendas" data-id="${v.id}" ${W()}>Apagar</button>`) :
+  const acts = v.status === 'cancelado' ? (temEst ? `<button class="btn small ghost" data-act="cx-det" data-col="vendas" data-id="${v.id}">Ver estorno</button>` : `<button class="btn small ghost" data-act="excluir-lanc" data-col="vendas" data-id="${v.id}" ${W()}>Excluir</button>`) :
     `${v.pago ? (temEst ? '' : `<button class="btn small ghost" data-act="pago" data-id="${v.id}" data-v="0" ${W()}>Desmarcar pago</button>`) : `<button class="btn small green" data-act="pago" data-id="${v.id}" data-v="1" ${W()}>Marcar pago</button>`}
       ${vLiq(v) > 0 && (v.pago || v.status === 'entregue') ? `<button class="btn small ghost" data-act="estornar" data-col="vendas" data-id="${v.id}" ${W()}>Estornar</button>` : ''}
       ${next ? `<button class="btn small" data-act="status" data-id="${v.id}" data-v="${next[0]}" ${W()}>${next[1]}</button>` : ''}
@@ -4131,7 +4135,7 @@ function moveLi(m) {
   const forma = m.forma ? (FORMAS[m.forma] || m.forma) : '';
   const hora = new Date(m.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const sub = m.k === 'vendas' ? m.det : [m.det, m.k === 'estornos' ? '' : forma].filter(Boolean).join(' · ');
-  return `<div class="li tc-li" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" ${m.eid ? `data-eid="${m.eid}"` : ''} tabindex="0"><span class="av ${m.k === 'estornos' ? 'est' : m.tipo}">${av}</span><span style="min-width:0"><b>${esc(m.desc)}</b><small>${hora} · ${esc(sub)}</small></span><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span></div>`;
+  return `<div class="li tc-li" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" ${m.eid ? `data-eid="${m.eid}"` : ''} tabindex="0"><span class="av ${m.k === 'estornos' ? 'est' : m.tipo}">${av}</span><span style="min-width:0"><b>${esc(m.desc)}</b><small>${m.agendada ? new Date(m.ts).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : hora} · ${esc(sub)}</small></span><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span></div>`;
 }
 function gCaixa() {
   const per = ui.cp === 'custom' ? 'ccustom' : ui.cp;
@@ -4147,7 +4151,7 @@ function gCaixa() {
   const head = pageHeaderFixo('Fluxo de caixa', '', `<div class="vsel cx-sel">${sel.map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${k === 'cfp' ? 'Pagamento' : l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`);
   const kpi = (k, label, val, n, cls) => `<button class="kpi ${cls} ${ui.cxv === k ? 'on' : ''}" data-act="filter" data-k="cxv" data-v="${ui.cxv === k ? 'mov' : k}" aria-pressed="${ui.cxv === k}"><small>${label}</small><b>${money(val)}</b><span class="s"><span>${n} ${n === 1 ? 'lançamento' : 'lançamentos'}</span><span>${ui.cxv === k ? 'Fechar' : 'Ver'}</span></span></button>`;
   const tipoKpi = (k, label) => {
-    const base = cashMoves(per).filter(m => ui.cfp === 'todas' || (ui.cfp === 'sem' ? !m.forma : m.forma === ui.cfp));
+    const base = (k === 'despesas' ? cashMoves(per).concat(despAgendadas(per)) : cashMoves(per)).filter(m => ui.cfp === 'todas' || (ui.cfp === 'sem' ? !m.forma : m.forma === ui.cfp));
     const ms = base.filter(m => m.k === k);
     const tot = ms.reduce((s, m) => s + m.valor, 0);
     const on = ui.cxv === k;
@@ -4194,7 +4198,7 @@ function gCaixa() {
     corpo = `<div class="sec-h"><h2>Despesas a pagar · ${dpag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
     ${cxContas('dpagar', dpag.map(d => ({ nome: d.descricao || 'Despesa', valor: restante('despesas', d), li: `<div class="li tc-li" data-act="cx-det" data-col="despesas" data-id="${d.id}" tabindex="0"><span class="av out">${ic('cash')}</span><span style="min-width:0"><b>${esc(d.descricao || 'Despesa')}</b><small>${dtCurta(d.ts)} · ${esc(catNome(d.categoria) || 'Despesa')}</small></span><span class="cx-v"><span class="val">${money(restante('despesas', d))}</span><button class="link" data-act="despesa-paga" data-id="${d.id}" ${W()}>marcar paga</button></span></div>` })), 'Nenhuma despesa a pagar.')}`;
   } else if (['vendas', 'compras', 'despesas', 'estornos'].includes(ui.cxv)) {
-    const lst = cashMoves(per).filter(m => m.k === ui.cxv && (ui.cfp === 'todas' || (ui.cfp === 'sem' ? !m.forma : m.forma === ui.cfp)));
+    const lst = (ui.cxv === 'despesas' ? cashMoves(per).concat(despAgendadas(per)).sort((a, b) => b.ts - a.ts) : cashMoves(per)).filter(m => m.k === ui.cxv && (ui.cfp === 'todas' || (ui.cfp === 'sem' ? !m.forma : m.forma === ui.cfp)));
     corpo = `<div class="sec-h"><h2>${CTIPOS[ui.cxv]} · ${lst.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
     <div class="card list">${lst.map(moveLi).join('') || `<div class="empty">Nenhum lançamento de ${CTIPOS[ui.cxv].toLowerCase()} neste período.</div>`}</div>`;
   } else {
@@ -4246,9 +4250,117 @@ function modalLanc(col, id, eid) {
   if (e) btns.push(`<button type="button" class="btn" data-act="cx-det" data-col="${col}" data-id="${id}">Ver ${tipoNome} original</button>`);
   if (!e && col === 'vendas' && x.status !== 'cancelado') btns.push(`<button type="button" class="btn" data-act="editar-venda" data-id="${id}" ${W()}>Editar venda</button>`);
   if (!e && col === 'compras') btns.push(`<button type="button" class="btn" data-act="editar-compra" data-id="${id}" ${W()}>Editar compra</button>`);
-  if (!e && col === 'despesas' && !estornos(x).length) btns.push(`<button type="button" class="btn ghost" data-act="apagar" data-col="despesas" data-id="${id}" ${W()}>Apagar</button>`);
+  if (!e && col === 'despesas') btns.push(`<button type="button" class="btn" data-act="editar-despesa" data-id="${id}" ${W()}>Editar despesa</button>`);
+  if (!e) btns.push(`<button type="button" class="btn ghost" data-act="excluir-lanc" data-col="${col}" data-id="${id}" ${W()}>Excluir ${tipoNome}</button>`);
+  if (e) { btns.push(`<button type="button" class="btn" data-act="editar-estorno" data-col="${col}" data-id="${id}" data-eid="${eid}" ${W()}>Editar estorno</button>`); btns.push(`<button type="button" class="btn ghost" data-act="excluir-estorno" data-col="${col}" data-id="${id}" data-eid="${eid}" ${W()}>Excluir estorno</button>`); }
   if (podeEst && !e) btns.push(`<button type="button" class="btn primary" data-act="estornar" data-col="${col}" data-id="${id}">${est ? 'Estornar mais' : 'Estornar'}</button>`);
   openModal(e ? 'Estorno' : 'Lançamento', `${inner}<div class="form-acts" style="margin-top:12px"><button type="button" class="btn" data-act="close-modal">Fechar</button>${btns.join('')}</div>`, () => true);
+}
+
+/* excluir venda, compra ou despesa (mesmo com estorno): o caixa e o estoque se ajustam na hora */
+function excluirLanc(col, id) {
+  if (!canWrite) { toast('Modo leitura: não dá para excluir.'); return; }
+  const x = S[col].find(y => y.id === id); if (!x) return;
+  if ($modal.innerHTML) closeModal();
+  const tipoNome = { vendas: 'venda', compras: 'compra', despesas: 'despesa' }[col];
+  const nome = col === 'vendas' ? (x.cliente?.nome || 'Cliente avulso') : col === 'compras' ? (x.fornecedor || 'Roça') : (x.descricao || 'Despesa');
+  const liq = cashMoves('tudo').filter(m => m.col === col && m.id === id).reduce((s, m) => s + (m.tipo === 'in' ? m.valor : -m.valor), 0);
+  const mexe = n2(-liq);
+  const itens = (x.itens || []).map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: n2(i.qtd - estQtd(x, i.produtoId, true)) })).filter(i => i.qtd > 0 && prodById(i.produtoId));
+  const volta = col === 'vendas' && x.status !== 'cancelado' ? itens : [];
+  const sai = col === 'compras' ? itens : [];
+  const prox = col === 'despesas' && x.grupo ? S.despesas.filter(d => d.grupo === x.grupo && d.id !== id && d.ts > x.ts) : [];
+  const efeitos = [
+    mexe > 0 ? `O caixa aumenta ${money(mexe)}.` : mexe < 0 ? `O caixa diminui ${money(-mexe)}.` : 'Não muda o saldo do caixa (ainda não tinha sido pago).',
+    volta.length ? `Os itens voltam para o estoque (${esc(itemsText(volta))}).` : '', sai.length ? `Os itens saem do estoque (${esc(itemsText(sai))}).` : '',
+    estornos(x).length ? `Os ${estornos(x).length} estorno(s) deste lançamento também são excluídos.` : ''].filter(Boolean).join(' ');
+  openModal('Excluir ' + tipoNome, `<p style="margin:0">Excluir ${tipoNome} <b>${esc(nome)}</b> (${money(valOrig(col, x))})? ${efeitos} Isso não pode ser desfeito.</p>${prox.length ? `<label class="nt-pref" for="x-prox" style="margin-top:12px"><span class="grow"><b>Excluir também as próximas (${prox.length})</b><small>As repetições seguintes desta despesa recorrente</small></span><input type="checkbox" class="lt-switch" id="x-prox" name="prox"></label>` : ''}
+    <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary">Excluir ${tipoNome}</button></div>`,
+  async f => {
+    const comProx = prox.length && new FormData(f).get('prox') !== null;
+    return safe(async () => {
+      await del(col, id);
+      if (comProx) for (const d of prox) await del('despesas', d.id);
+      if (volta.length) await adjustStock(volta, 1);
+      if (sai.length) await adjustStock(sai, -1);
+      if (col === 'vendas' && x.status === 'em_rota') await rtSemParada(id);
+    }, comProx ? (prox.length + 1) + ' despesas excluídas.' : tipoNome[0].toUpperCase() + tipoNome.slice(1) + ' excluída.' + (mexe ? ' Caixa atualizado.' : ''));
+  });
+}
+
+/* editar uma despesa: o valor novo vale no caixa na mesma hora */
+function modalEditarDespesa(id) {
+  const x = S.despesas.find(d => d.id === id); if (!x) return;
+  if (!canWrite) { toast('Modo leitura: não dá para editar.'); return; }
+  const jaEst = estTot(x), pago = x.pago !== false, dataOrig = ymd(new Date(x.ts));
+  const prox = x.grupo ? S.despesas.filter(d => d.grupo === x.grupo && d.id !== id && d.ts > x.ts) : [];
+  const cats = catLista(); const catAtual = x.categoria;
+  openModal('Editar despesa', `<div class="fgrid">
+    <div class="f full"><label for="d-desc">Descrição</label><input type="text" id="d-desc" name="descricao" required value="${esc(x.descricao || '')}"></div>
+    <div class="f"><label for="d-cat">Categoria</label><select id="d-cat" name="categoria">${cats.map(c => `<option value="${esc(c.id)}" ${c.id === catAtual ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>
+    <div class="f"><label for="d-val">Valor (R$)</label><input type="number" id="d-val" name="valor" min="${jaEst || 0}" step="0.01" required inputmode="decimal" value="${Number(x.valor) || 0}"></div>
+    <div class="f full"><label for="d-data-b">Data</label>${dateField('d-data', 'data', dataOrig, 'Data da despesa')}</div>
+    <div class="f full nt-prefs">
+      <label class="nt-pref" for="d-pago"><span class="grow"><b>Está pago?</b><small>Desligado: fica como a pagar</small></span><input type="checkbox" class="lt-switch" id="d-pago" name="pago" ${pago ? 'checked' : ''}></label>
+      <label class="nt-pref" for="d-fixa"><span class="grow"><b>Despesa fixa?</b><small>Aluguel, internet, contador e similares</small></span><input type="checkbox" class="lt-switch" id="d-fixa" name="fixa" ${x.fixa ? 'checked' : ''}></label>
+      ${prox.length ? `<label class="nt-pref" for="d-prox"><span class="grow"><b>Aplicar também às próximas (${prox.length})</b><small>Descrição, categoria, valor e fixa nas repetições seguintes</small></span><input type="checkbox" class="lt-switch" id="d-prox" name="prox"></label>` : ''}
+    </div>
+    ${jaEst ? `<div class="f full"><small class="muted">Esta despesa tem ${money(jaEst)} de estorno, então o valor não pode ficar abaixo disso.</small></div>` : ''}
+    <div class="f full" id="forma-box"><span class="lbl">Pago com</span><div class="opts" style="flex-wrap:nowrap;gap:6px;margin-top:6px">${[['pix', 'Pix'], ['dinheiro', 'Dinheiro'], ['debito', 'Débito'], ['credito', 'Crédito']].map(([k, l]) => `<label class="opt" style="flex:1 1 0;min-width:0;padding:8px 2px;justify-content:center;font-size:13px;text-align:center"><input type="radio" name="forma" value="${k}" id="forma-${k}" ${(x.forma || 'pix') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+  </div><div class="form-acts"><button type="button" class="btn ghost" data-act="excluir-lanc" data-col="despesas" data-id="${id}" style="margin-right:auto">Excluir</button><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>`,
+  async f => {
+    const fd = new FormData(f); const valor = n2(Number(fd.get('valor'))); const desc = String(fd.get('descricao')).trim();
+    if (!desc || !(valor > 0)) { toast('Preencha a descrição e o valor.'); return false; }
+    if (valor < jaEst - 0.005) { toast(`O valor não pode ficar abaixo do estorno (${money(jaEst)}).`); return false; }
+    const paga = fd.get('pago') !== null;
+    const body = { descricao: desc, categoria: fd.get('categoria'), valor, pago: paga, fixa: fd.get('fixa') !== null, forma: paga ? (fd.get('forma') || 'pix') : '', ts: fd.get('data') === dataOrig ? x.ts : tsFromDate(fd.get('data')) };
+    if (paga && !pago) body.pagoTs = Date.now(); if (!paga) body.pagoTs = null;
+    const comProx = prox.length && fd.get('prox') !== null;
+    return safe(async () => {
+      await patch('despesas', id, body);
+      if (comProx) for (const d of prox) await patch('despesas', d.id, { descricao: desc, categoria: body.categoria, valor, fixa: body.fixa });
+    }, 'Despesa atualizada. O caixa já mudou.');
+  },
+  f => { const tog = () => { f.querySelector('#forma-box').style.display = f.querySelector('#d-pago').checked ? '' : 'none'; }; f.addEventListener('change', tog); tog(); });
+}
+
+/* editar ou excluir um estorno: o caixa muda na hora */
+function modalEditarEstorno(col, id, eid) {
+  const x = S[col].find(y => y.id === id); const e = x && estornos(x).find(z => z.id === eid); if (!e) return;
+  if (!canWrite) { toast('Modo leitura: não dá para editar.'); return; }
+  if ($modal.innerHTML) closeModal();
+  const orig = valOrig(col, x), max = n2(orig - (estTot(x) - e.valor)), dataOrig = ymd(new Date(e.ts));
+  openModal('Editar estorno', `<div class="fgrid">
+    <div class="f"><label for="e-val">Valor do estorno (R$)</label><input type="number" id="e-val" name="valor" min="0.01" max="${max}" step="0.01" inputmode="decimal" value="${e.valor}"></div>
+    <div class="f"><label for="e-data-b">Data</label>${dateField('e-data', 'data', dataOrig, 'Data do estorno')}</div>
+    <div class="f full"><label for="e-mot">Motivo</label><input type="text" id="e-mot" name="motivo" value="${esc(e.motivo || '')}" list="e-mot-l" maxlength="120"><datalist id="e-mot-l">${(MOTIVOS[col] || []).map(m => `<option value="${esc(m)}">`).join('')}</datalist></div>
+    ${e.caixa !== false ? `<div class="f full"><span class="lbl">${col === 'vendas' ? 'Devolvido em' : 'Recebido em'}</span><div class="opts" style="flex-wrap:nowrap;gap:6px;margin-top:6px">${[['pix', 'Pix'], ['dinheiro', 'Dinheiro'], ['debito', 'Débito'], ['credito', 'Crédito']].map(([k, l]) => `<label class="opt" style="flex:1 1 0;min-width:0;padding:8px 2px;justify-content:center;font-size:13px;text-align:center"><input type="radio" name="forma" value="${k}" ${(e.forma || 'pix') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>` : ''}
+    ${(e.itens || []).length ? `<div class="f full"><small class="muted">Itens do estorno (${esc(itemsText(e.itens))}) continuam como estavam. Para mudar os itens, exclua e faça outro estorno.</small></div>` : ''}
+  </div><div class="form-acts"><button type="button" class="btn ghost" data-act="excluir-estorno" data-col="${col}" data-id="${id}" data-eid="${eid}" style="margin-right:auto">Excluir</button><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>`,
+  async f => {
+    const fd = new FormData(f); const valor = n2(Number(fd.get('valor'))); const motivo = String(fd.get('motivo') || '').trim();
+    if (!(valor > 0)) { toast('Diga o valor do estorno.'); return false; }
+    if (valor > max + 0.005) { toast(`O estorno pode ser de até ${money(max)}.`); return false; }
+    if (!motivo) { toast('Escreva o motivo do estorno.'); return false; }
+    const novo = { ...e, valor, motivo, parcial: valor < orig - 0.005, ts: fd.get('data') === dataOrig ? e.ts : tsFromDate(fd.get('data')) };
+    if (e.caixa !== false) novo.forma = fd.get('forma') || e.forma || 'pix';
+    return safe(() => patch(col, id, { estornos: estornos(x).map(z => z.id === eid ? novo : z) }), 'Estorno atualizado. O caixa já mudou.');
+  });
+}
+function excluirEstorno(col, id, eid) {
+  const x = S[col].find(y => y.id === id); const e = x && estornos(x).find(z => z.id === eid); if (!e) return;
+  if (!canWrite) { toast('Modo leitura: não dá para excluir.'); return; }
+  if ($modal.innerHTML) closeModal();
+  const itens = (e.itens || []).filter(i => prodById(i.produtoId));
+  const mexeEst = e.estoque && itens.length;
+  const caixaTxt = e.caixa === false ? 'Como ele só abatia o valor em aberto, o caixa não muda e o valor em aberto volta.' : col === 'vendas' ? `O caixa aumenta ${money(e.valor)} (a devolução deixa de existir).` : `O caixa diminui ${money(e.valor)} (o valor devolvido deixa de existir).`;
+  const cancel = col === 'vendas' && x.status === 'cancelado' ? ' A venda continua cancelada.' : '';
+  openModal('Excluir estorno', `<p style="margin:0">Excluir o estorno de <b>${money(e.valor)}</b>? ${caixaTxt}${mexeEst ? (col === 'compras' ? ' Os itens voltam para o estoque.' : ' Os itens saem do estoque de novo.') : ''}${cancel} Isso não pode ser desfeito.</p>
+    <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary">Excluir estorno</button></div>`,
+  async () => safe(async () => {
+    await patch(col, id, { estornos: estornos(x).filter(z => z.id !== eid) });
+    if (mexeEst) await adjustStock(itens, col === 'compras' ? 1 : -1);
+  }, 'Estorno excluído. O caixa já mudou.'));
 }
 
 /* estorno total ou parcial: devolve o valor (sai do caixa na venda, volta na compra/despesa), guarda o motivo,
@@ -4929,7 +5041,7 @@ const AJ_G = [
     ['Como lançar uma despesa?', '<ol><li>No <b>Caixa</b>, toque no <b>+</b> e em <b>Nova despesa</b>.</li><li>Escreva a <b>Descrição</b> (ou toque no ícone de <b>câmera</b> no topo para a IA ler a foto do cupom).</li><li>Escolha a <b>Categoria</b>, o <b>Valor</b> e a <b>Data</b>.</li><li><b>Está pago?</b> Desligado, a despesa fica <b>a pagar</b>: aparece no card A pagar do Caixa e só sai do caixa quando você tocar em <b>marcar paga</b>. Se a data for hoje ou já passou, ela também aparece em <b>Pendências → Pagar</b>.</li><li><b>Despesa fixa?</b> Ligue para aluguel, internet, contador e parecidos.</li><li><b>Lançamento recorrente?</b> Escolha repetir diária, semanal ou mensal e, se quiser, uma data final. Sem data final, o app lança por 12 meses. As repetições futuras ficam agendadas e só saem do caixa quando a data de cada uma chega.</li><li>Escolha em <b>Pago com</b>: Pix, Dinheiro, Débito ou Crédito, e toque em <b>Salvar</b>.</li></ol>', [['Lançar despesa', 'nova-despesa']]],
     ['Como criar ou mudar as categorias de despesa?', 'Em <b>Configurações → Categorias de despesa</b>. Toque numa categoria para mudar o nome, a cor ou apagar, ou crie uma nova. Elas aparecem ao lançar a despesa e no relatório <b>Despesas por categoria</b>.', [['Abrir Categorias de despesa', 'sheet', 'cat-cfg']]],
     ['Como devolver dinheiro (estorno)?', '<ol><li>Toque em <b>Estornar</b> na venda, compra ou no lançamento do caixa.</li><li>Escolha <b>Tudo</b> ou <b>Só uma parte</b> (quantos itens voltaram).</li><li>Diga se os itens voltam ao estoque e como o dinheiro foi devolvido.</li><li>Escreva o <b>motivo</b> e confirme.</li></ol>O lançamento original continua no histórico. Se ainda não estava pago, o estorno só abate do valor em aberto e não mexe no caixa.', [['Estornar uma venda', 'escolher-estorno'], ['Ver estornos', 'go-caixa-ver', 'estornos']]],
-    ['Por que não consigo apagar um lançamento?', 'Lançamentos com estorno ficam no histórico para o caixa continuar certo. Vendas são canceladas (não apagadas), e só uma venda cancelada sem estorno pode ser apagada. Despesas sem estorno podem ser apagadas no detalhe.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
+    ['Por que não consigo apagar um lançamento?', 'Dá para excluir vendas, compras e despesas no detalhe do lançamento (botão Excluir). O caixa e o estoque se ajustam na hora: o valor sai ou volta ao caixa e os itens voltam ou saem do estoque. Se o lançamento tinha estornos, eles são excluídos junto. Também dá para editar uma despesa e editar ou excluir um estorno pelo detalhe.', [['Abrir Caixa', 'go-caixa-ver', 'mov']]],
   ]],
   ['Notícias (banner da Loja)', [
     ['Como publicar uma notícia no banner?', '<ol><li>Em <b>Configurações → Notícias</b>, toque numa ideia pronta ou no <b>+</b>.</li><li>Escreva título, texto e etiqueta; escolha cor, ícone e, se quiser, uma foto.</li><li>Escolha o <b>botão</b> do banner (comprar um produto, ver os morangos, chat ou acompanhar pedido).</li><li>Escolha <b>quem vê</b>, <b>quando</b> aparece e <b>até quando</b>.</li><li>Toque em <b>Publicar</b>. A prévia no topo mostra como fica.</li></ol>', [['Nova notícia', 'nova-noticia'], ['Abrir Notícias', 'go-cfg', 'noticias']]],
@@ -5522,7 +5634,7 @@ function modalVenda(cliId, editId, titulo) {
     <div class="f full"><label for="v-ent">Entrega</label>${entregaSel}</div>
     <div class="f"><label for="v-data-b">Data</label>${dateField('v-data', 'data', dataOrig, 'Data da venda')}</div>
     <div class="f"><label for="v-obs">Observação</label><input type="text" id="v-obs" name="obs" value="${esc(ed?.obs || '')}"></div>
-  </div>${ed && estornos(ed).length ? `<p class="cx-note" style="margin-top:10px">Esta venda tem ${estornos(ed).length === 1 ? 'um estorno' : estornos(ed).length + ' estornos'} (${money(estTot(ed))}). <button type="button" class="link" data-act="cx-det" data-col="vendas" data-id="${ed.id}" style="font-size:inherit;padding:0">Ver detalhes</button></p>` : ''}<div class="form-acts">${ed && !cancelada ? `<button type="button" class="btn ghost" data-act="cancelar" data-id="${ed.id}">Cancelar venda</button>` : ''}${ed && !cancelada && vLiq(ed) > 0 ? `<button type="button" class="btn ghost" data-act="estornar" data-col="vendas" data-id="${ed.id}" style="margin-right:auto">Estornar</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar venda'}</button></div>`,
+  </div>${ed && estornos(ed).length ? `<p class="cx-note" style="margin-top:10px">Esta venda tem ${estornos(ed).length === 1 ? 'um estorno' : estornos(ed).length + ' estornos'} (${money(estTot(ed))}). <button type="button" class="link" data-act="cx-det" data-col="vendas" data-id="${ed.id}" style="font-size:inherit;padding:0">Ver detalhes</button></p>` : ''}<div class="form-acts">${ed ? `<button type="button" class="btn ghost" data-act="excluir-lanc" data-col="vendas" data-id="${ed.id}">Excluir venda</button>` : ''}${ed && !cancelada ? `<button type="button" class="btn ghost" data-act="cancelar" data-id="${ed.id}">Cancelar venda</button>` : ''}${ed && !cancelada && vLiq(ed) > 0 ? `<button type="button" class="btn ghost" data-act="estornar" data-col="vendas" data-id="${ed.id}" style="margin-right:auto">Estornar</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar venda'}</button></div>`,
   async f => {
     const lines = readLines(f); if (!lines.length) { toast('Adicione pelo menos um item.'); return false; }
     const fd = new FormData(f);
@@ -7082,13 +7194,17 @@ document.addEventListener('click', async e => {
     case 'mover': await move(id, Number(v)); break;
     case 'rota-todos': { const sep = S.vendas.filter(x => x.status === 'separado').sort((p, q) => p.ts - q.ts); let o = nextOrdem(); await safe(async () => { for (const x of sep) await patch('vendas', x.id, { status: 'em_rota', ordemRota: o++ }); }, 'Pedidos colocados na rota.'); break; }
     case 'cx-det': if ($modal.innerHTML) closeModal(); modalLanc(t.dataset.col, id, t.dataset.eid); break;
+    case 'editar-despesa': if ($modal.innerHTML) closeModal(); modalEditarDespesa(id); break;
+    case 'excluir-lanc': excluirLanc(t.dataset.col, id); break;
+    case 'editar-estorno': modalEditarEstorno(t.dataset.col, id, t.dataset.eid); break;
+    case 'excluir-estorno': excluirEstorno(t.dataset.col, id, t.dataset.eid); break;
     case 'estornar': if ($modal.innerHTML) closeModal(); modalEstorno(t.dataset.col, id); break;
     case 'escolher-estorno': { ui.sheet = null; render(); if (!canWrite) { toast('Modo leitura: não dá para estornar.'); break; } ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = '30d'; go('vendas'); toast('Toque em Estornar na venda que quer devolver.'); break; }
     case 'cx-ver': ui.sheet = null; ui.cxv = v; render(); window.scrollTo(0, 0); break;
     case 'cx-limpar': ui.ct = 'tudo'; ui.cfp = 'todas'; render(); break;
     case 'cancelar': { const vd = S.vendas.find(x => x.id === id); if (vd && (vd.pago || parcV(vd) > 0)) { if ($modal.innerHTML) closeModal(); modalEstorno('vendas', id, { cancelar: true }); break; } const volta = (vd?.itens || []).map(i => ({ produtoId: i.produtoId, qtd: n2(i.qtd - estQtd(vd, i.produtoId, true)) })).filter(i => i.qtd > 0); const naRota = vd?.status === 'em_rota'; modalConfirm(`Cancelar a venda de <b>${esc(vd?.cliente?.nome || 'cliente avulso')}</b>? Os itens voltam para o estoque${naRota ? ' e a rota de entrega é refeita sem esta parada' : ''}.`, 'Cancelar venda', () => safe(async () => { await patch('vendas', id, { status: 'cancelado', pago: false, pagoTs: null, clienteInformouPix: false, ordemRota: null }); await adjustStock(volta, 1); if (naRota) rtSemParada(id); }, naRota ? 'Venda cancelada. Rota refeita sem esta entrega.' : 'Venda cancelada.')); break; }
     case 'apagar': { const r0 = S[t.dataset.col]?.find(x => x.id === id); if (r0 && estornos(r0).length) { toast('Este lançamento tem estorno e fica no histórico. Não dá para apagar.'); break; } } modalConfirm('Apagar este registro? Isso não pode ser desfeito.', 'Apagar', () => safe(() => del(t.dataset.col, id), 'Apagado.')); break;
-    case 'apagar-compra': { const c = S.compras.find(x => x.id === id); if (c && estornos(c).length) { toast('Esta compra tem estorno e fica no histórico. Não dá para apagar.'); break; } modalConfirm('Apagar esta compra? Os itens saem do estoque e o valor sai do caixa.', 'Apagar compra', () => safe(async () => { await del('compras', id); await adjustStock(c.itens || [], -1); }, 'Compra apagada.')); break; }
+    case 'apagar-compra': excluirLanc('compras', id); break;
     case 'compra-paga': await safe(() => patch('compras', id, { pago: true, pagoTs: Date.now() }), 'Compra marcada como paga.'); break;
     case 'despesa-paga': await safe(() => patch('despesas', id, { pago: true, pagoTs: Date.now() }), 'Despesa marcada como paga.'); break;
     case 'apagar-produto': modalConfirm('Apagar este produto? As vendas antigas continuam nos relatórios.', 'Apagar produto', () => safe(() => del('produtos', id), 'Produto apagado.')); break;
