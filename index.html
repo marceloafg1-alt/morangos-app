@@ -1697,6 +1697,7 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cx-df b.neg { color: var(--red-ink); }
 .li .av.est { background: color-mix(in srgb, #D98A00 18%, transparent); color: #B87400; }
 .li.tc-li { cursor: pointer; }
+.cad-busca{margin:4px 0 8px}
 .cx-fbar { display: grid; gap: 8px; }
 .cx-fbar input[type=search] { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface, var(--card, #fff)); color: var(--fg); font: inherit; font-size: 14px; }
 .cx-fseg { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -2176,6 +2177,12 @@ span.news-cta { padding-right: 13px; }
 .c-hist-tg { color: var(--muted); font-size: 12.5px; font-weight: 600; }
 .c-hist { display: grid; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line); cursor: default; }
 .c-hist-h { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; font-size: 14px; }
+.c-hist > summary { list-style: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.c-hist > summary::-webkit-details-marker { display: none; }
+.c-hist-n { display: inline-flex; align-items: center; gap: 6px; }
+.c-hist-ch { transition: transform .2s; }
+.c-hist:not([open]) .c-hist-ch { transform: rotate(-90deg); }
+.c-hist[open] { gap: 8px; }
 .c-hist-r { display: grid; gap: 4px; padding: 10px 12px; border-radius: 14px; background: var(--surface-2, var(--tint)); }
 .c-hist-t { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
 .c-hist-r small { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -3491,7 +3498,7 @@ const telaSessao = { get(k) { try { return sessionStorage.getItem('mmr-tela-' + 
 try { localStorage.removeItem('mmr-tela-g'); localStorage.removeItem('mmr-tela-c'); } catch {}
 const ui = {
   mode: ls.get('mmr-mode', 'gestao'), g: telaSessao.get('g'), c: telaSessao.get('c'),
-  vt: 'todas', vf: 'todas', vp: perPadrao(), vDe: '', vAte: '', cp: perPadrao(), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', cxo: {}, ep: perPadrao(), eDe: '', eAte: '', kp: perPadrao(), kDe: '', kAte: '', rp: perPadrao(), rDe: '', rAte: '', cart: {}, banner: 0, track: null, sheet: null,
+  vt: 'todas', vf: 'todas', vp: perPadrao(), vDe: '', vAte: '', cp: perPadrao(), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao(), eDe: '', eAte: '', kp: perPadrao(), kDe: '', kAte: '', rp: perPadrao(), rDe: '', rAte: '', cart: {}, banner: 0, track: null, sheet: null,
 };
 let myOrders = ls.get('mmr-meus-pedidos', []);
 const W = () => canWrite ? '' : 'disabled';
@@ -5134,6 +5141,7 @@ function ajudaFiltra() {
   const nada = document.querySelector('.aj-nada'); if (nada) nada.hidden = total > 0;
 }
 document.addEventListener('input', e => { if (e.target && e.target.id === 'aj-busca') ajudaFiltra(); });
+document.addEventListener('input', e => { if (e.target && String(e.target.id).startsWith('cad-q-')) { const id = e.target.id; ui[e.target.dataset.k] = e.target.value; const p = e.target.selectionStart; render(); const n = document.getElementById(id); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (_) {} } } });
 document.addEventListener('input', e => { if (e.target && e.target.id === 'cx-q') { ui.cxq = e.target.value; const p = e.target.selectionStart; render(); const n = document.getElementById('cx-q'); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (_) {} } } });
 
 /* ===== CHAT v2: emojis, anexos, seletor em folha, teclado ===== */
@@ -6005,7 +6013,7 @@ function cadBuild() {
   const vsH = c => S.vendas.filter(v => v.clienteId === c.id || (v.cliente?.nome || '').trim().toLowerCase() === (c.nome || '').trim().toLowerCase()).sort((a, b) => b.ts - a.ts);
   const cardCli = c => { const vs = cliVendas(c); const tot = vs.reduce((s, v) => s + (v.total || 0), 0); const dev = vs.filter(v => !v.pago).reduce((s, v) => s + Math.max(0, (v.total || 0) - parcV(v)), 0); const ult = vs.reduce((m, v) => Math.max(m, v.ts), 0);
     const aberto = true;
-    const hist = aberto ? `<div class="c-hist" data-act="noop"><div class="c-hist-h"><b>Histórico de compras</b><span class="muted num">${vsH(c).length}</span></div>${vsH(c).map(v => `<div class="c-hist-r"><div class="c-hist-t"><b>${fmtDT(v.ts)}</b><span class="num">${money(v.total)}</span></div><small>${esc(itemsText(v.itens))}</small><div class="pills">${statusPill(v.status)}${v.status === 'cancelado' ? '' : pagoPill(v)}${formaPill(v.forma)}<span class="pill p-gray">${origemTxt(v)}</span></div></div>`).join('') || '<p class="sub" style="margin:0">Nenhuma compra ainda.</p>'}</div>` : '';
+    const hist = aberto ? `<details class="c-hist" data-act="noop" open><summary class="c-hist-h"><b>Histórico de compras</b><span class="c-hist-n"><span class="muted num">${vsH(c).length}</span><svg class="c-hist-ch" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>${vsH(c).map(v => `<div class="c-hist-r"><div class="c-hist-t"><b>${fmtDT(v.ts)}</b><span class="num">${money(v.total)}</span></div><small>${esc(itemsText(v.itens))}</small><div class="pills">${statusPill(v.status)}${v.status === 'cancelado' ? '' : pagoPill(v)}${formaPill(v.forma)}<span class="pill p-gray">${origemTxt(v)}</span></div></div>`).join('') || '<p class="sub" style="margin:0">Nenhuma compra ainda.</p>'}</details>` : '';
     return `<article class="item c-cli open"><div style="display:flex;gap:12px;align-items:center"><span class="chipico">${ic('user')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
     <div class="pills"><span class="pill p-gray">Cliente</span><span class="pill p-gray">${c.tipo === 'comercio' ? 'Comércio' : 'Pessoa'}</span>${dev > 0 ? `<span class="pill p-no">Deve ${money(dev)}</span>` : vs.length ? '<span class="pill p-ok">Em dia</span>' : ''}</div>
     <div class="kv"><span>Compras</span><b class="num">${vs.length}</b><span>Total comprado</span><span class="num">${money(tot)}</span><span>Última compra</span><span>${ult ? fmtDT(ult) : '—'}</span></div>
@@ -6029,10 +6037,16 @@ function gCadastros(k) {
   const ehC = k === 'c';
   const vazio = ehC ? emptyBox('Nenhum cliente ainda. Cadastre quem compra de você para lançar vendas mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-cliente">Novo cliente</button>' : '')
     : emptyBox('Nenhum fornecedor ainda. Cadastre os produtores de quem você compra para registrar as compras mais rápido.', canWrite ? '<button class="btn primary" data-act="novo-fornecedor">Novo fornecedor</button>' : '');
-  const lista = ehC ? cs : fs;
-  return pageHeader(ehC ? 'Clientes' : 'Fornecedores', btnImportar) +
-  `<p class="sub cad-cnt">${lista.length} ${ehC ? (lista.length === 1 ? 'cliente' : 'clientes') : (lista.length === 1 ? 'fornecedor' : 'fornecedores')}</p>
-  ${lista.length ? `<div class="cad-list">${lista.map(c => linha(c, ehC)).join('')}</div>` : vazio}`;
+  const todos = ehC ? cs : fs;
+  const qk = ehC ? 'cadqc' : 'cadqf', qv = ui[qk] || '';
+  const sa = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const tq = sa(qv).split(/\s+/).filter(Boolean), dig = qv.replace(/\D/g, '');
+  const lista = tq.length ? todos.filter(c => { const h = sa([c.nome, c.telefone, c.email, c.produtos, c.cidade, c.bairro, c.endereco, c.referencia, c.obs].filter(Boolean).join(' ')); const tel = String(c.telefone || '').replace(/\D/g, ''); return tq.every(t => h.includes(t)) || (dig.length >= 3 && tel.includes(dig)); }) : todos;
+  const nome = n => n === 1 ? (ehC ? 'cliente' : 'fornecedor') : (ehC ? 'clientes' : 'fornecedores');
+  const busca = todos.length ? `<label class="bs-search cad-busca">${icOwn('searchp')}<input type="search" id="cad-q-${ehC ? 'c' : 'f'}" data-k="${qk}" value="${esc(qv)}" placeholder="${ehC ? 'Buscar cliente' : 'Buscar fornecedor'}" aria-label="Buscar" autocomplete="off" enterkeyhint="search"></label>` : '';
+  return pageHeader(ehC ? 'Clientes' : 'Fornecedores', btnImportar) + busca +
+  `<p class="sub cad-cnt">${tq.length ? `${lista.length} de ${todos.length} ${nome(todos.length)}` : `${todos.length} ${nome(todos.length)}`}</p>
+  ${lista.length ? `<div class="cad-list">${lista.map(c => linha(c, ehC)).join('')}</div>` : todos.length ? `<div class="card list"><div class="empty">Nada encontrado para essa busca.</div></div>` : vazio}`;
 }
 
 /* ===== PLANILHA DE CADASTRO EM LOTE (modelo .xlsx + importação) ===== */
