@@ -4004,7 +4004,7 @@ function gConfig() {
     ${cfgRow('receipt', 'Backup', ({ manual: 'manual', automatico: 'a cada 8 horas', alteracao: 'a cada alteração' })[bkCfg().modo] + ' · último: ' + bkQuando(bkCfg().ultimo), 'sheet', 'backup')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('bolt', 'Lançar com IA', iaChave() ? 'chave salva · ' + (iaReais(iaUso()) < 0.01 ? '< R$ 0,01' : money(iaReais(iaUso()))) + ' no mês' : 'colocar a chave', 'sheet', 'ia-cfg')}
-    ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi moranguete' : 'desligado', 'sheet', 'voz-cfg')}
+    ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi andy' : 'desligado', 'sheet', 'voz-cfg')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
     ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
   </nav>
@@ -7045,11 +7045,11 @@ function iaCfgSheet(wrap) {
     ${c ? '<button class="lt-btn lt-block" style="margin-top:8px" data-act="ia-chave-remover">Remover chave</button>' : ''}
     <p class="muted" style="margin:12px 0 0;font-size:13px">Uso neste mês, neste aparelho: ${u.n} ${u.n === 1 ? 'leitura' : 'leituras'} · ${(u.ent + u.sai).toLocaleString('pt-BR')} tokens · <b>cerca de ${iaReais(u) < 0.01 ? 'menos de R$ 0,01' : money(iaReais(u))}</b>.<br>Valor aproximado (dólar a R$ ${String(IA_USD_BRL).replace('.', ',')}). O saldo real fica em platform.claude.com, em Billing.</p>`);
 }
-/* ===== Assistente de voz "oi moranguete" (só na Gestão) =====
+/* ===== Assistente de voz "oi andy" (só na Gestão) =====
    Ouve a palavra de ativação, entende o pedido com a IA e responde em voz. Dúvidas vêm da Ajuda; abrir telas e mudar
    configurações são feitos na hora; o que mexe em dados (vendas, compras, despesas, cadastros, preços, estoque) só é feito depois do "sim". */
 const VOZ_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const VOZ_WAKE = /moran\s*g[uü]?\s*e\s*t[ei]\w*|morango\s*ete/i;
+const VOZ_WAKE = /\bandy\b/i;
 const VOZ_SEGURAS = ['tema', 'abrir_tela', 'periodo_padrao', 'whatsapp_numero'];
 const vozNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const vozLigado = () => !!ls.get('mmr-voz', false);
@@ -7066,7 +7066,7 @@ function vozFerramenta() {
 function vozSistema() {
   const base = iaSistema(), dados = base.slice(base.indexOf('Hoje é'));
   const ajuda = AJ_G.map(([s, qs]) => '## ' + s + '\n' + qs.map(([q, a]) => q + ' ' + a.replace(/<li>/g, ' - ').replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim()).join('\n')).join('\n');
-  return `Você é o Moranguete, assistente de voz do aplicativo de gestão "Morangos Made in Roça". O dono fala com você e sua resposta será LIDA EM VOZ ALTA: frases curtas, sem listas, sem símbolos, sem markdown. Use sempre a ferramenta atender; em "fala" vai o que será dito.
+  return `Você é o Andy, assistente de voz do aplicativo de gestão "Morangos Made in Roça". O dono fala com você e sua resposta será LIDA EM VOZ ALTA: frases curtas, sem listas, sem símbolos, sem markdown. Use sempre a ferramenta atender; em "fala" vai o que será dito.
 O que fazer:
 - Dúvida sobre como usar o app: responda em "fala" usando SÓ a Ajuda abaixo; se não estiver lá, diga que não sabe. lancamentos vazio.
 - Pedido para executar algo (venda, compra, despesa, cadastro de cliente ou fornecedor, mudar tema, abrir tela, período padrão, número do WhatsApp, preço ou estoque de produto, marcar venda paga, situação de entrega): preencha lancamentos e, em "fala", diga no passado e bem curto o que foi pedido (ex.: "Abri Vendas.").
@@ -7105,7 +7105,7 @@ function vozPill() {
     box.querySelector('.voz-pill').addEventListener('click', () => { if (!VOZ.arrastou) vozToque(); }); vozArrasta(box.querySelector('.voz-pill'));
     box.querySelector('.voz-card').addEventListener('click', e => { const b = e.target.closest('[data-voz]'); if (b) vozConfirma(b.dataset.voz === 'sim'); }); document.body.appendChild(box); }
   vozPosiciona();
-  const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi moranguete”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
+  const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi andy”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
   const pill = box.querySelector('.voz-pill'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
   const card = box.querySelector('.voz-card'), msg = VOZ.msg;
   card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">Sim, fazer</button></div>' : '');
@@ -7191,7 +7191,7 @@ function vozParcial(t) {
   clearTimeout(VOZ.tJan); vozMsg('Ouvindo: “' + (VOZ.buf + ' ' + t).trim() + '”', 30000);
   if (VOZ.buf) vozAgenda(); else VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) { vozVolta(); vozMsg(''); } }, 15000);
 }
-const VOZ_FIM = /^(muito )?(obrigad[oa]|valeu|tchau|ate logo|pode parar|era so isso|so isso|encerrar|encerra|chega)( por hoje| moranguete| tudo)?$/;
+const VOZ_FIM = /^(muito )?(obrigad[oa]|valeu|tchau|ate logo|pode parar|era so isso|so isso|encerrar|encerra|chega)( por hoje| andy| tudo)?$/;
 const vozConversa = () => ls.get('mmr-voz-conversa', true) !== false;
 function vozFimConversa() { clearTimeout(VOZ.tJan); VOZ.hist = []; VOZ.buf = ''; vozVolta(); vozMsg(''); }
 /* depois de responder, continua ouvindo por uns segundos para você seguir a conversa sem chamar de novo */
@@ -7263,7 +7263,7 @@ async function vozConfirma(sim, tempo) {
 }
 function vozCfgSheet(wrap) {
   const on = vozLigado();
-  return wrap('Assistente de voz', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Diga <b>“oi moranguete”</b> e fale o que precisa: tirar dúvidas do app (Ajuda), abrir telas, mudar a aparência e configurações ou lançar vendas, compras e despesas. Usa a chave da IA de <b>Lançar com IA</b>.</p>
+  return wrap('Assistente de voz', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Diga <b>“oi andy”</b> e fale o que precisa: tirar dúvidas do app (Ajuda), abrir telas, mudar a aparência e configurações ou lançar vendas, compras e despesas. Usa a chave da IA de <b>Lançar com IA</b>.</p>
     <p class="muted" style="margin:0 0 10px;font-size:13.5px">Abrir telas e mudar configurações ele faz na hora. O que mexe em vendas, compras, despesas, cadastros, preços ou estoque ele repete e só faz depois de você dizer <b>sim</b>.</p>
     <p class="muted" style="margin:0 0 10px;font-size:13px">Funciona no Chrome e no Edge (computador e Android), com o app aberto e a tela ligada. Permita o microfone quando o navegador pedir. No Chrome, o áudio é processado pelo serviço de voz do Google. Toque no botão do microfone na tela para falar sem a palavra de ativação.</p>
     ${(() => { const vs = vozVozes(), uri = ls.get('mmr-voz-voz', ''); return `<div class="f"><label for="voz-sel">Voz</label><select id="voz-sel"><option value="">Automática (padrão do aparelho)</option>${vs.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === uri ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('')}</select>${vs.length ? '' : '<small class="muted">Nenhuma voz em português encontrada neste aparelho. Ele usa a voz padrão.</small>'}</div>
@@ -7278,7 +7278,7 @@ function vozCfgSheet(wrap) {
 }
 document.addEventListener('change', e => { const t = e.target; if (!t) return; if (t.id === 'voz-sel') ls.set('mmr-voz-voz', t.value); else if (t.id === 'voz-vel') ls.set('mmr-voz-vel', Number(t.value)); else if (t.id === 'voz-esp') { ls.set('mmr-voz-espera', Number(t.value)); return; } else return; vozTeste(); });
 document.addEventListener('input', e => { if (e.target && e.target.id === 'voz-esp') { const o = document.getElementById('voz-esp-v'); if (o) o.textContent = Number(e.target.value).toFixed(1).replace('.', ',') + ' s'; } if (e.target && e.target.id === 'voz-vel') { const o = document.getElementById('voz-vel-v'); if (o) o.textContent = Number(e.target.value).toFixed(2).replace('.', ',') + '×'; } });
-function vozTeste() { if (!('speechSynthesis' in window)) { toast('Este navegador não fala.'); return; } try { vozParaRec(); speechSynthesis.cancel(); const u = vozFalaObj('Oi! Eu sou o Moranguete. Assim é a minha voz.'); u.onend = u.onerror = () => setTimeout(vozIniciaRec, 250); speechSynthesis.speak(u); } catch { /* ok */ } }
+function vozTeste() { if (!('speechSynthesis' in window)) { toast('Este navegador não fala.'); return; } try { vozParaRec(); speechSynthesis.cancel(); const u = vozFalaObj('Oi! Eu sou o Andy. Assim é a minha voz.'); u.onend = u.onerror = () => setTimeout(vozIniciaRec, 250); speechSynthesis.speak(u); } catch { /* ok */ } }
 function vozInit() {
   try { localStorage.removeItem('mmr-voz-pos'); sessionStorage.removeItem('mmr-voz-pos'); } catch { /* ok */ }
   try { speechSynthesis.addEventListener('voiceschanged', () => { if (ui.sheet && ui.sheet.type === 'voz-cfg') render(); }); } catch { /* ok */ }
