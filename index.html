@@ -7047,7 +7047,8 @@ const VOZ_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const VOZ_WAKE = /moran\s*g[uü]?\s*e\s*t[ei]\w*|morango\s*ete/i;
 const VOZ_SEGURAS = ['tema', 'abrir_tela', 'periodo_padrao', 'whatsapp_numero'];
 const vozLigado = () => !!ls.get('mmr-voz', false);
-const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', tMsg: 0, tJan: 0, tConf: 0 };
+const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', buf: '', tMsg: 0, tJan: 0, tConf: 0, tBuf: 0 };
+const vozEspera = () => { const v = Number(ls.get('mmr-voz-espera', 2.5)); return v >= 1 && v <= 6 ? v : 2.5; };
 P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>';
 function vozFerramenta() {
   const f = JSON.parse(JSON.stringify(iaFerramenta));
@@ -7100,8 +7101,8 @@ function vozPill() {
 function vozMsg(t, ms = 9000) { VOZ.msg = t; clearTimeout(VOZ.tMsg); if (t && VOZ.estado !== 'confirma') VOZ.tMsg = setTimeout(() => { if (VOZ.estado !== 'confirma') { VOZ.msg = ''; vozPill(); } }, ms); vozPill(); }
 function vozIniciaRec() {
   if (!VOZ_SR || !vozLigado() || VOZ.rec || VOZ.falando || VOZ.negado || document.hidden) return;
-  const r = new VOZ_SR(); r.lang = 'pt-BR'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 1;
-  r.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) vozOuviu(e.results[i][0].transcript); };
+  const r = new VOZ_SR(); r.lang = 'pt-BR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+  r.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) { const tx = e.results[i][0].transcript; if (e.results[i].isFinal) vozOuviu(tx); else vozParcial(tx); } };
   r.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { VOZ.negado = true; vozPill(); toast('Permita o microfone no navegador para usar a voz.'); } };
   r.onend = () => { if (VOZ.rec === r) VOZ.rec = null; if (vozLigado() && !VOZ.negado && !VOZ.falando) setTimeout(vozIniciaRec, 400); };
   VOZ.rec = r; try { r.start(); } catch { VOZ.rec = null; }
@@ -7128,7 +7129,7 @@ function vozDiz(txt) {
 function vozVolta() { VOZ.estado = 'espera'; VOZ.pend = null; vozPill(); }
 async function vozAbreJanela() {
   VOZ.estado = 'comando'; clearTimeout(VOZ.tJan); await vozDiz('Oi! Pode falar, estou ouvindo.');
-  if (VOZ.estado === 'comando') VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando') { vozVolta(); vozMsg(''); } }, 10000);
+  if (VOZ.estado === 'comando') VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) { vozVolta(); vozMsg(''); } }, 15000);
 }
 function vozToque() {
   if (VOZ.negado || !VOZ.rec) { VOZ.negado = false; VOZ.estado = 'espera'; vozIniciaRec(); }
@@ -7138,13 +7139,21 @@ function vozOuviu(t) {
   if (VOZ.ocupado || !vozPode()) return;
   if (VOZ.estado === 'confirma') { const n = norm(t).normalize('NFD').replace(/[̀-ͯ]/g, '');
     if (/\b(sim|pode|confirma|confirmo|isso|claro|manda|faz|ok)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
-  if (VOZ.estado === 'comando') { clearTimeout(VOZ.tJan); return vozComando(t); }
+  if (VOZ.estado === 'comando') { clearTimeout(VOZ.tJan); return vozJunta(t); }
   const m = VOZ_WAKE.exec(t); if (!m) return;
   const resto = t.slice(m.index + m[0].length).replace(/^[\s,.!?:;-]+/, '').trim();
-  if (resto.length > 2) vozComando(resto); else vozAbreJanela();
+  if (resto.length > 2) { VOZ.estado = 'comando'; vozJunta(resto); } else vozAbreJanela();
+}
+/* junta o que você fala em pedaços e só manda para a IA depois de uma pausa longa (Configurações > Assistente de voz) */
+function vozJunta(t) { VOZ.buf = (VOZ.buf + ' ' + t).trim(); vozMsg('Ouvindo: “' + VOZ.buf + '”', 30000); vozAgenda(); }
+function vozAgenda() { clearTimeout(VOZ.tBuf); VOZ.tBuf = setTimeout(() => { const t = VOZ.buf; VOZ.buf = ''; if (t && VOZ.estado === 'comando') vozComando(t); }, vozEspera() * 1000); }
+function vozParcial(t) {
+  if (VOZ.estado !== 'comando' || VOZ.ocupado) return;
+  clearTimeout(VOZ.tJan); vozMsg('Ouvindo: “' + (VOZ.buf + ' ' + t).trim() + '”', 30000);
+  if (VOZ.buf) vozAgenda(); else VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) { vozVolta(); vozMsg(''); } }, 15000);
 }
 async function vozComando(texto) {
-  VOZ.ocupado = true; VOZ.estado = 'pensando'; vozMsg('Você disse: “' + texto + '”', 20000);
+  VOZ.ocupado = true; clearTimeout(VOZ.tBuf); VOZ.buf = ''; VOZ.estado = 'pensando'; vozMsg('Você disse: “' + texto + '”', 20000);
   try {
     if (!iaChave()) throw new Error('Falta a chave da IA. Coloque em Configurações, Lançar com IA.');
     const r = await iaChamar(texto, [], [], { sistema: vozSistema(), ferramenta: vozFerramenta() });
@@ -7179,12 +7188,13 @@ function vozCfgSheet(wrap) {
     <p class="muted" style="margin:0 0 10px;font-size:13px">Funciona no Chrome e no Edge (computador e Android), com o app aberto e a tela ligada. Permita o microfone quando o navegador pedir. No Chrome, o áudio é processado pelo serviço de voz do Google. Toque no botão do microfone na tela para falar sem a palavra de ativação.</p>
     ${(() => { const vs = vozVozes(), uri = ls.get('mmr-voz-voz', ''); return `<div class="f"><label for="voz-sel">Voz</label><select id="voz-sel"><option value="">Automática (padrão do aparelho)</option>${vs.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === uri ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('')}</select>${vs.length ? '' : '<small class="muted">Nenhuma voz em português encontrada neste aparelho. Ele usa a voz padrão.</small>'}</div>
       <div class="f" style="margin-top:8px"><label for="voz-vel">Velocidade: <b id="voz-vel-v">${vozVel().toFixed(2).replace('.', ',')}×</b></label><input type="range" id="voz-vel" min="0.7" max="1.5" step="0.05" value="${vozVel()}"></div>
-      <button class="lt-btn lt-block" style="margin:8px 0 12px" data-act="voz-teste">Ouvir a voz</button>`; })()}
+      <button class="lt-btn lt-block" style="margin:8px 0 12px" data-act="voz-teste">Ouvir a voz</button>
+      <div class="f" style="margin-bottom:12px"><label for="voz-esp">Esperar depois que eu parar de falar: <b id="voz-esp-v">${vozEspera().toFixed(1).replace('.', ',')} s</b></label><input type="range" id="voz-esp" min="1" max="6" step="0.5" value="${vozEspera()}"><small class="muted">Aumente se ele responder antes de você terminar.</small></div>`; })()}
     ${VOZ_SR ? '' : '<div class="note" style="margin-bottom:10px">Este navegador não tem reconhecimento de voz. Use o Chrome ou o Edge.</div>'}
     <button class="lt-btn lt-block" data-act="voz-toggle" ${VOZ_SR ? '' : 'disabled'}>${on ? 'Desligar assistente de voz' : 'Ligar assistente de voz'}</button>`);
 }
-document.addEventListener('change', e => { const t = e.target; if (!t) return; if (t.id === 'voz-sel') ls.set('mmr-voz-voz', t.value); else if (t.id === 'voz-vel') ls.set('mmr-voz-vel', Number(t.value)); else return; vozTeste(); });
-document.addEventListener('input', e => { if (e.target && e.target.id === 'voz-vel') { const o = document.getElementById('voz-vel-v'); if (o) o.textContent = Number(e.target.value).toFixed(2).replace('.', ',') + '×'; } });
+document.addEventListener('change', e => { const t = e.target; if (!t) return; if (t.id === 'voz-sel') ls.set('mmr-voz-voz', t.value); else if (t.id === 'voz-vel') ls.set('mmr-voz-vel', Number(t.value)); else if (t.id === 'voz-esp') { ls.set('mmr-voz-espera', Number(t.value)); return; } else return; vozTeste(); });
+document.addEventListener('input', e => { if (e.target && e.target.id === 'voz-esp') { const o = document.getElementById('voz-esp-v'); if (o) o.textContent = Number(e.target.value).toFixed(1).replace('.', ',') + ' s'; } if (e.target && e.target.id === 'voz-vel') { const o = document.getElementById('voz-vel-v'); if (o) o.textContent = Number(e.target.value).toFixed(2).replace('.', ',') + '×'; } });
 function vozTeste() { if (!('speechSynthesis' in window)) { toast('Este navegador não fala.'); return; } try { vozParaRec(); speechSynthesis.cancel(); const u = vozFalaObj('Oi! Eu sou o Moranguete. Assim é a minha voz.'); u.onend = u.onerror = () => setTimeout(vozIniciaRec, 250); speechSynthesis.speak(u); } catch { /* ok */ } }
 function vozInit() {
   try { speechSynthesis.addEventListener('voiceschanged', () => { if (ui.sheet && ui.sheet.type === 'voz-cfg') render(); }); } catch { /* ok */ }
