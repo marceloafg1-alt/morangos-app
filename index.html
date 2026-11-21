@@ -6826,7 +6826,7 @@ async function iaLerArquivo(file) {
   throw new Error(nome + ': tipo não aceito. Use foto, PDF, CSV, Excel ou texto.');
 }
 /* chave do Google AI Studio (AQ. ou AIza) usa o Gemini gratuito; sk-ant- usa a Anthropic */
-const IA_GEMINI_MODELO = 'gemini-2.5-flash';
+const IA_GEMINI_MODELO = 'gemini-3.8-flash';
 const iaEhGemini = c => /^(AQ\.|AIza)/.test(String(c || '').trim());
 const IA_RODAPE_GRATIS = 'Plano Gratuito Google AI Studio - R$ 0,00';
 /* converte o schema da ferramenta (formato Anthropic) para o formato do Gemini (subconjunto do OpenAPI) */
@@ -6881,8 +6881,17 @@ async function iaChamar(texto, pdfs, imgs = [], voz = null, audio = null) {
   }
   return { lanc: Array.isArray(inp?.lancamentos) ? inp.lancamentos : [], sobra: Array.isArray(inp?.nao_entendido) ? inp.nao_entendido : [], fala: String(inp?.fala || '') };
 }
+/* transforma a fala gravada em texto com o Gemini */
+async function iaTranscreve(audio) {
+  const chave = iaChave(); if (!iaEhGemini(chave)) throw new Error('Áudio direto exige uma chave gratuita do Google Gemini (AQ. ou AIza).');
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + IA_GEMINI_MODELO + ':generateContent', { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': chave.trim() },
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ inline_data: { mime_type: String(audio.mime || 'audio/webm').split(';')[0], data: audio.b64 } }, { text: 'Transcreva fielmente, em português do Brasil, o que a pessoa disse neste áudio. Responda só com a transcrição, sem comentários. Se não houver fala, responda vazio.' }] }], generationConfig: { maxOutputTokens: 1500, thinkingConfig: { thinkingBudget: 0 } } }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const m = j?.error?.message || ''; throw new Error(r.status === 401 || r.status === 403 || /API key/i.test(m) ? 'A chave do Google não foi aceita. Confira em Configurações > Lançar com IA.' : r.status === 429 ? 'Limite gratuito do Google atingido. Espere um minuto e tente de novo.' : 'Não consegui entender o áudio agora' + (m ? ' (' + m + ')' : '') + '.'); }
+  return (j.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
+}
 /* gravação de áudio nativa (MediaRecorder): só funciona com chave do Google Gemini */
-async function iaMicInicia(vivo) {
+async function iaMicInicia(vivo, op = {}) {
   const c = iaChave();
   if (!c) { toast('Falta a chave da IA. Coloque em Configurações > Lançar com IA.'); return null; }
   if (!iaEhGemini(c)) { toast('Áudio direto exige uma chave gratuita do Google Gemini (AQ. ou AIza). Digite o texto ou use o microfone do teclado.'); return null; }
@@ -6895,7 +6904,11 @@ async function iaMicInicia(vivo) {
   let resolve; const pronto = new Promise(ok => { resolve = ok; });
   rec.onstop = async () => { solta(); fim = true; if (cancelado || !pedacos.length) return resolve(null); const blob = new Blob(pedacos, { type: rec.mimeType || mime || 'audio/webm' }); resolve({ b64: await iaB64(blob), mime: String(blob.type || 'audio/webm').split(';')[0] }); };
   const para = () => { if (!fim && rec.state !== 'inactive') { try { rec.stop(); } catch { solta(); resolve(null); } } return pronto; };
-  rec.start(); tim = setTimeout(para, 90000);
+  rec.start(); tim = setTimeout(para, op.silencio ? 30000 : 90000);
+  if (op.silencio) { /* para sozinho depois de ~1,5 s de silêncio; se ninguém falar em 8 s, cancela */
+    try { const ac = new (window.AudioContext || window.webkitAudioContext)(), an = ac.createAnalyser(); an.fftSize = 1024; ac.createMediaStreamSource(stream).connect(an); const buf = new Uint8Array(an.fftSize); let falou = false, ult = Date.now(); const ini = Date.now();
+      const v = setInterval(() => { an.getByteTimeDomainData(buf); let m = 0; for (const x of buf) m = Math.max(m, Math.abs(x - 128)); if (m > 14) { falou = true; ult = Date.now(); }
+        if (falou && Date.now() - ult > 1500) { clearInterval(v); ac.close(); para(); } else if (!falou && Date.now() - ini > 8000) { clearInterval(v); ac.close(); cancelado = true; para(); } else if (fim) { clearInterval(v); try { ac.close(); } catch { /* ok */ } } }, 150); } catch { /* sem detector: toque para enviar */ } }
   if (vivo) pol = setInterval(() => { if (!vivo()) { cancelado = true; para(); } }, 1000);
   return { parar: para, cancelar: () => { cancelado = true; return para(); }, pronto };
 }
@@ -7100,8 +7113,8 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
   const sem = !chave ? `<div class="note" style="margin-bottom:10px">Falta a chave da IA. <button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button></div>` : '';
   openModal('Lançar com IA', `${sem}<div class="fgrid">
     <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" placeholder="Ex.: Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80." style="width:100%"></textarea>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" id="ia-mic" translate="no" style="display:inline-flex;align-items:center;gap:6px">${ic('mic')}<span>Gravar áudio</span></button><span id="ia-aud" class="muted" style="font-size:13px"></span></div>
-      <small class="muted">Grave a voz aqui (chave do Google Gemini) ou digite. Também dá para ditar pelo microfone do teclado.</small></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" id="ia-mic" translate="no" style="display:inline-flex;align-items:center;gap:6px">${ic('mic')}<span>Gravar áudio</span></button></div>
+      <small class="muted">Grave a voz aqui (chave do Google Gemini): o texto aparece no campo para você conferir. Ou digite. Também dá para ditar pelo microfone do teclado.</small></div>
     <div class="f full"><input type="file" id="ia-arq" accept="image/*,.pdf,.csv,.xlsx,.xls,.ods,.txt,.tsv,application/pdf" multiple hidden><input type="file" id="ia-foto" accept="image/*" capture="environment" hidden>
       <div id="ia-arqs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div></div>
     <div class="f full"><button type="button" class="btn primary ia-ler" id="ia-ler" ${chave ? '' : 'disabled'}>Ler com a IA</button></div>
@@ -7124,27 +7137,29 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
     f.querySelector('#ia-arq').addEventListener('change', pega); f.querySelector('#ia-foto').addEventListener('change', pega);
     document.getElementById('ia-up').addEventListener('click', () => f.querySelector('#ia-arq').click()); document.getElementById('ia-cam').addEventListener('click', () => f.querySelector('#ia-foto').click());
     pinta();
-    let audio = null, grav = null; const micB = f.querySelector('#ia-mic'), audS = f.querySelector('#ia-aud');
+    let grav = null; const micB = f.querySelector('#ia-mic'), txtA = f.querySelector('#ia-txt');
     const micTxt = t => { micB.querySelector('span').textContent = t; };
-    const audPinta = () => { audS.innerHTML = audio ? 'Áudio gravado <button type="button" id="ia-aud-x" aria-label="Tirar o áudio" style="border:0;background:none;font-size:16px;line-height:1;padding:0">×</button>' : ''; const x = audS.querySelector('#ia-aud-x'); if (x) x.addEventListener('click', () => { audio = null; audPinta(); micTxt('Gravar áudio'); }); };
+    const fimGrav = async g => { grav = null; micB.classList.remove('on'); micTxt('Transcrevendo…'); micB.disabled = true;
+      try { const a = await g.parar(); if (a) { const t = await iaTranscreve(a); if (t) txtA.value = (txtA.value.trim() ? txtA.value.trim() + '\n' : '') + t; else toast('Não ouvi nada. Tente de novo.'); } }
+      catch (e) { toast(e.message || 'Não deu certo. Tente de novo.'); }
+      micB.disabled = false; micTxt('Gravar áudio'); };
     micB.addEventListener('click', async () => {
-      if (grav) { const g = grav; grav = null; micB.classList.remove('on'); micTxt('Processando…'); audio = await g.parar(); audPinta(); micTxt(audio ? 'Gravar de novo' : 'Gravar áudio'); return; }
+      if (grav) return fimGrav(grav);
       micB.disabled = true; const g = await iaMicInicia(() => micB.isConnected); micB.disabled = false; if (!g) return;
-      grav = g; audio = null; audPinta(); micB.classList.add('on'); micTxt('Parar de gravar');
-      g.pronto.then(a => { if (grav === g) { grav = null; micB.classList.remove('on'); audio = a; audPinta(); micTxt(a ? 'Gravar de novo' : 'Gravar áudio'); } });
+      grav = g; micB.classList.add('on'); micTxt('Parar de gravar');
+      g.pronto.then(() => { if (grav === g) fimGrav(g); });
     });
     const atualiza = () => { okb.disabled = !f.querySelector('[data-ia]:checked'); };
     res.addEventListener('change', atualiza);
     btn.addEventListener('click', async () => {
       const partes = []; const pdfs = []; const imgs = [];
       const t = f.querySelector('#ia-txt').value.trim(); if (t) partes.push(t);
-      if (grav) { const g = grav; grav = null; micB.classList.remove('on'); audio = await g.parar(); audPinta(); micTxt(audio ? 'Gravar de novo' : 'Gravar áudio'); }
       btn.disabled = true; btn.textContent = 'Lendo…'; res.innerHTML = ''; okb.disabled = true;
       try {
         for (const file of arquivos) { const r = await iaLerArquivo(file); if (r.img) imgs.push(r); else if (r.pdf) pdfs.push(r); else partes.push(r.texto); }
-        const texto = (ctx && (partes.length || imgs.length || pdfs.length) ? ctx + '\n\n' : '') + partes.join('\n\n'); if (!texto.trim() && !pdfs.length && !imgs.length && !audio) throw new Error('Escreva um texto, grave um áudio, envie um arquivo ou tire uma foto.');
+        const texto = (ctx && (partes.length || imgs.length || pdfs.length) ? ctx + '\n\n' : '') + partes.join('\n\n'); if (!texto.trim() && !pdfs.length && !imgs.length) throw new Error('Escreva um texto, grave um áudio, envie um arquivo ou tire uma foto.');
         if (texto.length > IA_MAX_TXT) throw new Error('Conteúdo grande demais (' + texto.length + ' caracteres; máximo ' + IA_MAX_TXT + '). Envie em partes.');
-        const r = await iaChamar(texto, pdfs, imgs, null, audio);
+        const r = await iaChamar(texto, pdfs, imgs);
         lista = r.lanc.map(iaPrepara); lista.forEach((o, i) => { o.falta = o.problemas.length ? [] : iaFalta(r.lanc[i], o); }); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
         res.innerHTML = (lista.length ? `<div class="nt-prefs">${lista.map(iaCard).join('')}</div><small class="muted">Confira. Desligue o que não quiser lançar.</small>` : '<div class="note">A IA não achou nenhum lançamento nesse conteúdo.</div>')
           + (r.sobra.length ? `<div class="note" style="margin-top:8px"><b>Não entendi:</b><br>${r.sobra.map(esc).join('<br>')}</div>` : '');
@@ -7324,14 +7339,12 @@ function vozPill() {
 #voz-box .voz-card .voz-b{display:flex;gap:8px;margin-top:10px}#voz-box .voz-card button{flex:1;border-radius:12px;border:1px solid rgba(128,128,128,.4);padding:9px;font-weight:600;background:transparent;color:inherit;cursor:pointer}#voz-box .voz-card button.p{background:#d6336c;color:#fff;border-color:#d6336c}
 #voz-box .voz-pill{touch-action:none;user-select:none;-webkit-user-select:none;display:flex;align-items:center;gap:8px;border-radius:999px;border:1px solid rgba(128,128,128,.4);background:var(--card,#fff);color:var(--ink,#111);padding:9px 14px;font-size:13.5px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2);cursor:pointer}
 #voz-box .voz-pill svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}#voz-box .voz-pill.on{background:#d6336c;color:#fff;border-color:#d6336c}`; document.head.appendChild(st); }
-  if (!box) { box = document.createElement('div'); box.id = 'voz-box'; box.innerHTML = '<div class="voz-card" hidden></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="voz-pill voz-rec" translate="no" aria-label="Gravar áudio e enviar" title="Gravar áudio e enviar"></button><button type="button" class="voz-pill voz-main"></button></div>';
-    box.querySelector('.voz-rec').addEventListener('click', vozGravaToque);
+  if (!box) { box = document.createElement('div'); box.id = 'voz-box'; box.innerHTML = '<div class="voz-card" hidden></div><button type="button" class="voz-pill voz-main"></button>';
     box.querySelector('.voz-main').addEventListener('click', () => { if (!VOZ.arrastou) vozToque(); }); vozArrasta(box.querySelector('.voz-main'));
     box.querySelector('.voz-card').addEventListener('click', e => { const b = e.target.closest('[data-voz]'); if (b) vozConfirma(b.dataset.voz === 'sim'); }); document.body.appendChild(box); }
   vozPosiciona();
   const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi Ander”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
-  const rb = box.querySelector('.voz-rec'); rb.innerHTML = ic('mic') + (VOZ.gravando ? '<span>Enviar</span>' : ''); rb.classList.toggle('on', !!VOZ.gravando);
-  const pill = box.querySelector('.voz-main'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.gravando ? 'Gravando…' : VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
+  const pill = box.querySelector('.voz-main'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.gravando ? 'Gravando…' : VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', !!VOZ.gravando || st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
   const card = box.querySelector('.voz-card'), msg = VOZ.msg;
   card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">' + (VOZ.estrito ? 'Sim, confirmar' : 'Sim, fazer') + '</button></div>' : '');
 }
@@ -7395,14 +7408,25 @@ async function vozAbreJanela() {
   VOZ.estado = 'comando'; clearTimeout(VOZ.tJan); await vozDiz('Oi! Pode falar, estou ouvindo.');
   if (VOZ.estado === 'comando') VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) { vozVolta(); vozMsg(''); } }, 15000);
 }
-async function vozGravaToque() {
-  if (VOZ.arrastou || VOZ.ocupado) return;
-  if (VOZ.gravando) { const g = VOZ.gravando; VOZ.gravando = null; vozPill(); const a = await g.parar(); if (vozLigado()) vozIniciaRec(); if (a) vozComando('', a); return; }
-  const g = await iaMicInicia(() => !!document.getElementById('voz-box')); if (!g) return;
-  vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.gravando = g; vozMsg('Gravando… toque em Enviar quando terminar.', 95000); vozPill();
-  g.pronto.then(a => { if (VOZ.gravando === g) { VOZ.gravando = null; vozPill(); if (vozLigado()) vozIniciaRec(); if (a) vozComando('', a); } });
+/* com chave do Google, o assistente escuta pelo microfone do app (gravação + Gemini), sem depender do microfone do teclado */
+const vozGemini = () => iaEhGemini(iaChave());
+async function vozOuveGemini() {
+  if (VOZ.ocupado || !vozPode()) return;
+  if (VOZ.gravando) { VOZ.gravando.parar(); return; } /* tocar de novo envia agora */
+  const g = await iaMicInicia(() => !!document.getElementById('voz-box'), { silencio: true });
+  if (!g) { VOZ.estado = 'espera'; vozPill(); return; }
+  vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ }
+  VOZ.gravando = g; VOZ.estado = 'comando'; clearTimeout(VOZ.tJan); vozMsg('Pode falar… (toque para enviar)', 40000); vozPill();
+  const a = await g.pronto; VOZ.gravando = null; vozMsg(''); 
+  if (!a) { vozFimConversa(); if (vozLigado()) vozIniciaRec(); return; }
+  VOZ.estado = 'pensando'; vozMsg('Entendendo o que você falou…', 20000); vozPill();
+  let t = ''; try { t = await iaTranscreve(a); } catch (e) { vozVolta(); vozMsg(e.message || 'Não deu certo. Tente de novo.', 6000); if (vozLigado()) vozIniciaRec(); return; }
+  if (!t) { vozFimConversa(); vozMsg('Não ouvi nada. Toque e fale de novo.', 5000); if (vozLigado()) vozIniciaRec(); return; }
+  if (vozLigado()) vozIniciaRec();
+  vozComando(t);
 }
 function vozToque() {
+  if (vozGemini()) { if (VOZ.estado === 'espera' || VOZ.gravando) vozOuveGemini(); else if (VOZ.estado === 'comando') { vozVolta(); vozMsg(''); } return; }
   if (VOZ.negado || !VOZ.rec) { VOZ.negado = false; VOZ.estado = 'espera'; vozIniciaRec(); }
   if (VOZ.estado === 'espera') vozAbreJanela(); else if (VOZ.estado === 'comando') { vozVolta(); vozMsg(''); }
 }
@@ -7441,6 +7465,7 @@ function vozFimConversa() { clearTimeout(VOZ.tJan); VOZ.hist = []; VOZ.buf = '';
 /* depois de responder, continua ouvindo por uns segundos para você seguir a conversa sem chamar de novo */
 function vozContinua() {
   if (!vozConversa()) return vozFimConversa();
+  if (vozGemini() && vozLigado()) { VOZ.estado = 'comando'; vozPill(); return setTimeout(vozOuveGemini, 250); }
   VOZ.estado = 'comando'; vozPill(); clearTimeout(VOZ.tJan);
   VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) vozFimConversa(); }, 10000);
 }
