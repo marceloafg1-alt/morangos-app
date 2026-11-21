@@ -7137,16 +7137,22 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
     f.querySelector('#ia-arq').addEventListener('change', pega); f.querySelector('#ia-foto').addEventListener('change', pega);
     document.getElementById('ia-up').addEventListener('click', () => f.querySelector('#ia-arq').click()); document.getElementById('ia-cam').addEventListener('click', () => f.querySelector('#ia-foto').click());
     pinta();
-    let grav = null; const micB = f.querySelector('#ia-mic'), txtA = f.querySelector('#ia-txt');
+    let grav = null, sr = null, base = ''; const micB = f.querySelector('#ia-mic'), txtA = f.querySelector('#ia-txt');
     const micTxt = t => { micB.querySelector('span').textContent = t; };
-    const fimGrav = async g => { grav = null; micB.classList.remove('on'); micTxt('Transcrevendo…'); micB.disabled = true;
-      try { const a = await g.parar(); if (a) { const t = await iaTranscreve(a); if (t) txtA.value = (txtA.value.trim() ? txtA.value.trim() + '\n' : '') + t; else toast('Não ouvi nada. Tente de novo.'); } }
+    const paraSR = () => { const r = sr; sr = null; if (r) { r.onend = null; r.onerror = null; try { r.abort(); } catch { /* ok */ } } if (vozLigado()) vozIniciaRec(); };
+    /* enquanto grava, mostra o texto ao vivo (reconhecimento do navegador, se existir); ao parar, o Gemini refaz a transcrição com mais precisão */
+    const aoVivo = () => { if (!VOZ_SR) return; try { vozParaRec(); const r = new VOZ_SR(); r.lang = 'pt-BR'; r.continuous = true; r.interimResults = true; let fin = '';
+      r.onresult = e => { let parc = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) fin += t + ' '; else parc += t; } txtA.value = (base ? base + '\n' : '') + (fin + parc).trim(); };
+      r.onerror = () => { /* sem texto ao vivo: o Gemini transcreve no fim */ }; r.onend = () => { if (sr === r) { try { r.start(); } catch { /* ok */ } } };
+      sr = r; r.start(); } catch { sr = null; } };
+    const fimGrav = async g => { grav = null; paraSR(); micB.classList.remove('on'); micTxt('Transcrevendo…'); micB.disabled = true;
+      try { const a = await g.parar(); if (a) { const t = await iaTranscreve(a); if (t) txtA.value = (base ? base + '\n' : '') + t; else { txtA.value = base; toast('Não ouvi nada. Tente de novo.'); } } else txtA.value = base || txtA.value; }
       catch (e) { toast(e.message || 'Não deu certo. Tente de novo.'); }
       micB.disabled = false; micTxt('Gravar áudio'); };
     micB.addEventListener('click', async () => {
       if (grav) return fimGrav(grav);
       micB.disabled = true; const g = await iaMicInicia(() => micB.isConnected); micB.disabled = false; if (!g) return;
-      grav = g; micB.classList.add('on'); micTxt('Parar de gravar');
+      grav = g; base = txtA.value.trim(); micB.classList.add('on'); micTxt('Parar de gravar'); aoVivo();
       g.pronto.then(() => { if (grav === g) fimGrav(g); });
     });
     const atualiza = () => { okb.disabled = !f.querySelector('[data-ia]:checked'); };
