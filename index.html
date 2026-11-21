@@ -7114,7 +7114,7 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
   openModal('Lançar com IA', `${sem}<div class="fgrid">
     <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" placeholder="Ex.: Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80." style="width:100%"></textarea>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" id="ia-mic" translate="no" style="display:inline-flex;align-items:center;gap:6px">${ic('mic')}<span>Gravar áudio</span></button></div>
-      <small class="muted">Grave a voz aqui (chave do Google Gemini): o texto aparece no campo para você conferir. Ou digite. Também dá para ditar pelo microfone do teclado.</small></div>
+      <small class="muted">Fale pelo microfone: com chave do Google o Gemini transcreve; com chave Anthropic usa o ditado do navegador. O texto aparece no campo para você conferir. Ou digite. Também dá para ditar pelo microfone do teclado.</small></div>
     <div class="f full"><input type="file" id="ia-arq" accept="image/*,.pdf,.csv,.xlsx,.xls,.ods,.txt,.tsv,application/pdf" multiple hidden><input type="file" id="ia-foto" accept="image/*" capture="environment" hidden>
       <div id="ia-arqs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div></div>
     <div class="f full"><button type="button" class="btn primary ia-ler" id="ia-ler" ${chave ? '' : 'disabled'}>Ler com a IA</button></div>
@@ -7143,13 +7143,19 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
     /* enquanto grava, mostra o texto ao vivo (reconhecimento do navegador, se existir); ao parar, o Gemini refaz a transcrição com mais precisão */
     const aoVivo = () => { if (!VOZ_SR) return; try { vozParaRec(); const r = new VOZ_SR(); r.lang = 'pt-BR'; r.continuous = true; r.interimResults = true; let fin = '';
       r.onresult = e => { let parc = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) fin += t + ' '; else parc += t; } txtA.value = (base ? base + '\n' : '') + (fin + parc).trim(); };
-      r.onerror = () => { /* sem texto ao vivo: o Gemini transcreve no fim */ }; r.onend = () => { if (sr === r) { try { r.start(); } catch { /* ok */ } } };
+      r.onerror = e => { if (e && (e.error === 'not-allowed' || e.error === 'service-not-allowed')) toast('Permita o microfone no navegador.'); }; r.onend = () => { if (sr === r) { try { r.start(); } catch { /* ok */ } } };
       sr = r; r.start(); } catch { sr = null; } };
     const fimGrav = async g => { grav = null; paraSR(); micB.classList.remove('on'); micTxt('Transcrevendo…'); micB.disabled = true;
       try { const a = await g.parar(); if (a) { const t = await iaTranscreve(a); if (t) txtA.value = (base ? base + '\n' : '') + t; else { txtA.value = base; toast('Não ouvi nada. Tente de novo.'); } } else txtA.value = base || txtA.value; }
       catch (e) { toast(e.message || 'Não deu certo. Tente de novo.'); }
       micB.disabled = false; micTxt('Gravar áudio'); };
+    let ditando = false; const gem = () => iaEhGemini(iaChave());
+    if (!gem()) micTxt('Ditar');
     micB.addEventListener('click', async () => {
+      if (ditando) { ditando = false; paraSR(); micB.classList.remove('on'); micTxt('Ditar'); return; }
+      if (!gem() && !grav) { /* chave da Anthropic (ou sem chave): usa o ditado do navegador, igual ao microfone do teclado */
+        if (!VOZ_SR) { toast('Este navegador não dita por voz. Use o microfone do teclado.'); return; }
+        base = txtA.value.trim(); ditando = true; micB.classList.add('on'); micTxt('Parar'); aoVivo(); return; }
       if (grav) return fimGrav(grav);
       micB.disabled = true; const g = await iaMicInicia(() => micB.isConnected); micB.disabled = false; if (!g) return;
       grav = g; base = txtA.value.trim(); micB.classList.add('on'); micTxt('Parar de gravar'); aoVivo();
