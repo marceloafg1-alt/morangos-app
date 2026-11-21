@@ -6943,6 +6943,47 @@ function iaPreparaAcao(o, l) {
     const pg = PER_PAG[l.tela === 'relatorios' ? 'relatorios' : l.tela], per = PERIODOS[l.periodo] ? l.periodo : '';
     o.resumo = 'Abrir ' + (IA_TELAS[l.tela] || '?') + (l.tela === 'caixa' && VC[l.visao_caixa] ? ', ' + NV[l.visao_caixa] : '') + (per && pg ? ', período ' + PERIODOS[per] : '');
     o.exec = async () => { if (per && pg) ui[pg] = per; if (l.tela === 'caixa' && VC[l.visao_caixa]) ui.cxv = VC[l.visao_caixa]; ui.voltaCfg = ['estoque', 'clientes', 'fornecedores', 'noticias', 'ajuda'].includes(l.tela); go(l.tela); };
+  } else if (l.acao === 'enviar_mensagem') {
+    const nm = norm(o.pessoa), texto = String(l.mensagem || '').trim();
+    const cs = nm ? S.clientes.filter(c => norm(c.nome) === nm || norm(c.nome).includes(nm) || nm.includes(norm(c.nome))) : [], ex = cs.filter(c => norm(c.nome) === nm), c = ex.length === 1 ? ex[0] : cs.length === 1 ? cs[0] : null;
+    if (!nm) o.problemas.push('diga para qual cliente enviar'); else if (!cs.length) o.problemas.push('não achei o cliente "' + o.pessoa + '"'); else if (!c) o.problemas.push('achei ' + cs.length + ' clientes parecidos: ' + cs.slice(0, 4).map(x => x.nome).join(', ') + '. Diga o nome completo');
+    if (!texto) o.problemas.push('diga o que enviar');
+    o.resumo = c ? 'Enviar para ' + c.nome + ': ' + texto : 'Enviar mensagem'; o.dito = c ? 'Enviei para ' + c.nome + ': ' + texto : '';
+    o.exec = async () => { ui.conv = c.id; const ok = await enviarMsg(texto); if (!ok) throw new Error('não enviou'); go('conversas'); };
+  } else if (['dar_baixa', 'pagamento_parcial', 'cancelar_venda', 'estornar'].includes(l.acao)) {
+    const col = l.acao === 'cancelar_venda' ? 'vendas' : { venda: 'vendas', compra: 'compras', despesa: 'despesas' }[l.colecao], vop = n2(l.valor_operacao);
+    if (!col) o.problemas.push('não entendi se é venda, compra ou despesa');
+    else if (!canWrite) o.problemas.push('modo leitura: não dá para alterar');
+    else if (l.acao === 'pagamento_parcial' && col === 'despesas') o.problemas.push('pagamento parcial vale só para venda e compra');
+    else {
+      const aberto = l.acao === 'dar_baixa' || l.acao === 'pagamento_parcial' ? VOZ_ABERTO[col] : l.acao === 'cancelar_venda' ? (x => x.status !== 'cancelado') : (x => restante(col, x) > 0);
+      const r = vozEscolhe(col, l, aberto);
+      if (r.erro) o.problemas.push(r.erro);
+      else {
+        const x = r.x, nome = vozNomeLanc(col, x), tn = { vendas: 'a venda', compras: 'a compra', despesas: 'a despesa' }[col], falta = vozFaltaLanc(col, x), pg = col === 'despesas' ? x.pago !== false : !!x.pago || parcV(x) > 0;
+        const forma = ['pix', 'dinheiro', 'debito', 'credito'].includes(l.forma) ? l.forma : '';
+        if (l.acao === 'dar_baixa') {
+          o.resumo = 'Marcar como paga ' + tn + (col === 'despesas' ? ' ' : ' de ') + nome + ', faltam ' + money(falta) + '. O valor entra' + (col === 'vendas' ? ' no caixa.' : ' como saída no caixa.');
+          o.exec = async () => { await patch(col, x.id, { pago: true, pagoTs: Date.now(), ...(forma ? { forma } : {}) }); };
+        } else if (l.acao === 'pagamento_parcial') {
+          if (!(vop > 0)) o.problemas.push('diga quanto foi pago'); else if (vop > falta + 0.005) o.problemas.push('o valor passa do que falta (' + money(falta) + ')');
+          const quita = vop >= falta - 0.005;
+          o.resumo = (col === 'vendas' ? 'Receber ' : 'Pagar ') + money(vop) + ' d' + tn + ' de ' + nome + (quita ? ', que quita o que falta' : ', ainda faltam ' + money(n2(falta - vop))) + '.';
+          o.exec = async () => { const ja = Number(x.valorPago) || 0, agora = Date.now(); await patch(col, x.id, quita ? { pago: true, pagoTs: agora, ...(forma ? { forma } : {}) } : { valorPago: n2(ja + vop), parcialTs: agora, ...(forma ? { forma } : {}) }); };
+        } else if (l.acao === 'cancelar_venda') {
+          o.resumo = 'Cancelar a venda de ' + nome + ', ' + money(valOrig(col, x)) + (pg ? '. Como já tem pagamento, o valor sai do caixa como devolução ao cliente' : '') + '. Os itens voltam para o estoque' + (x.status === 'entregue' ? ', exceto o que já foi entregue' : '') + '.';
+          o.exec = async () => {
+            if (pg) return vozFazEstorno('vendas', x.id, 0, String(l.motivo || '').trim(), true);
+            const volta = (x.itens || []).map(i => ({ produtoId: i.produtoId, qtd: n2(i.qtd - estQtd(x, i.produtoId, true)) })).filter(i => i.qtd > 0);
+            await patch('vendas', x.id, { status: 'cancelado', pago: false, pagoTs: null, clienteInformouPix: false, ordemRota: null }); await adjustStock(volta, 1); if (x.status === 'em_rota') await rtSemParada(x.id);
+          };
+        } else {
+          const rest = restante(col, x), valor = vop > 0 ? Math.min(vop, rest) : rest;
+          o.resumo = 'Estornar ' + money(valor) + ' d' + tn + ' de ' + nome + (valor < rest - 0.005 ? ', estorno parcial' : ', estorno total') + '. ' + (pg ? (col === 'vendas' ? 'O valor sai do caixa como devolução.' : 'O valor volta para o caixa.') : 'Ainda não foi pago, então abate do que falta e não mexe no caixa.');
+          o.exec = async () => vozFazEstorno(col, x.id, vop, String(l.motivo || '').trim(), false);
+        }
+      }
+    }
   } else if (l.acao === 'desfazer_exclusao') {
     const it = vozLixeira()[0]; if (!it) o.problemas.push('não há exclusão para desfazer');
     o.resumo = it ? 'Desfazer a exclusão da ' + it.tipoNome + ' ' + it.nome + ', ' + money(it.valor) + '. Ela volta com o caixa e o estoque.' : 'Desfazer exclusão';
@@ -7106,16 +7147,45 @@ function vozLixeiraSalva(col, pl) {
   const b = { ...pl.x }; delete b.id; const L = vozLixeira();
   L.unshift({ col, id: pl.x.id, body: b, volta: pl.volta, sai: pl.sai, nome: pl.nome, tipoNome: pl.tipoNome, valor: pl.valor, ts: Date.now() }); ls.set('mmr-lixeira', L.slice(0, 15));
 }
-function vozAchaLanc(col, l) {
+function vozAchaLanc(col, l, filtro) {
   const q = norm(l.pessoa || l.descricao || ''), val = n2(l.valor), dia = /^\d{4}-\d{2}-\d{2}$/.test(l.data || '') ? l.data : '';
   if (!q && !(val > 0) && !dia && !l.mais_recente) return [];
   const nomeDe = x => col === 'vendas' ? (x.cliente?.nome || '') : col === 'compras' ? (x.fornecedor || '') : (x.descricao || '');
   const iso = ts => { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   let r = S[col].filter(x => (!q || norm(nomeDe(x)).includes(q) || q.includes(norm(nomeDe(x)))) && (!(val > 0) || Math.abs(valOrig(col, x) - val) < 0.01) && (!dia || iso(x.ts) === dia)).sort((a, b) => b.ts - a.ts);
+  if (filtro) r = r.filter(filtro);
   if (l.mais_recente && r.length) r = [r[0]];
   return r;
 }
-const VOZ_SEGURAS = ['tema', 'abrir_tela', 'abrir_filtro', 'periodo_padrao', 'whatsapp_numero'];
+const vozNomeLanc = (col, x) => col === 'vendas' ? (x.cliente?.nome || 'cliente avulso') : col === 'compras' ? (x.fornecedor || 'roça') : (x.descricao || 'despesa');
+const vozFaltaLanc = (col, x) => col === 'vendas' ? vFalta(x) : col === 'compras' ? cFalta(x) : restante('despesas', x);
+const VOZ_ABERTO = { vendas: x => !x.pago && x.status !== 'cancelado' && vFalta(x) > 0, compras: x => !x.pago && cFalta(x) > 0, despesas: x => x.pago === false && restante('despesas', x) > 0 };
+/* acha um único lançamento para a ação de voz; se houver dúvida, devolve o motivo para o Andy perguntar */
+function vozEscolhe(col, l, filtro) {
+  const c = vozAchaLanc(col, l, filtro);
+  if (!c.length) return { erro: 'não achei esse lançamento (diga o nome, o valor ou a data)' };
+  if (c.length > 1) return { erro: 'achei ' + c.length + ' lançamentos parecidos: ' + c.slice(0, 4).map(x => money(valOrig(col, x)) + ' em ' + fmtDT(x.ts)).join('; ') + '. Diga o valor ou a data para eu achar o certo' };
+  return { x: c[0] };
+}
+/* estorno (ou cancelamento de venda paga) feito pela voz: mesma regra da tela de estorno do app */
+async function vozFazEstorno(col, id, valorOp, motivo, cancelar) {
+  const x = S[col].find(y => y.id === id); if (!x) throw new Error('lançamento não encontrado');
+  const orig = valOrig(col, x), rest = restante(col, x); if (rest <= 0) throw new Error('já foi todo estornado');
+  const pago = col === 'despesas' ? x.pago !== false : !!x.pago || parcV(x) > 0, campo = col === 'compras' ? 'custo' : 'preco';
+  const valor = valorOp > 0 ? Math.min(n2(valorOp), rest) : rest, total = valor >= rest - 0.005;
+  const itens = col === 'despesas' ? [] : (x.itens || []).map(i => ({ produtoId: i.produtoId, nome: i.nome, [campo]: Number(i[campo]) || 0, qtd: n2(i.qtd - estQtd(x, i.produtoId)) })).filter(i => i.qtd > 0);
+  const its = total ? itens : [], voltaEst = its.length > 0 && (col === 'compras' ? true : x.status !== 'entregue');
+  const e = { id: uid(), ts: Date.now(), valor, parcial: valor < orig - 0.005, motivo: motivo || (cancelar ? 'Venda cancelada' : 'Estorno pedido por voz'), caixa: pago, itens: its, estoque: voltaEst };
+  if (pago) e.forma = x.forma && !['fiado', 'cartao_entrega'].includes(x.forma) ? x.forma : 'pix';
+  const body = { estornos: [...estornos(x), e] };
+  const cancela = col === 'vendas' && total && (cancelar || ['recebido', 'separado', 'em_rota'].includes(x.status));
+  if (cancela) { body.status = 'cancelado'; body.ordemRota = null; }
+  await patch(col, id, body);
+  if (voltaEst) await adjustStock(its.filter(i => prodById(i.produtoId)), col === 'compras' ? -1 : 1);
+  if (cancela && x.status === 'em_rota') await rtSemParada(id);
+}
+const VOZ_SEGURAS = ['tema', 'abrir_tela', 'abrir_filtro', 'periodo_padrao', 'whatsapp_numero', 'enviar_mensagem'];
+const VOZ_DESTRUTIVAS = ['excluir', 'cancelar_venda', 'estornar'];
 const vozNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const vozLigado = () => !!ls.get('mmr-voz', false);
 const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', buf: '', hist: [], tMsg: 0, tJan: 0, tConf: 0, tBuf: 0 };
@@ -7124,9 +7194,12 @@ P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.
 function vozFerramenta() {
   const f = JSON.parse(JSON.stringify(iaFerramenta));
   const it = f.input_schema.properties.lancamentos.items.properties;
-  it.acao.enum = [...it.acao.enum, 'excluir', 'desfazer_exclusao', 'abrir_filtro'];
+  it.acao.enum = [...it.acao.enum, 'excluir', 'desfazer_exclusao', 'abrir_filtro', 'enviar_mensagem', 'dar_baixa', 'pagamento_parcial', 'cancelar_venda', 'estornar'];
+  it.mensagem = { type: 'string', description: 'Só para enviar_mensagem: o texto pronto que será enviado ao cliente.' };
+  it.valor_operacao = { type: 'number', description: 'Só para pagamento_parcial (quanto foi pago ou recebido agora) e estornar (valor a estornar; 0 = tudo).' };
+  it.motivo = { type: 'string', description: 'Só para estornar e cancelar_venda: o motivo, se o dono disser.' };
   it.visao_caixa = { type: 'string', enum: ['movimentacoes', 'saldo', 'a_receber', 'contas_a_pagar', 'despesas_a_pagar', 'vendas', 'compras', 'despesas', 'estornos', ''], description: 'Só para acao abrir_filtro com tela caixa: a_receber = contas a receber (quem deve); contas_a_pagar = compras a pagar; despesas_a_pagar = despesas a pagar; vendas, compras, despesas = lista só daquele tipo.' };
-  it.acao.description += ' excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz. abrir_filtro: abre a tela pedida (use tela) já com o período (use periodo) e, no caixa, a lista pedida (use visao_caixa), por exemplo "relatório só de contas a receber".';
+  it.acao.description += ' excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz. enviar_mensagem: manda uma mensagem no chat para um cliente (use pessoa e mensagem). dar_baixa: marca como paga uma venda, compra ou despesa em aberto (colecao + como achar). pagamento_parcial: registra um pagamento parcial de venda ou compra (colecao, valor_operacao). cancelar_venda: cancela uma venda (como achar). estornar: estorna valor de uma venda, compra ou despesa (colecao, valor_operacao, motivo). Para achar o lançamento use pessoa/descricao, valor (o total do lançamento), data ou mais_recente. abrir_filtro: abre a tela pedida (use tela) já com o período (use periodo) e, no caixa, a lista pedida (use visao_caixa), por exemplo "relatório só de contas a receber".';
   it.colecao = { type: 'string', enum: ['venda', 'compra', 'despesa', ''], description: 'Só para acao excluir.' };
   it.mais_recente = { type: 'boolean', description: 'Só para acao excluir: true se ele pediu a última/mais recente.' };
   f.name = 'atender'; f.description = 'Responde ao dono em voz e, se ele pediu, registra lançamentos ou ações no app.';
@@ -7145,6 +7218,8 @@ O que fazer:
 - Se o dono responder a uma pergunta sua, use os "Dados já entendidos" do histórico, complete o lançamento e devolva o lançamento COMPLETO (não só o que ele acabou de dizer). Se ele mandar lançar assim mesmo, preencha só o que tiver.
 - Não invente o que o dono não disse: se não falou a data, deixe data vazia; se não falou da entrega, deixe entrega vazia; se não falou do pagamento, pago_informado=false; se não falou da forma, deixe forma vazia; se não falou a categoria da despesa, deixe categoria vazia; se não falou o preço de uma compra, deixe preco_unitario 0. O app pergunta o que faltar.
 - Perguntas sobre números (quem me deve, para quem devo, despesas a pagar, vendas, lucro, saldo, estoque): responda em "fala" usando SÓ os DADOS DO APP abaixo, com o total e os 5 maiores itens no máximo; se houver mais, diga que abriu a tela com a lista completa e use acao=abrir_filtro. Pedido de relatório ou lista (por exemplo "relatório só de contas a receber", "só de despesas", "vendas de ontem"): use acao=abrir_filtro com tela, periodo e visao_caixa, e diga em "fala" o total.
+- Mensagem para cliente: use acao=enviar_mensagem com pessoa (nome do cliente) e mensagem pronta, educada e curta, em nome da loja, com o que o dono pediu (não invente preços, horários nem promessas). Ela é enviada direto.
+- Baixa e pagamentos: "marca como paga", "recebi" = dar_baixa; "recebi 50 da venda do João" ou "paguei 200 da compra" = pagamento_parcial com valor_operacao; "cancela a venda" = cancelar_venda; "estorna 30 reais" = estornar. Para achar o lançamento use pessoa, valor total, data ou mais_recente. Um por pedido.
 - Excluir: use acao=excluir para apagar UMA venda, compra ou despesa por pedido, com colecao e o que ele disser para achar (pessoa ou descricao, valor, data) ou mais_recente=true. Nunca exclua mais de um lançamento por pedido nem em lote: se ele pedir "apaga todas" ou "apaga tudo", diga em "fala" que só exclui um de cada vez e lancamentos vazio. Para trazer de volta a última exclusão use acao=desfazer_exclusao.
 - A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
@@ -7184,7 +7259,7 @@ function vozPill() {
   const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi Andy”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
   const pill = box.querySelector('.voz-pill'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
   const card = box.querySelector('.voz-card'), msg = VOZ.msg;
-  card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">' + (VOZ.estrito ? 'Sim, excluir' : 'Sim, fazer') + '</button></div>' : '');
+  card.hidden = !msg; if (msg) card.innerHTML = esc(msg) + (st === 'confirma' ? '<div class="voz-b"><button type="button" data-voz="nao">Não</button><button type="button" class="p" data-voz="sim">' + (VOZ.estrito ? 'Sim, confirmar' : 'Sim, fazer') + '</button></div>' : '');
 }
 /* quando abre um cartão por baixo (lançamento, formulário, filtro), o botão da voz sobe para ficar acima dele */
 /* posição do botão: só vale até você mudar de tela ou atualizar a página; depois ele volta ao lugar fixo */
@@ -7253,7 +7328,7 @@ function vozToque() {
 function vozOuviu(t) {
   if (VOZ.ocupado || !vozPode()) return;
   if (VOZ.estado === 'confirma' && VOZ.estrito) { const n = norm(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (/\b(sim|confirmo|confirma|pode excluir|pode apagar|pode deletar)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
+    if (/\b(sim|confirmo|confirma|pode excluir|pode apagar|pode deletar|pode estornar|pode cancelar a venda)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
   if (VOZ.estado === 'confirma') { const n = norm(t).normalize('NFD').replace(/[̀-ͯ]/g, '');
     if (/\b(sim|pode|confirma|confirmo|isso|claro|manda|faz|ok)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
   if (VOZ.estado === 'comando') { clearTimeout(VOZ.tJan); return vozJunta(t); }
@@ -7315,21 +7390,21 @@ async function vozComando(texto) {
       VOZ.estado = 'espera'; await vozDiz(perg); vozContinua(); return;
     }
     const ok = lista.filter(o => !o.problemas.length), ruins = lista.filter(o => o.problemas.length);
-    if (ok.some(o => o.acao === 'excluir') && (ok.length + ruins.length) > 1) {
-      const perg = 'Eu excluo um lançamento de cada vez e sozinho. Qual você quer excluir primeiro?'; VOZ.ocupado = false; vozLembra(texto, perg);
+    if (ok.some(o => VOZ_DESTRUTIVAS.includes(o.acao)) && (ok.length + ruins.length) > 1) {
+      const perg = 'Eu faço exclusão, cancelamento e estorno um de cada vez e sozinhos. Qual você quer primeiro?'; VOZ.ocupado = false; vozLembra(texto, perg);
       VOZ.estado = 'espera'; await vozDiz(perg); vozContinua(); return;
     }
     let fala = r.fala.trim(); if (ruins.length) fala = (fala ? fala + ' ' : '') + 'Não consegui fazer: ' + ruins.map(o => o.problemas.join(', ')).join('; ') + '.';
     if (ok.length && !ok.every(o => o.tipo === 'acao' && VOZ_SEGURAS.includes(o.acao))) {
-      VOZ.pend = ok; VOZ.estado = 'confirma'; VOZ.ocupado = false; VOZ.estrito = ok.some(o => o.acao === 'excluir');
-      const perg = (ruins.length ? 'Algo não deu certo. ' : '') + 'Vou fazer isto: ' + ok.map(vozResumo).join('. ') + '. ' + (VOZ.estrito ? 'Para excluir, diga sim. Para cancelar, diga não.' : 'Posso fazer? Diga sim ou não.'); vozLembra(texto, perg);
+      VOZ.pend = ok; VOZ.estado = 'confirma'; VOZ.ocupado = false; VOZ.estrito = ok.some(o => VOZ_DESTRUTIVAS.includes(o.acao));
+      const perg = (ruins.length ? 'Algo não deu certo. ' : '') + 'Vou fazer isto: ' + ok.map(vozResumo).join('. ') + '. ' + (VOZ.estrito ? 'Para confirmar, diga sim. Para desistir, diga não.' : 'Posso fazer? Diga sim ou não.'); vozLembra(texto, perg);
       await vozDiz(perg);
       clearTimeout(VOZ.tConf); VOZ.tConf = setTimeout(() => { if (VOZ.estado === 'confirma') vozConfirma(false, true); }, 20000);
       return;
     }
     ok.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
     for (const o of ok) await safe(() => iaGravar(o));
-    VOZ.ocupado = false; const dito = fala || (ok.length ? ok.map(o => o.resumo).join('. ') : 'Não entendi. Pode repetir?'); vozLembra(texto, dito);
+    VOZ.ocupado = false; const dito = ok.map(o => o.dito).filter(Boolean).join(' ') || fala || (ok.length ? ok.map(o => o.resumo).join('. ') : 'Não entendi. Pode repetir?'); vozLembra(texto, dito);
     VOZ.estado = 'espera'; await vozDiz(dito); vozContinua();
   } catch (e) { VOZ.ocupado = false; vozVolta(); await vozDiz(e.message || 'Não deu certo. Tente de novo.'); }
 }
