@@ -4004,7 +4004,7 @@ function gConfig() {
     ${cfgRow('receipt', 'Backup', ({ manual: 'manual', automatico: 'a cada 8 horas', alteracao: 'a cada alteração' })[bkCfg().modo] + ' · último: ' + bkQuando(bkCfg().ultimo), 'sheet', 'backup')}
     ${cfgRow('list', 'Dados de exemplo', temExemplos() ? contaExemplos() + ' registros' : 'nenhum', 'sheet', 'exemplos')}
     ${cfgRow('bolt', 'Lançar com IA', iaChave() ? 'chave salva · ' + (iaReais(iaUso()) < 0.01 ? '< R$ 0,01' : money(iaReais(iaUso()))) + ' no mês' : 'colocar a chave', 'sheet', 'ia-cfg')}
-    ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi Andy' : 'desligado', 'sheet', 'voz-cfg')}
+    ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi Ander' : 'desligado', 'sheet', 'voz-cfg')}
     ${cfgRow('swap', 'Abrir a loja do cliente', '', 'mode', 'cliente')}
     ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
   </nav>
@@ -7191,12 +7191,12 @@ function iaCfgSheet(wrap) {
     ${c ? '<button class="lt-btn lt-block" style="margin-top:8px" data-act="ia-chave-remover">Remover chave</button>' : ''}
     <p class="muted" style="margin:12px 0 0;font-size:13px">${iaEhGemini(c) ? `Uso neste mês, neste aparelho: ${u.g || 0} ${(u.g || 0) === 1 ? 'leitura' : 'leituras'} com o Google · <b>${IA_RODAPE_GRATIS}</b>.` : `Uso neste mês, neste aparelho: ${u.n} ${u.n === 1 ? 'leitura' : 'leituras'} · ${(u.ent + u.sai).toLocaleString('pt-BR')} tokens · <b>cerca de ${iaReais(u) < 0.01 ? 'menos de R$ 0,01' : money(iaReais(u))}</b>.<br>Valor aproximado (dólar a R$ ${String(IA_USD_BRL).replace('.', ',')}). O saldo real fica em platform.claude.com, em Billing.`}</p>`);
 }
-/* ===== Assistente de voz "oi Andy" (só na Gestão) =====
+/* ===== Assistente de voz "oi Ander" (só na Gestão) =====
    Ouve a palavra de ativação, entende o pedido com a IA e responde em voz. Dúvidas vêm da Ajuda; abrir telas e mudar
    configurações são feitos na hora; o que mexe em dados (vendas, compras, despesas, cadastros, preços, estoque) só é feito depois do "sim". */
 const VOZ_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const VOZ_WAKE = /\bandy\b/i;
-/* resumo dos números do app, para o Andy responder perguntas (quem me deve, contas a pagar, vendas do mês...) */
+const VOZ_WAKE = /\b(ander|andér|ânder|ender|hander)\b/i;
+/* resumo dos números do app, para o Ander responder perguntas (quem me deve, contas a pagar, vendas do mês...) */
 function vozDados() {
   const L = [], soma = (arr, f) => n2(arr.reduce((s, x) => s + f(x), 0));
   L.push('Saldo do caixa (tudo): ' + money(saldoGeral()) + '.');
@@ -7232,7 +7232,7 @@ function vozAchaLanc(col, l, filtro) {
 const vozNomeLanc = (col, x) => col === 'vendas' ? (x.cliente?.nome || 'cliente avulso') : col === 'compras' ? (x.fornecedor || 'roça') : (x.descricao || 'despesa');
 const vozFaltaLanc = (col, x) => col === 'vendas' ? vFalta(x) : col === 'compras' ? cFalta(x) : restante('despesas', x);
 const VOZ_ABERTO = { vendas: x => !x.pago && x.status !== 'cancelado' && vFalta(x) > 0, compras: x => !x.pago && cFalta(x) > 0, despesas: x => x.pago === false && restante('despesas', x) > 0 };
-/* acha um único lançamento para a ação de voz; se houver dúvida, devolve o motivo para o Andy perguntar */
+/* acha um único lançamento para a ação de voz; se houver dúvida, devolve o motivo para o Ander perguntar */
 function vozEscolhe(col, l, filtro) {
   const c = vozAchaLanc(col, l, filtro);
   if (!c.length) return { erro: 'não achei esse lançamento (diga o nome, o valor ou a data)' };
@@ -7260,7 +7260,7 @@ const VOZ_SEGURAS = ['tema', 'abrir_tela', 'abrir_filtro', 'periodo_padrao', 'wh
 const VOZ_DESTRUTIVAS = ['excluir', 'cancelar_venda', 'estornar'];
 const vozNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const vozLigado = () => !!ls.get('mmr-voz', false);
-const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', buf: '', hist: [], tMsg: 0, tJan: 0, tConf: 0, tBuf: 0 };
+const VOZ = { rec: null, estado: 'espera', falando: false, ocupado: false, negado: false, pend: null, msg: '', buf: '', hist: [], tWake: 0, wakeTxt: '', ultimoWake: 0, tMsg: 0, tJan: 0, tConf: 0, tBuf: 0 };
 const vozEspera = () => { const v = Number(ls.get('mmr-voz-espera', 2.5)); return v >= 1 && v <= 6 ? v : 2.5; };
 P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>';
 function vozFerramenta() {
@@ -7282,7 +7282,7 @@ function vozFerramenta() {
 function vozSistema() {
   const base = iaSistema(), dados = base.slice(base.indexOf('Hoje é'));
   const ajuda = AJ_G.map(([s, qs]) => '## ' + s + '\n' + qs.map(([q, a]) => q + ' ' + a.replace(/<li>/g, ' - ').replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim()).join('\n')).join('\n');
-  return `Você é o Andy, assistente de voz do aplicativo de gestão "Morangos Made in Roça". O dono fala com você e sua resposta será LIDA EM VOZ ALTA: frases curtas, sem listas, sem símbolos, sem markdown. Use sempre a ferramenta atender; em "fala" vai o que será dito.
+  return `Você é o Ander, assistente de voz do aplicativo de gestão "Morangos Made in Roça". O dono fala com você e sua resposta será LIDA EM VOZ ALTA: frases curtas, sem listas, sem símbolos, sem markdown. Use sempre a ferramenta atender; em "fala" vai o que será dito.
 O que fazer:
 - Dúvida sobre como usar o app: responda em "fala" usando SÓ a Ajuda abaixo; se não estiver lá, diga que não sabe. lancamentos vazio.
 - Pedido para executar algo (venda, compra, despesa, cadastro de cliente ou fornecedor, mudar tema, abrir tela, período padrão, número do WhatsApp, preço ou estoque de produto, marcar venda paga, situação de entrega): preencha lancamentos e, em "fala", diga no passado e bem curto o que foi pedido (ex.: "Abri Vendas.").
@@ -7329,7 +7329,7 @@ function vozPill() {
     box.querySelector('.voz-main').addEventListener('click', () => { if (!VOZ.arrastou) vozToque(); }); vozArrasta(box.querySelector('.voz-main'));
     box.querySelector('.voz-card').addEventListener('click', e => { const b = e.target.closest('[data-voz]'); if (b) vozConfirma(b.dataset.voz === 'sim'); }); document.body.appendChild(box); }
   vozPosiciona();
-  const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi Andy”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
+  const st = VOZ.negado ? 'parado' : VOZ.estado, txt = { espera: 'Diga “oi Ander”', comando: 'Pode falar…', pensando: 'Pensando…', confirma: 'Diga sim ou não', parado: 'Toque para ativar a voz' }[st] || '';
   const rb = box.querySelector('.voz-rec'); rb.innerHTML = ic('mic') + (VOZ.gravando ? '<span>Enviar</span>' : ''); rb.classList.toggle('on', !!VOZ.gravando);
   const pill = box.querySelector('.voz-main'); pill.innerHTML = ic('mic') + '<span>' + esc(VOZ.gravando ? 'Gravando…' : VOZ.falando ? 'Falando…' : txt) + '</span>'; pill.classList.toggle('on', st === 'comando' || st === 'pensando' || st === 'confirma' || VOZ.falando);
   const card = box.querySelector('.voz-card'), msg = VOZ.msg;
@@ -7412,8 +7412,10 @@ function vozOuviu(t) {
     if (/\b(sim|confirmo|confirma|pode excluir|pode apagar|pode deletar|pode estornar|pode cancelar a venda)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
   if (VOZ.estado === 'confirma') { const n = norm(t).normalize('NFD').replace(/[̀-ͯ]/g, '');
     if (/\b(sim|pode|confirma|confirmo|isso|claro|manda|faz|ok)\b/.test(n)) vozConfirma(true); else if (/\b(nao|cancela|cancelar|deixa|esquece|para)\b/.test(n)) vozConfirma(false); return; }
-  if (VOZ.estado === 'comando') { clearTimeout(VOZ.tJan); return vozJunta(t); }
-  const m = VOZ_WAKE.exec(t); if (!m) return;
+  if (VOZ.estado === 'comando') { const mw = VOZ_WAKE.exec(t); if (mw && Date.now() - (VOZ.ultimoWake || 0) < 4000 && t.slice(mw.index + mw[0].length).replace(/[\s,.!?:;-]+/g, '').length <= 2) return; clearTimeout(VOZ.tJan); return vozJunta(t); }
+  const m = VOZ_WAKE.exec(t);
+  if (!m) { const x = t.trim(); if (x && x.length <= 70 && ls.get('mmr-voz-ouvi', true) !== false) vozMsg('Ouvi: “' + x + '”. Diga “oi Ander”.', 4000); return; }
+  clearTimeout(VOZ.tWake); VOZ.wakeTxt = ''; VOZ.ultimoWake = Date.now();
   const resto = t.slice(m.index + m[0].length).replace(/^[\s,.!?:;-]+/, '').trim();
   if (resto.length > 2) { VOZ.estado = 'comando'; vozJunta(resto); } else vozAbreJanela();
 }
@@ -7421,11 +7423,19 @@ function vozOuviu(t) {
 function vozJunta(t) { VOZ.buf = (VOZ.buf + ' ' + t).trim(); vozMsg('Ouvindo: “' + VOZ.buf + '”', 30000); vozAgenda(); }
 function vozAgenda() { clearTimeout(VOZ.tBuf); VOZ.tBuf = setTimeout(() => { const t = VOZ.buf; VOZ.buf = ''; if (t && VOZ.estado === 'comando') vozComando(t); }, vozEspera() * 1000); }
 function vozParcial(t) {
-  if (VOZ.estado !== 'comando' || VOZ.ocupado) return;
+  if (VOZ.ocupado) return;
+  if (VOZ.estado === 'espera') { /* chama mais rápido: não espera o fim da frase, só uma pausa curta depois do nome */
+    const m = VOZ_WAKE.exec(t); if (!m) return;
+    clearTimeout(VOZ.tWake); VOZ.wakeTxt = t;
+    VOZ.tWake = setTimeout(() => { const x = VOZ.wakeTxt, mm = VOZ_WAKE.exec(x || ''); VOZ.wakeTxt = ''; if (!mm || VOZ.estado !== 'espera' || VOZ.ocupado) return;
+      if (x.slice(mm.index + mm[0].length).replace(/^[\s,.!?:;-]+/, '').trim().length <= 2) { VOZ.ultimoWake = Date.now(); vozAbreJanela(); } }, 800);
+    return;
+  }
+  if (VOZ.estado !== 'comando') return;
   clearTimeout(VOZ.tJan); vozMsg('Ouvindo: “' + (VOZ.buf + ' ' + t).trim() + '”', 30000);
   if (VOZ.buf) vozAgenda(); else VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) { vozVolta(); vozMsg(''); } }, 15000);
 }
-const VOZ_FIM = /^(muito )?(obrigad[oa]|valeu|tchau|ate logo|pode parar|era so isso|so isso|encerrar|encerra|chega)( por hoje| andy| tudo)?$/;
+const VOZ_FIM = /^(muito )?(obrigad[oa]|valeu|tchau|ate logo|pode parar|era so isso|so isso|encerrar|encerra|chega)( por hoje| ander| tudo)?$/;
 const vozConversa = () => ls.get('mmr-voz-conversa', true) !== false;
 function vozFimConversa() { clearTimeout(VOZ.tJan); VOZ.hist = []; VOZ.buf = ''; vozVolta(); vozMsg(''); }
 /* depois de responder, continua ouvindo por uns segundos para você seguir a conversa sem chamar de novo */
@@ -7502,12 +7512,14 @@ async function vozConfirma(sim, tempo) {
 }
 function vozCfgSheet(wrap) {
   const on = vozLigado();
-  return wrap('Assistente de voz', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Diga <b>“oi Andy”</b> e fale o que precisa: tirar dúvidas do app (Ajuda), abrir telas, mudar a aparência e configurações ou lançar vendas, compras e despesas. Usa a chave da IA de <b>Lançar com IA</b>.</p>
+  return wrap('Assistente de voz', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Diga <b>“oi Ander”</b> e fale o que precisa: tirar dúvidas do app (Ajuda), abrir telas, mudar a aparência e configurações ou lançar vendas, compras e despesas. Usa a chave da IA de <b>Lançar com IA</b>.</p>
     <p class="muted" style="margin:0 0 10px;font-size:13.5px">Abrir telas e mudar configurações ele faz na hora. O que mexe em vendas, compras, despesas, cadastros, preços ou estoque ele repete e só faz depois de você dizer <b>sim</b>.</p>
     <p class="muted" style="margin:0 0 10px;font-size:13px">Funciona no Chrome e no Edge (computador e Android), com o app aberto e a tela ligada. Permita o microfone quando o navegador pedir. No Chrome, o áudio é processado pelo serviço de voz do Google. Toque no botão do microfone na tela para falar sem a palavra de ativação.</p>
     ${(() => { const vs = vozVozes(), uri = ls.get('mmr-voz-voz', ''); return `<div class="f"><label for="voz-sel">Voz</label><select id="voz-sel"><option value="">Automática (padrão do aparelho)</option>${vs.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === uri ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('')}</select>${vs.length ? '' : '<small class="muted">Nenhuma voz em português encontrada neste aparelho. Ele usa a voz padrão.</small>'}</div>
       <div class="f" style="margin-top:8px"><label for="voz-vel">Velocidade: <b id="voz-vel-v">${vozVel().toFixed(2).replace('.', ',')}×</b></label><input type="range" id="voz-vel" min="0.7" max="1.5" step="0.05" value="${vozVel()}"></div>
       <button class="lt-btn lt-block" style="margin:8px 0 12px" data-act="voz-teste">Ouvir a voz</button>
+      <button class="lt-btn lt-block" style="margin-bottom:6px" data-act="voz-ouvi">Mostrar o que ele ouviu: ${ls.get('mmr-voz-ouvi', true) !== false ? 'ligado' : 'desligado'}</button>
+      <p class="muted" style="margin:0 0 12px;font-size:13px">Ajuda a ver se o microfone entendeu o nome certo quando ele não responde.</p>
       <button class="lt-btn lt-block" style="margin-bottom:6px" data-act="voz-conversa">Conversa contínua: ${vozConversa() ? 'ligada' : 'desligada'}</button>
       <p class="muted" style="margin:0 0 12px;font-size:13px">Ligada, ele continua ouvindo uns 10 segundos depois de responder e lembra da conversa. Diga “obrigado” ou “tchau” para encerrar.</p>
       <p class="muted" style="margin:0 0 12px;font-size:13px">Em último caso, dá para <b>arrastar o botão do microfone</b> para outro lugar. Ele volta ao lugar fixo quando você muda de tela ou atualiza a página.</p>
@@ -7517,7 +7529,7 @@ function vozCfgSheet(wrap) {
 }
 document.addEventListener('change', e => { const t = e.target; if (!t) return; if (t.id === 'voz-sel') ls.set('mmr-voz-voz', t.value); else if (t.id === 'voz-vel') ls.set('mmr-voz-vel', Number(t.value)); else if (t.id === 'voz-esp') { ls.set('mmr-voz-espera', Number(t.value)); return; } else return; vozTeste(); });
 document.addEventListener('input', e => { if (e.target && e.target.id === 'voz-esp') { const o = document.getElementById('voz-esp-v'); if (o) o.textContent = Number(e.target.value).toFixed(1).replace('.', ',') + ' s'; } if (e.target && e.target.id === 'voz-vel') { const o = document.getElementById('voz-vel-v'); if (o) o.textContent = Number(e.target.value).toFixed(2).replace('.', ',') + '×'; } });
-function vozTeste() { if (!('speechSynthesis' in window)) { toast('Este navegador não fala.'); return; } try { vozParaRec(); speechSynthesis.cancel(); const u = vozFalaObj('Oi! Eu sou o Andy. Assim é a minha voz.'); u.onend = u.onerror = () => setTimeout(vozIniciaRec, 250); speechSynthesis.speak(u); } catch { /* ok */ } }
+function vozTeste() { if (!('speechSynthesis' in window)) { toast('Este navegador não fala.'); return; } try { vozParaRec(); speechSynthesis.cancel(); const u = vozFalaObj('Oi! Eu sou o Ander. Assim é a minha voz.'); u.onend = u.onerror = () => setTimeout(vozIniciaRec, 250); speechSynthesis.speak(u); } catch { /* ok */ } }
 function vozInit() {
   try { localStorage.removeItem('mmr-voz-pos'); sessionStorage.removeItem('mmr-voz-pos'); } catch { /* ok */ }
   try { speechSynthesis.addEventListener('voiceschanged', () => { if (ui.sheet && ui.sheet.type === 'voz-cfg') render(); }); } catch { /* ok */ }
@@ -7614,6 +7626,7 @@ document.addEventListener('click', async e => {
     case 'rota-gps': rotaGps(); break;
     case 'ia-chave-salvar': { const k = (document.getElementById('ia-chave')?.value || '').trim(); if (!k) { toast('Cole a chave primeiro.'); break; } ls.set('mmr-ia-chave', k); toast('Chave salva neste aparelho.'); render(); break; }
     case 'voz-teste': vozTeste(); break;
+    case 'voz-ouvi': ls.set('mmr-voz-ouvi', ls.get('mmr-voz-ouvi', true) === false); render(); break;
     case 'voz-conversa': ls.set('mmr-voz-conversa', !vozConversa()); render(); break;
     case 'voz-toggle': { const on = !vozLigado(); ls.set('mmr-voz', on); if (on) { VOZ.negado = false; VOZ.estado = 'espera'; if (!iaChave()) toast('Coloque a chave da IA em Lançar com IA.'); vozIniciaRec(); } else { vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.msg = ''; } vozPill(); render(); break; }
     case 'ia-chave-remover': ls.set('mmr-ia-chave', ''); toast('Chave removida.'); render(); break;
