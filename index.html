@@ -2119,15 +2119,15 @@ span.news-cta { padding-right: 13px; }
 .item.tc { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto auto; min-width: 0; gap: 5px; padding: 12px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform .12s ease, box-shadow .12s ease; }
 .item.tc:active { transform: scale(.985); }
 .item.tc:focus-visible { outline: 3px solid var(--red, #d22); outline-offset: 2px; }
-.tc .tc-l1 { display: flex; align-items: center; gap: 10px; min-height: 24px; }
-.tc .tc-t { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tc .tc-l1 .val { font-size: 16.5px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tc .tc-l1 { display: flex; align-items: flex-start; gap: 10px; min-height: 24px; }
+.tc .tc-t { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; line-height: 22px; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.tc .tc-l1 .val { flex: none; font-size: 16.5px; font-weight: 800; line-height: 22px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tc .tc-l1 .val small { display: inline; font-size: 12px; font-weight: 600; margin-left: 2px; }
-.tc .tc-n { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12.5px; font-weight: 800; background: var(--surface-2, #eee); }
+.tc .tc-n { flex: none; align-self: flex-start; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12.5px; font-weight: 800; background: var(--surface-2, #eee); }
 .item.tc.now .tc-n { background: var(--red); color: var(--on-red, #fff); }
-.tc small.tc-1 { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 13px; line-height: 18px; height: 18px; white-space: nowrap; overflow: hidden; }
-.tc small.tc-1 > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tc small.tc-1 .i { flex: none; width: 14px; height: 14px; }
+.tc small.tc-1 { display: flex; align-items: flex-start; gap: 4px; min-width: 0; font-size: 13px; line-height: 18px; min-height: 18px; overflow: hidden; }
+.tc small.tc-1 > span { min-width: 0; overflow: hidden; overflow-wrap: anywhere; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.tc small.tc-1 .i { flex: none; width: 14px; height: 14px; margin-top: 2px; }
 .tc .tc-f { display: flex; align-items: center; gap: 8px; min-height: 24px; }
 .tc .tc-f .pills { flex: 1; min-width: 0; flex-wrap: wrap; }
 .tc .tc-ed { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: var(--muted); }
@@ -6746,7 +6746,7 @@ function modalVenda(cliId, editId, titulo) {
     const lp = ligarParcial(f, 'v');
     f.addEventListener('change', e => { if (e.target.name === 'forma') { lp.pg.checked = e.target.value !== 'fiado'; if (lp.pg.checked) lp.pc.checked = false; lp.sync(); } });
     f.querySelector('#v-nome').addEventListener('change', e => { const c = S.clientes.find(x => (x.nome || '').toLowerCase() === e.target.value.trim().toLowerCase()); if (!c) return;
-      const tel = f.querySelector('#v-tel'), end = f.querySelector('#v-end'); if (!tel.value) tel.value = c.telefone || ''; if (!end.value) end.value = cliEndereco(c); });
+      const tel = f.querySelector('#v-tel'), end = f.querySelector('#v-end'); tel.value = c.telefone || ''; end.value = cliEndereco(c); }); /* trocou o cliente: telefone e endereço trocam junto */
   });
 }
 const nextOrdem = () => Math.max(0, ...rota().map(v => v.ordemRota || 0)) + 1;
@@ -8358,7 +8358,7 @@ function iaPrepara(l) {
   o.total = n2(o.itens.reduce((s, i) => s + i.qtd * i.un, 0));
   if (o.itens.length > 1 && n2(l.valor) > 0 && Math.abs(o.total - n2(l.valor)) > 0.01) o.avisos.push('a soma dos itens (' + money(o.total) + ') não bate com o total dito (' + money(n2(l.valor)) + '): confira os preços');
   if (o.itens.length && !(o.total > 0)) o.problemas.push('sem preço');
-  if (o.tipo === 'venda') { const c = S.clientes.find(x => norm(x.nome) === norm(o.pessoa)); if (c) o.clienteId = c.id; else if (o.pessoa) o.avisos.push('cliente novo: fica só como nome na venda'); }
+  if (o.tipo === 'venda') { const c = S.clientes.find(x => norm(x.nome) === norm(o.pessoa)); if (c) o.clienteId = c.id; else if (o.pessoa) o.avisos.push('cliente não cadastrado: fica só o nome na venda (se ele for cadastrado neste mesmo lançamento, o endereço vai junto)'); }
   else { if (!o.pessoa) o.problemas.push('sem fornecedor'); const f = S.fornecedores.find(x => norm(x.nome) === norm(o.pessoa)); if (f) o.fornecedorId = f.id; }
   if (o.forma === 'fiado') o.pago = false;
   { const fr = Number(l.fracao_paga) || 0; if (!o.pago && !(o.valorPago > 0) && fr > 0 && fr < 1 && o.total > 0) { o.valorPago = n2(o.total * fr); l.valor_pago = o.valorPago; l.pago_informado = true; } }
@@ -8517,22 +8517,26 @@ async function iaCompletaCep(o) {
   const r = await buscaCEP(o.cep);
   if (r && !r.naoExiste) { o.rua = r.rua; o.bairro = r.bairro; o.cidade = r.cidade; } else o.avisos.push(r && r.naoExiste ? 'CEP não encontrado' : 'não deu para buscar o endereço pelo CEP agora');
 }
+/* cadastros primeiro (para a venda ou a compra do mesmo texto já achar o cliente ou fornecedor novo), abrir tela por último */
+const IA_NOVOS = { clientes: {}, fornecedores: {} };
+function iaOrdena(l) { const r = o => o.tipo === 'cliente' || o.tipo === 'fornecedor' ? 0 : o.acao === 'abrir_tela' ? 2 : 1; l.sort((a, b) => r(a) - r(b)); return l; }
 async function iaGravar(o) {
   if (o.tipo === 'acao') return o.exec();
-  if (o.tipo === 'cliente') { const body = { nome: o.nome, tipo: 'pessoa', telefone: o.telefone, cep: o.cep, endereco: o.rua, numero: o.numero, bairro: o.bairro, cidade: o.cidade, referencia: '', obs: '', email: '', complemento: o.complemento }; const nid = uid(); await put('clientes', nid, { ...body, ts: Date.now() }); return vincularVendas(nid, body); }
-  if (o.tipo === 'fornecedor') return put('fornecedores', uid(), { nome: o.nome, tipo: 'produtor', telefone: o.telefone, cep: o.cep, endereco: o.rua, numero: o.numero, bairro: o.bairro, cidade: o.cidade, referencia: '', produtos: '', pix: '', banco: '', agencia: '', conta: '', tipoConta: 'corrente', titular: '', docTitular: '', obs: '', ts: Date.now() });
+  if (o.tipo === 'cliente') { const body = { nome: o.nome, tipo: 'pessoa', telefone: o.telefone, cep: o.cep, endereco: o.rua, numero: o.numero, bairro: o.bairro, cidade: o.cidade, referencia: '', obs: '', email: '', complemento: o.complemento }; const nid = uid(); await put('clientes', nid, { ...body, ts: Date.now() }); IA_NOVOS.clientes[norm(o.nome)] = { id: nid, ...body, _t: Date.now() }; return vincularVendas(nid, body); }
+  if (o.tipo === 'fornecedor') { const fid = uid(); IA_NOVOS.fornecedores[norm(o.nome)] = { id: fid, nome: o.nome, _t: Date.now() }; return put('fornecedores', fid, { nome: o.nome, tipo: 'produtor', telefone: o.telefone, cep: o.cep, endereco: o.rua, numero: o.numero, bairro: o.bairro, cidade: o.cidade, referencia: '', produtos: '', pix: '', banco: '', agencia: '', conta: '', tipoConta: 'corrente', titular: '', docTitular: '', obs: '', ts: Date.now() }); }
   const ts = tsFromDate(o.data), forma = o.forma || (o.pago ? 'pix' : 'fiado');
   const vpIA = !o.pago && o.valorPago > 0 && o.valorPago < (o.total || 0) ? n2(o.valorPago) : 0;
   if (o.tipo === 'despesa') return put('despesas', uid(), { descricao: o.descricao, categoria: o.categoria, valor: o.valor, pago: o.pago, fixa: false, forma: o.pago ? (['pix', 'dinheiro', 'debito', 'credito'].includes(o.forma) ? o.forma : 'pix') : '', ts, recorrente: false });
   if (o.tipo === 'venda') {
-    const cl = o.clienteId ? S.clientes.find(x => x.id === o.clienteId) : null;
+    const nv = IA_NOVOS.clientes[norm(o.pessoa)], cl = (o.clienteId ? S.clientes.find(x => x.id === o.clienteId) : null) || (nv && Date.now() - nv._t < 6e5 ? nv : null) || (o.pessoa ? S.clientes.find(x => norm(x.nome) === norm(o.pessoa)) : null) || null;
     const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, preco: i.un, custo: prodById(i.produtoId)?.custo || 0 }));
     const cliente = { nome: cl?.nome || o.pessoa, telefone: cl?.telefone || '', endereco: cl ? cliEndereco(cl) : '' };
     await put('vendas', uid(), { ts, cliente, itens, total: o.total, forma, pago: o.pago, pagoTs: o.pago ? ts : null, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, origem: 'avulsa', status: o.entrega || 'entregue', ordemRota: o.entrega === 'em_rota' ? nextOrdem() : null, ...(o.entrega === 'entregue' || !o.entrega ? { entregueTs: ts } : {}), obs: o.obs || '', ...(cl ? { clienteId: cl.id } : {}) });
     return adjustStock(itens, -1);
   }
   const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, custo: i.un }));
-  await put('compras', uid(), { ts, fornecedor: o.pessoa, ...(o.fornecedorId ? { fornecedorId: o.fornecedorId } : {}), itens, total: o.total, forma: ['pix', 'dinheiro', 'fiado'].includes(forma) ? forma : 'pix', pago: o.pago, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, obs: o.obs || '' });
+  const fv = IA_NOVOS.fornecedores[norm(o.pessoa)], fnNovo = fv && Date.now() - fv._t < 6e5 ? fv.id : '';
+  await put('compras', uid(), { ts, fornecedor: o.pessoa, ...((o.fornecedorId || fnNovo) ? { fornecedorId: o.fornecedorId || fnNovo } : {}), itens, total: o.total, forma: ['pix', 'dinheiro', 'fiado'].includes(forma) ? forma : 'pix', pago: o.pago, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, obs: o.obs || '' });
   for (const [k, i] of itens.entries()) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0, pv = n2(o.itens[k] && o.itens[k].pv);
     await patch('produtos', p.id, { ...(pv > 0 ? { preco: pv } : {}), estoque: n2((p.estoque || 0) + i.qtd), custo: n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo) }); }
 }
@@ -8570,7 +8574,7 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
     const sel = [...f.querySelectorAll('[data-ia]:checked')].map(x => lista[Number(x.dataset.ia)]).filter(o => o && !o.problemas.length);
     if (!sel.length) { toast('Nada selecionado para lançar.'); return false; }
     let ok = 0;
-    sel.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
+    iaOrdena(sel);
     for (const o of sel) { if (await safe(() => iaGravar(o))) ok++; }
     toast(ok === sel.length ? (ok === 1 ? 'Lançamento feito.' : ok + ' lançamentos feitos.') : ok + ' de ' + sel.length + ' lançados. Confira.');
     return ok > 0;
@@ -9083,7 +9087,7 @@ async function vozComando(texto) {
       clearTimeout(VOZ.tConf); VOZ.tConf = setTimeout(() => { if (VOZ.estado === 'confirma') vozConfirma(false, true); }, 20000);
       return;
     }
-    ok.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
+    iaOrdena(ok);
     for (const o of ok) await safe(() => iaGravar(o));
     VOZ.ocupado = false; const dito = ok.map(o => o.dito).filter(Boolean).join(' ') || fala || (ok.length ? ok.map(o => o.resumo).join('. ') : 'Não entendi. Pode repetir?'); vozLembra(texto, dito);
     VOZ.estado = 'espera'; await vozDiz(dito); vozContinua();
@@ -9093,7 +9097,7 @@ async function vozConfirma(sim, tempo) {
   if (VOZ.estado !== 'confirma' || VOZ.ocupado) return;
   clearTimeout(VOZ.tConf); VOZ.estrito = false; const pend = VOZ.pend || []; VOZ.ocupado = true; vozVolta(); vozMsg('');
   if (!sim) { VOZ.ocupado = false; const d = tempo ? 'Sem resposta, não fiz nada.' : 'Ok, não fiz nada.'; vozLembra(tempo ? '(sem resposta)' : 'não', d); await vozDiz(d); return vozContinua(); }
-  pend.sort((a, b) => (a.acao === 'abrir_tela') - (b.acao === 'abrir_tela'));
+  iaOrdena(pend);
   let feitos = 0; for (const o of pend) { if (await safe(() => iaGravar(o))) feitos++; }
   VOZ.ocupado = false;
   const d = feitos === pend.length ? 'Pronto, feito.' : 'Fiz ' + feitos + ' de ' + pend.length + '. Confira no app.'; vozLembra('sim', d);
