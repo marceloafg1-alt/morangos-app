@@ -8047,6 +8047,7 @@ const iaFerramenta = {
       entrega: { type: 'string', enum: ['entregue', 'separado', 'em_rota', ''], description: 'Só para venda. entregue: só se o texto disser que já foi entregue, retirada ou levada na hora. separado: se disser que a entrega está pendente, a entregar ou para entregar depois. em_rota: se disser que já saiu para entrega. Vazio se o texto não disser nada sobre entrega.' },
       pago: { type: 'boolean', description: 'true se o pagamento já foi feito.' },
       pago_informado: { type: 'boolean', description: 'true SÓ se o conteúdo diz se já foi pago ou não (vale fiado e pagamento parcial). false se não fala nada sobre pagamento.' },
+      fracao_paga: { type: 'number', description: 'Só quando o texto diz porcentagem ou fração do total já paga ("paguei 50%", "metade", "um terço"): a fração de 0 a 1 (0.5, 0.33). O app calcula o valor sobre a soma dos itens. 0 se não disse.' },
       valor_pago: { type: 'number', description: 'Quanto já foi pago no TOTAL do lançamento (todos os produtos somados), se for pagamento parcial. 0 se não informado.' },
       data: { type: 'string', description: 'AAAA-MM-DD, ou vazio se não foi dita (vale hoje).' },
       observacao: { type: 'string', description: 'SÓ preencha se o usuário mandou expressamente colocar algo na observação ("coloque na observação..."). Caso contrário, deixe vazio.' } }, required: ['tipo'] } },
@@ -8069,6 +8070,8 @@ Regras:
 - VÁRIOS PRODUTOS: compra ou venda do MESMO fornecedor/cliente e mesma data é UM só lançamento, com todos os produtos em itens. Só separe se o fornecedor/cliente ou a data forem diferentes.
 - CADA ITEM: quantidade = número de unidades ("10 caixas" = 10; "meia dúzia" = 6). preco_unitario = preço de UMA unidade. Se o texto der só o total do produto ("10 caixas por R$ 300"), preencha valor_item=300 e deixe preco_unitario 0; nunca coloque o total da linha em preco_unitario. Em COMPRA, "vendo a R$ X" ou "preço de venda X" é preco_venda do item (novo preço de venda do produto), diferente do custo.
 - O app soma os itens sozinho. Só preencha "valor" se o texto der um total geral sem preço dos itens.
+- Reconhecimento de voz erra palavras: "pics", "pique" e "pix" são Pix.
+- Se o texto disser porcentagem, metade ou fração já paga ("paguei 50%"), preencha fracao_paga (0.5) e pago=false.
 - PAGAMENTO PARCIAL com vários produtos vale para o lançamento inteiro: valor_pago = quanto foi pago no total. "Metade", "50%" ou "um terço" são calculados sobre a SOMA de todos os itens (quantidade × preço de cada, somados). pago=false quando é parcial.
 - Não preencha o que o conteúdo não diz: data vazia se não foi dita; entrega vazia se não falou de entrega; pago_informado=false se não falou de pagamento; forma vazia se não disse como pagou; categoria da despesa vazia se não der para associar; preco_unitario 0 numa compra sem preço. O app pergunta o que faltar.
 Hoje é ${todayInput()}.
@@ -8289,6 +8292,25 @@ function iaAchaProdutoExato(nome) {
   const ex = S.produtos.filter(p => norm(p.nome) === n); if (ex.length === 1) return ex[0]; if (ex.length > 1) return null;
   const ps = S.produtos.filter(p => norm(p.nome).includes(n) || n.includes(norm(p.nome))); return ps.length === 1 ? ps[0] : null;
 }
+/* rede de segurança: se o texto diz "paguei 50%" ou "metade" e a IA não anotou o pagamento parcial, o app calcula sobre a soma dos itens */
+function iaFracaoDoTexto(texto) {
+  const t = String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+  const v = '(?:pagu\\w*|pago|pagamos|receb\\w*|entrada|sinal|adiantad\\w*)';
+  let m = t.match(new RegExp(v + '[^.;]{0,50}?(\\d{1,3}(?:[.,]\\d+)?)\\s*(?:%|por ?cento)')) || t.match(new RegExp('(\\d{1,3}(?:[.,]\\d+)?)\\s*(?:%|por ?cento)[^.;]{0,50}?' + v));
+  if (m) { const f = parseFloat(m[1].replace(',', '.')) / 100; return f > 0 && f < 1 ? f : 0; }
+  if (new RegExp(v + '[^.;]{0,40}?\\bmetade\\b|\\bmetade\\b[^.;]{0,40}?' + v).test(t)) return 0.5;
+  if (new RegExp(v + '[^.;]{0,40}?\\bum terco\\b').test(t)) return 1 / 3;
+  if (new RegExp(v + '[^.;]{0,40}?\\bum quarto\\b').test(t)) return 0.25;
+  return 0;
+}
+function iaAplicaFracao(texto, ls_, lista) {
+  const fr = iaFracaoDoTexto(texto); if (!fr) return;
+  lista.forEach((o, i) => {
+    if ((o.tipo !== 'compra' && o.tipo !== 'venda') || o.pago || o.valorPago > 0 || o.forma === 'fiado' || !(o.total > 0) || o.problemas.length) return;
+    o.valorPago = n2(o.total * fr); if (ls_[i]) { ls_[i].valor_pago = o.valorPago; ls_[i].pago_informado = true; }
+    o.avisos.push('você disse que pagou ' + Math.round(fr * 100) + '%: calculei ' + money(o.valorPago) + ' de ' + money(o.total));
+  });
+}
 /* prepara cada lançamento: normaliza, casa cadastros e aponta problemas (problema => não dá para lançar) */
 function iaPrepara(l) {
   const o = { tipo: l.tipo, pessoa: String(l.pessoa || '').trim(), obs: String(l.observacao || '').trim(), forma: ['pix', 'dinheiro', 'debito', 'credito', 'fiado'].includes(l.forma) ? l.forma : '', pago: !!l.pago, valorPago: n2(l.valor_pago), problemas: [], avisos: [] };
@@ -8326,6 +8348,7 @@ function iaPrepara(l) {
   if (o.tipo === 'venda') { const c = S.clientes.find(x => norm(x.nome) === norm(o.pessoa)); if (c) o.clienteId = c.id; else if (o.pessoa) o.avisos.push('cliente novo: fica só como nome na venda'); }
   else { if (!o.pessoa) o.problemas.push('sem fornecedor'); const f = S.fornecedores.find(x => norm(x.nome) === norm(o.pessoa)); if (f) o.fornecedorId = f.id; }
   if (o.forma === 'fiado') o.pago = false;
+  { const fr = Number(l.fracao_paga) || 0; if (!o.pago && !(o.valorPago > 0) && fr > 0 && fr < 1 && o.total > 0) { o.valorPago = n2(o.total * fr); l.valor_pago = o.valorPago; l.pago_informado = true; } }
   if (o.tipo === 'venda') { o.entrega = ['entregue', 'separado', 'em_rota'].includes(l.entrega) ? l.entrega : 'entregue'; if (!l.entrega) o.avisos.push('entrega não mencionada: marquei como já entregue'); }
   if (o.pago === false && o.valorPago > 0 && o.valorPago < (o.total || 0)) o.avisos.push('pagou ' + money(o.valorPago) + ' de ' + money(o.total) + ': lançado como pago parcial');
   return o;
@@ -8605,7 +8628,7 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
         const texto = (ctx && (partes.length || imgs.length || pdfs.length) ? ctx + '\n\n' : '') + partes.join('\n\n'); if (!texto.trim() && !pdfs.length && !imgs.length) throw new Error('Escreva um texto, dite por voz, envie um arquivo ou tire uma foto.');
         if (texto.length > IA_MAX_TXT) throw new Error('Conteúdo grande demais (' + texto.length + ' caracteres; máximo ' + IA_MAX_TXT + '). Envie em partes.');
         const r = await iaChamar(texto, pdfs, imgs, null, 'ia');
-        lista = r.lanc.map(iaPrepara); lista.forEach((o, i) => { o.falta = o.problemas.length ? [] : iaFalta(r.lanc[i], o); }); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
+        lista = r.lanc.map(iaPrepara); iaAplicaFracao(texto, r.lanc, lista); lista.forEach((o, i) => { o.falta = o.problemas.length ? [] : iaFalta(r.lanc[i], o); }); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
         res.innerHTML = (lista.length ? `<div class="nt-prefs">${lista.map(iaCard).join('')}</div><small class="muted">Confira. Desligue o que não quiser lançar.</small>` : '<div class="note">A IA não achou nenhum lançamento nesse conteúdo.</div>')
           + (r.sobra.length ? `<div class="note" style="margin-top:8px"><b>Não entendi:</b><br>${r.sobra.map(esc).join('<br>')}</div>` : '');
         atualiza();
@@ -9024,7 +9047,7 @@ async function vozComando(texto) {
   try {
     if (!iaTemChave()) throw new Error('Falta a chave da IA. Coloque em Configurações, Lançar com IA.');
     const r = await iaChamar(texto, [], [], { sistema: vozSistema(), ferramenta: vozFerramenta(), hist: VOZ.hist }, 'voz');
-    const lista = r.lanc.map(iaPrepara); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
+    const lista = r.lanc.map(iaPrepara); iaAplicaFracao(texto, r.lanc, lista); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
     const assim = /assim mesmo|deixa assim|pode lancar assim|lanca assim|sem isso/.test(vozNormTxt(texto));
     const faltas = assim ? [] : r.lanc.map((l, i) => iaFalta(l, lista[i]));
     if (faltas.some(f => f.length)) {
