@@ -1744,6 +1744,9 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .li .av.est { background: color-mix(in srgb, #D98A00 18%, transparent); color: #B87400; }
 .li.tc-li { cursor: pointer; }
 .cad-busca{margin:-18px 0 -14px;position:relative}
+.bq-busca{margin:0 0 10px}
+.en-cid{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:14px 2px 6px;font-size:13px;font-weight:700;color:var(--muted)}
+.en-cid b{color:var(--ink);font-size:14px}
 .cx-fbar { display: grid; gap: 8px; }
 .cx-fbar input[type=search] { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface, var(--card, #fff)); color: var(--fg); font: inherit; font-size: 14px; }
 .cx-fseg { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -3803,7 +3806,7 @@ const telaSessao = { get(k) { try { return sessionStorage.getItem('mmr-tela-' + 
 try { localStorage.removeItem('mmr-tela-g'); localStorage.removeItem('mmr-tela-c'); } catch {}
 const ui = {
   g: telaSessao.get('g'), authMode: (() => { try { return sessionStorage.getItem('mmr-convite-pendente') ? 'convite' : 'google'; } catch { return 'google'; } })(),
-  vt: 'todas', vf: 'todas', vp: perPadrao(), vDe: '', vAte: '', cp: perPadrao(), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao(), eDe: '', eAte: '', kp: perPadrao(), kDe: '', kAte: '', rp: perPadrao(), rDe: '', rAte: '', sheet: null,
+  vt: 'todas', vf: 'todas', vp: perPadrao(), vDe: '', vAte: '', cp: perPadrao(), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', eq: '', eg: 'cidade', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao(), eDe: '', eAte: '', kp: perPadrao(), kDe: '', kAte: '', rp: perPadrao(), rDe: '', rAte: '', sheet: null,
 };
 const W = () => canWrite ? '' : 'disabled';
 
@@ -5288,30 +5291,57 @@ function gVendas() {
     <p class="sub" style="margin:0">${list.length} ${list.length === 1 ? 'venda' : 'vendas'} · <b class="num">${money(tot)}</b></p>
     <div class="stack">${list.map(vendaItem).join('') || emptyBox('Nenhuma venda com esse filtro.', canWrite ? '<button class="btn primary" data-act="nova-venda">Lançar venda avulsa</button>' : '')}</div>`;
 }
+/* cidade da entrega: do cadastro do cliente ou o último trecho do endereço ("rua · bairro · cidade") */
+function cidadeEntrega(v) {
+  const c = v.cliente || {};
+  const cad = S.clientes.find(x => (c.id && x.id === c.id) || (c.clienteId && x.id === c.clienteId) || (c.nome && bnorm(x.nome) === bnorm(c.nome)));
+  const dir = String(c.cidade || cad?.cidade || '').trim();
+  if (dir) return dir;
+  const pt = String(c.endereco || '').split(' · ').map(x => x.trim()).filter(Boolean);
+  return pt.length > 1 ? pt[pt.length - 1] : 'Sem cidade';
+}
 function gEntregas() {
   const r = rota();
   const sep = S.vendas.filter(v => v.status === 'separado' || v.status === 'recebido').sort((a, b) => a.ts - b.ts);
   const done = S.vendas.filter(v => v.status === 'entregue' && inPeriod(v.entregueTs || v.ts, ui.ep === 'custom' ? 'ecustom' : ui.ep));
-  const doneTot = done.reduce((s, v) => s + (v.total || 0), 0);
-  return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
-  `<p class="sub" style="margin:0">A ordem abaixo é a que o cliente vê no app. A primeira parada é a próxima entrega.</p>
-  <div class="sec-h"><h2>Rota · ${r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
-  <div class="stack">${r.map((v, i) => tcard({ act: 'editar-entrega', id: v.id, cls: i === 0 ? 'now' : '', lead: `<span class="tc-n">${i + 1}</span>`,
+  const q = bnorm(ui.eq.trim()), porCid = ui.eg !== 'lista';
+  const bate = v => !q || bnorm([v.cliente?.nome, v.cliente?.endereco, cidadeEntrega(v), itemsText(v.itens), v.obs, v.cliente?.telefone].filter(Boolean).join(' ')).includes(q);
+  const rotaI = r.map((v, i) => ({ v, i })).filter(x => bate(x.v));
+  const sepF = sep.filter(bate), doneF = done.filter(bate);
+  const doneTot = doneF.reduce((s, v) => s + (v.total || 0), 0);
+  /* agrupa por cidade (ordem alfabética; na rota, a cidade da primeira parada vem primeiro) */
+  const grupos = (arr, get) => { const m = new Map(); arr.forEach(x => { const c = cidadeEntrega(get(x)); if (!m.has(c)) m.set(c, []); m.get(c).push(x); }); return [...m.entries()]; };
+  const cabCid = (c, n, tot) => `<div class="en-cid"><b>${esc(c)}</b><span>${n} ${n === 1 ? 'entrega' : 'entregas'}${tot != null ? ' · ' + money(tot) : ''}</span></div>`;
+  const agrupa = (arr, get, render1, ordenar) => {
+    if (!porCid) return arr.map(render1).join('');
+    let g = grupos(arr, get); if (ordenar) g.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+    return g.map(([c, it]) => cabCid(c, it.length, it.reduce((s, x) => s + (get(x).total || 0), 0)) + it.map(render1).join('')).join('');
+  };
+  const rotaHtml = x => { const { v, i } = x; return tcard({ act: 'editar-entrega', id: v.id, cls: i === 0 ? 'now' : '', lead: `<span class="tc-n">${i + 1}</span>`,
     title: v.cliente?.nome || 'Cliente', val: money(v.total),
     meta: `${ic('pin', 'i')}<span>${esc(v.cliente?.endereco || 'Sem endereço')}</span>`,
     det: esc(itemsText(v.itens)) + (v.obs ? ' · ' + esc(v.obs) : ''),
     pills: `${i === 0 ? '<span class="pill p-red">Próxima</span>' : ''}${v.pago ? '<span class="pill p-ok">Pago</span>' : parcV(v) > 0 ? parcPill(v, vFalta(v), 'Parcial') : '<span class="pill p-no">Cobrar</span>'}${formaPill(v.forma)}`,
     acts: `<button class="btn small green" data-act="status" data-id="${v.id}" data-v="entregue" ${W()}>Entregue</button>
       <button class="btn small" aria-label="Subir" data-act="mover" data-id="${v.id}" data-v="-1" ${W()} ${i === 0 ? 'disabled' : ''}>↑</button><button class="btn small" aria-label="Descer" data-act="mover" data-id="${v.id}" data-v="1" ${W()} ${i === r.length - 1 ? 'disabled' : ''}>↓</button>
-      <button class="btn small ghost" data-act="ver-rota-cliente" data-id="${v.id}">Ver progresso</button>` })).join('') || emptyBox('Nenhuma entrega na rota.')}</div>
-  <div class="sec-h"><h2>Aguardando rota · ${sep.length}</h2>${sep.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" ${W()}>Pôr todos</button>` : ''}</div>
-  <div class="stack">${sep.map(v => tcard({ act: 'editar-entrega', id: v.id, title: v.cliente?.nome || 'Cliente', val: money(v.total),
+      <button class="btn small ghost" data-act="ver-rota-cliente" data-id="${v.id}">Ver progresso</button>` }); };
+  const sepHtml = v => tcard({ act: 'editar-entrega', id: v.id, title: v.cliente?.nome || 'Cliente', val: money(v.total),
     meta: `${ic('pin', 'i')}<span>${esc(v.cliente?.endereco || 'Sem endereço')}</span>`,
     det: esc(itemsText(v.itens)) + (v.obs ? ' · ' + esc(v.obs) : ''),
     pills: `${statusPill(v.status)}${pagoPill(v)}${formaPill(v.forma)}`,
-    acts: v.status === 'recebido' ? `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="separado" ${W()}>Separar</button>` : `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="em_rota" ${W()}>Pôr na rota</button>` })).join('') || '<p class="sub" style="margin:0">Nada esperando.</p>'}</div>
-  <div class="sec-h"><h2>Entregues · ${done.length}</h2>${done.length ? `<span class="muted num">${money(doneTot)}</span>` : ''}</div>
-  ${done.length ? `<div class="card list">${done.map(v => `<div class="li tc-li" data-act="editar-entrega" data-id="${v.id}" tabindex="0"><span class="av in">${ic('check')}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || '')}</small></span><span class="val">${money(v.total)}</span></div>`).join('')}</div>` : `<p class="sub" style="margin:0">${ui.ep === 'hoje' ? 'Nenhuma ainda.' : 'Nenhuma entrega neste período.'}</p>`}`;
+    acts: v.status === 'recebido' ? `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="separado" ${W()}>Separar</button>` : `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="em_rota" ${W()}>Pôr na rota</button>` });
+  const doneHtml = v => `<div class="li tc-li" data-act="editar-entrega" data-id="${v.id}" tabindex="0"><span class="av in">${ic('check')}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || '')}</small></span><span class="val">${money(v.total)}</span></div>`;
+  const nada = 'Nada encontrado para essa busca.';
+  return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
+  buscaBox('en', 'eq', ui.eq, 'Buscar cliente, endereço ou cidade') +
+  `<div class="cx-fseg" style="margin:0 0 6px"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>
+  <p class="sub" style="margin:0">A ordem abaixo é a que o cliente vê no app. A primeira parada é a próxima entrega.</p>
+  <div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
+  <div class="stack">${agrupa(rotaI, x => x.v, rotaHtml, false) || emptyBox(q && r.length ? nada : 'Nenhuma entrega na rota.')}</div>
+  <div class="sec-h"><h2>Aguardando rota · ${q ? sepF.length + ' de ' + sep.length : sep.length}</h2>${sep.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" ${W()}>Pôr todos</button>` : ''}</div>
+  <div class="stack">${agrupa(sepF, v => v, sepHtml, true) || `<p class="sub" style="margin:0">${q && sep.length ? nada : 'Nada esperando.'}</p>`}</div>
+  <div class="sec-h"><h2>Entregues · ${q ? doneF.length + ' de ' + done.length : done.length}</h2>${doneF.length ? `<span class="muted num">${money(doneTot)}</span>` : ''}</div>
+  ${doneF.length ? `<div class="card list">${agrupa(doneF, v => v, doneHtml, true)}</div>` : `<p class="sub" style="margin:0">${q && done.length ? nada : ui.ep === 'hoje' ? 'Nenhuma ainda.' : 'Nenhuma entrega neste período.'}</p>`}`;
 }
 function gCompras() {
   const per = ui.kp === 'custom' ? 'kcustom' : ui.kp;
@@ -5326,6 +5356,10 @@ function gCompras() {
     pills: `${c.pago ? '<span class="pill p-ok">Pago</span>' : parcV(c) > 0 ? parcPill(c, cFalta(c), 'Parcial') : '<span class="pill p-no">A pagar</span>'}${estPill('compras', c)}${formaPill(c.forma)}`,
     acts: `${c.pago || !cAberto(c) ? '' : `<button class="btn small green" data-act="compra-paga" data-id="${c.id}" ${W()}>Marcar paga</button>`}${cAberto(c) > 0 ? `<button class="btn small ghost" data-act="estornar" data-col="compras" data-id="${c.id}" ${W()}>Estornar</button>` : ''}${estornos(c).length ? '' : `<button class="btn small ghost" data-act="apagar-compra" data-id="${c.id}" ${W()}>Apagar</button>`}` })).join('') || (S.compras.length ? emptyBox('Nenhuma compra neste período.', '') : emptyBox('Nenhuma compra registrada. Cada compra na roça soma no estoque e sai do caixa.', canWrite ? '<button class="btn primary" data-act="nova-compra">Registrar compra</button>' : ''))}</div>`;
 }
+const bnorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+/* campo de busca padrão do app (igual ao de Clientes e Fornecedores) */
+const buscaBox = (id, k, valor, ph) => `<label class="bs-search bq-busca">${icOwn('searchp')}<input type="search" id="bq-${id}" data-k="${k}" value="${esc(valor)}" placeholder="${ph}" aria-label="Buscar" autocomplete="off" enterkeyhint="search"></label>`;
+const cxBate = (m, q) => !q || bnorm([m.desc, m.det, FORMAS[m.forma] || m.forma, money(m.valor)].filter(Boolean).join(' ')).includes(q);
 const CTIPOS = { tudo: 'Tudo', vendas: 'Vendas', compras: 'Compras', despesas: 'Despesas', estornos: 'Estornos' };
 const CFORMAS = { todas: 'Todas', pix: 'Pix', dinheiro: 'Dinheiro', debito: 'Cartão de débito', credito: 'Cartão de crédito', cartao_entrega: 'Cartão na entrega', fiado: 'Fiado (a prazo)', sem: 'Não informada' };
 function caixaMoves(per) {
@@ -5382,11 +5416,11 @@ function gCaixa() {
 
   /* A receber / Compras a pagar / Despesas a pagar: busca por nome, agrupado por pessoa (total de cada um) ou lista simples */
   const cxContas = (tipo, rows, vazio) => {
-    const q = norm(ui.cxq);
-    const rs = rows.filter(r => !q || norm(r.nome).includes(q));
+    const q = bnorm(ui.cxq.trim());
+    const rs = rows.filter(r => !q || bnorm(r.nome).includes(q));
     const tot = rs.reduce((s, r) => s + r.valor, 0);
     const rec = tipo === 'receber';
-    const bar = `<div class="cx-fbar"><input type="search" id="cx-q" value="${esc(ui.cxq)}" placeholder="${rec ? 'Buscar cliente' : tipo === 'cpagar' ? 'Buscar fornecedor' : 'Buscar despesa'}" aria-label="Buscar" autocomplete="off">
+    const bar = `<div class="cx-fbar">${buscaBox('cx', 'cxq', ui.cxq, rec ? 'Buscar cliente' : tipo === 'cpagar' ? 'Buscar fornecedor' : 'Buscar despesa')}
       <div class="cx-fseg"><button class="chip" data-act="filter" data-k="cxg" data-v="pessoa" aria-pressed="${ui.cxg !== 'lista'}">Por ${rec ? 'cliente' : tipo === 'cpagar' ? 'fornecedor' : 'despesa'}</button><button class="chip" data-act="filter" data-k="cxg" data-v="lista" aria-pressed="${ui.cxg === 'lista'}">Lista</button></div>
       <div class="cx-ftot"><span>${rec ? 'Total que me devem' : 'Total que devo'}${q ? ' (busca)' : ''}</span><b class="num">${money(tot)}</b></div></div>`;
     if (!rs.length) return bar + `<div class="card list"><div class="empty">${q ? 'Nada encontrado para essa busca.' : vazio}</div></div>`;
@@ -5429,15 +5463,19 @@ function gCaixa() {
     corpo = `<div class="sec-h"><h2>Despesas a pagar · ${dpag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
     ${cxContas('dpagar', dpag.map(d => ({ nome: d.descricao || 'Despesa', valor: restante('despesas', d), li: `<div class="li tc-li" data-act="cx-det" data-col="despesas" data-id="${d.id}" tabindex="0"><span class="av out">${ic('cash')}</span><span style="min-width:0"><b>${esc(d.descricao || 'Despesa')}</b><small>${dtCurta(d.ts)} · ${esc(catNome(d.categoria) || 'Despesa')}</small></span><span class="cx-v"><span class="val">${money(restante('despesas', d))}</span><button class="link" data-act="despesa-paga" data-id="${d.id}" ${W()}>marcar paga</button></span></div>` })), 'Nenhuma despesa a pagar.')}`;
   } else if (['vendas', 'compras', 'despesas', 'estornos'].includes(ui.cxv)) {
-    const lst = (ui.cxv === 'despesas' ? cashMoves(per).concat(despAgendadas(per)).sort((a, b) => b.ts - a.ts) : cashMoves(per)).filter(m => m.k === ui.cxv && (ui.cfp === 'todas' || (ui.cfp === 'sem' ? !m.forma : m.forma === ui.cfp)));
+    const qm = bnorm(ui.cxq.trim());
+    const lst = (ui.cxv === 'despesas' ? cashMoves(per).concat(despAgendadas(per)).sort((a, b) => b.ts - a.ts) : cashMoves(per)).filter(m => m.k === ui.cxv && (ui.cfp === 'todas' || (ui.cfp === 'sem' ? !m.forma : m.forma === ui.cfp)) && cxBate(m, qm));
     corpo = `<div class="sec-h"><h2>${CTIPOS[ui.cxv]} · ${lst.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
-    <div class="card list">${lst.map(moveLi).join('') || `<div class="empty">Nenhum lançamento de ${CTIPOS[ui.cxv].toLowerCase()} neste período.</div>`}</div>`;
+    ${buscaBox('cx', 'cxq', ui.cxq, 'Buscar em ' + CTIPOS[ui.cxv].toLowerCase())}
+    <div class="card list">${lst.map(moveLi).join('') || `<div class="empty">${qm ? 'Nada encontrado para essa busca.' : `Nenhum lançamento de ${CTIPOS[ui.cxv].toLowerCase()} neste período.`}</div>`}</div>`;
   } else {
     const fim = saldoFimDoDia();
-    const dias = []; for (const m of moves) { const k = dayKey(m.ts); let d = dias[dias.length - 1]; if (!d || d.k !== k) { d = { k, ts: m.ts, ms: [], e: 0, s: 0 }; dias.push(d); } d.ms.push(m); if (m.tipo === 'in') d.e += m.valor; else d.s += m.valor; }
-    corpo = `<div class="sec-h"><h2>Movimentações por dia</h2>${filtrado ? `<button class="link" data-act="cx-limpar">Limpar filtros</button>` : `<span class="muted num">${moves.length}</span>`}</div>
+    const mq = bnorm(ui.cxq.trim()), mvs = moves.filter(m => cxBate(m, mq));
+    const dias = []; for (const m of mvs) { const k = dayKey(m.ts); let d = dias[dias.length - 1]; if (!d || d.k !== k) { d = { k, ts: m.ts, ms: [], e: 0, s: 0 }; dias.push(d); } d.ms.push(m); if (m.tipo === 'in') d.e += m.valor; else d.s += m.valor; }
+    corpo = `<div class="sec-h"><h2>Movimentações por dia</h2>${filtrado ? `<button class="link" data-act="cx-limpar">Limpar filtros</button>` : `<span class="muted num">${mvs.length}</span>`}</div>
+    ${buscaBox('cx', 'cxq', ui.cxq, 'Buscar movimentação')}
     ${dias.map(d => { const sd = n2(d.e - d.s), fa = fim[d.k] ?? 0; return `<div class="cx-dia"><div class="cx-dh"><b>${diaLabel(d.ts)}</b><span class="cx-dt">${d.e ? `<span class="in">+ ${money(d.e)}</span>` : ''}${d.s ? `<span class="out">− ${money(d.s)}</span>` : ''}</span></div>
-      <div class="card list">${d.ms.map(moveLi).join('')}<div class="cx-df"><span>${filtrado ? 'Saldo do filtro' : 'Saldo do dia'}<b class="${sd < 0 ? 'neg' : ''}">${sinal(sd)}</b></span><span>Em caixa no fim do dia<b class="${fa < 0 ? 'neg' : ''}">${money(fa)}</b></span></div></div></div>`; }).join('') || `<div class="card"><div class="empty">${filtrado ? 'Nenhuma movimentação com esse filtro.' : 'Nenhuma movimentação neste período.'}</div></div>`}`;
+      <div class="card list">${d.ms.map(moveLi).join('')}<div class="cx-df"><span>${mq ? 'Saldo da busca' : filtrado ? 'Saldo do filtro' : 'Saldo do dia'}<b class="${sd < 0 ? 'neg' : ''}">${sinal(sd)}</b></span><span>Em caixa no fim do dia<b class="${fa < 0 ? 'neg' : ''}">${money(fa)}</b></span></div></div></div>`; }).join('') || `<div class="card"><div class="empty">${mq ? 'Nada encontrado para essa busca.' : filtrado ? 'Nenhuma movimentação com esse filtro.' : 'Nenhuma movimentação neste período.'}</div></div>`}`;
   }
   if (ui.cxv === 'saldo') corpo = saldoDet + corpo;
   return head + `
@@ -6125,7 +6163,7 @@ function ajudaFiltra() {
 }
 document.addEventListener('input', e => { if (e.target && e.target.id === 'aj-busca') ajudaFiltra(); });
 document.addEventListener('input', e => { if (e.target && String(e.target.id).startsWith('cad-q-')) { const id = e.target.id; ui[e.target.dataset.k] = e.target.value; const p = e.target.selectionStart; render(); const n = document.getElementById(id); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (_) {} } } });
-document.addEventListener('input', e => { if (e.target && e.target.id === 'cx-q') { ui.cxq = e.target.value; const p = e.target.selectionStart; render(); const n = document.getElementById('cx-q'); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (_) {} } } });
+document.addEventListener('input', e => { if (e.target && String(e.target.id).startsWith('bq-')) { const id = e.target.id; ui[e.target.dataset.k] = e.target.value; const p = e.target.selectionStart; render(); const n = document.getElementById(id); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (_) {} } } });
 
 /* ===== CHAT v2: emojis, anexos, seletor em folha, teclado ===== */
 LT_MAP.clip = 'clip';
@@ -9370,7 +9408,7 @@ document.addEventListener('click', async e => {
     case 'menu-tgl': { let l = menuNaBarra(); l = l.includes(v) ? l.filter(k => k !== v) : [...l, v]; if (l.length) { ls.set('mmr-menu', l); render(); } break; }
     case 'menu-reset': ls.set('mmr-menu', MENU_PADRAO); render(); break;
     case 'look-reset': look = Object.assign({}, LOOK_DEF); ls.set('mmr-look', look); applyTheme(); render(); break;
-    case 'filter': ui[t.dataset.k] = v; render(); break;
+    case 'filter': ui[t.dataset.k] = v; if (t.dataset.k === 'cxv') ui.cxq = ''; render(); break;
     case 'cx-grp': ui.cxo[v] = !ui.cxo[v]; render(); break;
     case 'rel-exportar': ui.sheet = { type: 'rexp' }; render(); break;
     case 'rel-exp': ui.sheet = null; render(); relExportar(v); break;
