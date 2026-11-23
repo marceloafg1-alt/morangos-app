@@ -6316,7 +6316,7 @@ const MENU_ITENS = [
   { k: 'conversas', ic: 'chat', l: 'Chat', d: 'Conversas com os clientes', act: 'go-conversas' },
   { k: 'compras', ic: 'basket', l: 'Compras', d: 'Registrar e pagar compras', act: 'go' },
   { k: 'relatorios', ic: 'chart', l: 'Relatórios', d: 'Lucro, vendas e clientes', act: 'go' },
-  { k: 'clientes', ic: 'user', l: 'Clientes e fornecedores', d: 'Quem compra e quem vende para você', act: 'go' },
+  { k: 'clientes', ic: 'user', l: 'Cadastros', d: 'Clientes e fornecedores', act: 'go' },
   { k: 'estoque', ic: 'box', l: 'Estoque', d: 'Produtos e quantidades', act: 'go' }
 ];
 const MENU_PADRAO = ['inicio', 'vendas', 'entregas', 'caixa', 'conversas'];
@@ -6341,13 +6341,13 @@ const menuNaBarra = () => { const v = ls.get('mmr-menu', null); const ok = Array
 function nav() {
   if (backend === 'db' && !window.__isAdmin) return '';
   const cur = ui.g;
-  const t = (page, icon, label, extra = '', act = 'go', forceOn = false) => { const on = forceOn || cur === page || (act === 'sheet' && ui.sheet?.type === page); return `<button class="lt-tab ${on ? 'on' : ''}" data-act="${act}" data-v="${page}" aria-label="${label}" ${on ? 'aria-current="page"' : ''}>${ic(icon)}${label}${extra}</button>`; };
+  const t = (page, icon, label, extra = '', act = 'go', forceOn = false) => { const on = forceOn || cur === page || (page === 'clientes' && cur === 'fornecedores') || (act === 'sheet' && ui.sheet?.type === page); return `<button class="lt-tab ${on ? 'on' : ''}" data-act="${act}" data-v="${page}" aria-label="${label}" ${on ? 'aria-current="page"' : ''}>${ic(icon)}${label}${extra}</button>`; };
   const cnt = n => n ? `<span class="lt-dot">${n}</span>` : '';
   const novos = S.vendas.filter(v => v.status === 'recebido').length;
   const naBarra = menuNaBarra();
   const extras = { vendas: cnt(novos), entregas: cnt(rota().length), conversas: cnt(naoLidasG()) };
   const menuBar = MENU_ITENS.filter(i => naBarra.includes(i.k)).map(i => t(i.k, i.ic, i.l, extras[i.k] || '', i.act));
-  const maisOn = (!naBarra.includes(cur) && MENU_ITENS.some(i => i.k === cur)) || ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].includes(cur);
+  const maisOn = (!naBarra.includes(cur) && MENU_ITENS.some(i => i.k === cur)) || ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].filter(k => !naBarra.includes(k === 'fornecedores' ? 'clientes' : k)).includes(cur);
   const fabOn = ui.sheet?.type === 'novo' || ui.sheet?.type === 'conv-mais';
   const convCli = !fabOn && ui.g === 'conversas' && ui.conv ? ui.conv : '';
   const fabPag = { estoque: ['novo-produto', 'Novo produto'], compras: ['nova-compra', 'Nova compra na roça'], noticias: ['nova-noticia', 'Nova notícia'], clientes: ['novo-cliente', 'Novo cliente'], fornecedores: ['novo-fornecedor', 'Novo fornecedor'] }[ui.g];
@@ -6360,7 +6360,7 @@ function nav() {
     const SY = h => h.replace('class="lt-tab ', 'class="lt-tab side-y ');
     const SX = h => h.replace('class="lt-tab ', 'class="lt-tab side-x ');
     const sideMaisOn = !!ui.sideMais;
-    const cfgOn = ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].includes(cur);
+    const cfgOn = ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].filter(k => !naBarra.includes(k === 'fornecedores' ? 'clientes' : k)).includes(cur);
     return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''} ${sideMaisOn ? 'mais-open' : ''}" aria-label="Gestão"><button type="button" class="side-brand" data-act="sheet" data-v="usuarios-cfg" aria-label="Abrir Usuários e Equipe" style="border:0;background:none;text-align:left;cursor:pointer;width:100%"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça · Gestão</small></span></button><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}${sideX.join('')}<span class="side-sp"></span>${SY(t('estoque', 'box', 'Estoque'))}${SY(t('clientes', 'user', 'Clientes'))}${SY(t('fornecedores', 'basket', 'Fornecedores'))}${SY(t('noticias', 'megaphone', 'Notícias'))}${SX(t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'fornecedores', 'noticias'].includes(cur)))}${canInstallPWA() ? `<button type="button" class="lt-tab side-x pwa-side-btn" data-act="pwa-install" aria-label="Instalar aplicativo">${ic('down')}Instalar app</button>` : ''}<button class="lt-tab side-mais ${!sideMaisOn && maisOn ? 'on' : ''}" data-act="side-mais" aria-label="Mais" aria-expanded="${sideMaisOn}">${ic(sideMaisOn ? 'x' : 'down')}${sideMaisOn ? 'Menos' : 'Mais'}</button></nav>`;
   }
   return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', 'Mais', '', 'sheet', maisOn)}</nav>`;
