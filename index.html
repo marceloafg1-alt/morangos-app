@@ -3596,7 +3596,7 @@ async function boot() {
     try { localStorage.removeItem(k); } catch (_) {}
   });
 
-  const fb = null; // Versão só com navegador: não conecta ao Firebase (dados ficam salvos neste aparelho)
+  const fb = await waitForFirebase();
   if (fb && fb.db) {
     backend = 'db';
     db = fb.db;
