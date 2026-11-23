@@ -6318,7 +6318,9 @@ const MENU_ITENS = [
   { k: 'caixa', ic: 'wallet', l: 'Caixa', d: 'Entradas, saídas e saldo', act: 'go' },
   { k: 'conversas', ic: 'chat', l: 'Chat', d: 'Conversas com os clientes', act: 'go-conversas' },
   { k: 'compras', ic: 'basket', l: 'Compras', d: 'Registrar e pagar compras', act: 'go' },
-  { k: 'relatorios', ic: 'chart', l: 'Relatórios', d: 'Lucro, vendas e clientes', act: 'go' }
+  { k: 'relatorios', ic: 'chart', l: 'Relatórios', d: 'Lucro, vendas e clientes', act: 'go' },
+  { k: 'clientes', ic: 'user', l: 'Clientes e fornecedores', d: 'Quem compra e quem vende para você', act: 'go' },
+  { k: 'estoque', ic: 'box', l: 'Estoque', d: 'Produtos e quantidades', act: 'go' }
 ];
 const MENU_PADRAO = ['inicio', 'vendas', 'entregas', 'caixa', 'conversas'];
 const MENU_MAX = 5;
@@ -6396,7 +6398,7 @@ function sheetHTML() {
   if (s.type === 'novo') {
     return fabWrap(FAB_K[ui.g] || 'Lançar', `<div class="fab-grid">
       ${ft('receipt', 'Venda', 'nova-venda')}${ft('basket', 'Compra', 'nova-compra')}${ft('cash', 'Despesa', 'nova-despesa')}
-      ${ft('megaphone', 'Notícia', 'nova-noticia')}${ft('user', 'Cliente', 'novo-cliente')}${ft('morango', 'Fornecedor', 'novo-fornecedor')}${fti()}
+      ${ft('megaphone', 'Notícia', 'nova-noticia')}${ft('user', 'Cliente / Fornecedor', 'novo-cadastro')}${ft('box', 'Produto', 'novo-produto')}${fti()}
     </div>`);
   }
   if (s.type === 'mais') { const naBarra = menuNaBarra();
@@ -6900,10 +6902,11 @@ async function vincularVendas(cid, c) {
   await Promise.all(ps.map(v => patch('vendas', v.id, { clienteId: cid })));
   return ps.length;
 }
-function modalCliente(id) {
-  const c = id ? S.clientes.find(x => x.id === id) : { nome: '', telefone: '', email: '', cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', referencia: '', tipo: 'pessoa', obs: '' };
+const cadTog = k => `<div class="lt-chips cad-tog" role="group" aria-label="Tipo de cadastro" style="margin-bottom:12px"><button type="button" class="lt-chip ${k === 'c' ? 'on' : ''}" data-act="cad-tipo" data-v="c" aria-pressed="${k === 'c'}">Lançar cliente</button><button type="button" class="lt-chip ${k === 'f' ? 'on' : ''}" data-act="cad-tipo" data-v="f" aria-pressed="${k === 'f'}">Lançar fornecedor</button></div>`;
+function modalCliente(id, novo) {
+  const c = id ? S.clientes.find(x => x.id === id) : { nome: (novo && novo.nome) || '', telefone: (novo && novo.telefone) || '', email: '', cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', referencia: '', tipo: 'pessoa', obs: '' };
   if (!c) return;
-  openModal(id ? 'Editar cliente' : 'Novo cliente', `<div class="fgrid">
+  openModal(id ? 'Editar cliente' : 'Novo cadastro', `${id ? '' : cadTog('c')}<div class="fgrid">
     <div class="f full"><label for="k-nome">Nome</label><input type="text" id="k-nome" name="nome" required value="${esc(c.nome)}" placeholder="Ex.: Ana Souza ou Mercadinho Bom Preço"></div>
     <div class="f full"><span class="lbl">Tipo</span><div class="opts">${[['pessoa', 'Pessoa'], ['comercio', 'Comércio']].map(([k, l]) => `<label class="opt"><input type="radio" name="tipo" value="${k}" id="k-tipo-${k}" ${(c.tipo || 'pessoa') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
     <div class="f full"><label for="k-tel">Telefone / WhatsApp</label><input type="tel" id="k-tel" name="telefone" value="${esc(c.telefone)}" placeholder="(00) 00000-0000" inputmode="tel"></div>
@@ -6949,10 +6952,10 @@ function wireCep(f) {
 }
 const sortedFornecedores = () => [...S.fornecedores].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
 const fornCompras = c => S.compras.filter(x => x.fornecedorId === c.id || (!x.fornecedorId && norm(x.fornecedor) === norm(c.nome)));
-function modalFornecedor(id) {
-  const c = id ? S.fornecedores.find(x => x.id === id) : { nome: '', telefone: '', cep: '', endereco: '', numero: '', bairro: '', cidade: '', referencia: '', tipo: 'produtor', produtos: '', pix: '', banco: '', agencia: '', conta: '', tipoConta: 'corrente', titular: '', docTitular: '', obs: '' };
+function modalFornecedor(id, novo) {
+  const c = id ? S.fornecedores.find(x => x.id === id) : { nome: (novo && novo.nome) || '', telefone: (novo && novo.telefone) || '', cep: '', endereco: '', numero: '', bairro: '', cidade: '', referencia: '', tipo: 'produtor', produtos: '', pix: '', banco: '', agencia: '', conta: '', tipoConta: 'corrente', titular: '', docTitular: '', obs: '' };
   if (!c) return;
-  openModal(id ? 'Editar fornecedor' : 'Novo fornecedor', `<div class="fgrid">
+  openModal(id ? 'Editar fornecedor' : 'Novo cadastro', `${id ? '' : cadTog('f')}<div class="fgrid">
     <div class="f full"><label for="k-nome">Nome</label><input type="text" id="k-nome" name="nome" required value="${esc(c.nome)}" placeholder="Ex.: Sítio do Seu João"></div>
     <div class="f full"><span class="lbl">Tipo</span><div class="opts">${[['produtor', 'Produtor / roça'], ['empresa', 'Empresa']].map(([k, l]) => `<label class="opt"><input type="radio" name="tipo" value="${k}" id="k-tipo-${k}" ${(c.tipo || 'produtor') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
     <div class="f full"><label for="k-tel">Telefone / WhatsApp</label><input type="tel" id="k-tel" name="telefone" value="${esc(c.telefone)}" placeholder="(00) 00000-0000" inputmode="tel"></div>
@@ -8951,7 +8954,7 @@ function vozInit() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) vozParaRec(); else vozIniciaRec(); });
   if (vozLigado()) { vozPill(); vozIniciaRec(); }
 }
-const OPEN = { 'ia-lancar': () => modalIA(), 'nova-venda': () => modalVenda(), 'nova-compra': () => modalCompra(), 'nova-despesa': () => modalDespesa(), 'novo-produto': () => modalProduto(), 'nova-noticia': () => modalNoticia(), 'novo-cliente': () => modalCliente(), 'novo-fornecedor': () => modalFornecedor() };
+const OPEN = { 'ia-lancar': () => modalIA(), 'nova-venda': () => modalVenda(), 'nova-compra': () => modalCompra(), 'nova-despesa': () => modalDespesa(), 'novo-produto': () => modalProduto(), 'nova-noticia': () => modalNoticia(), 'novo-cliente': () => modalCliente(), 'novo-fornecedor': () => modalFornecedor(), 'novo-cadastro': () => modalCliente() };
 // Perfil: recolhe/expande a seção sem perder o que já foi digitado
 document.addEventListener('click', e => { const h = e.target.closest('[data-act="perfil-toggle"]'); if (!h) return; const sec = h.closest('.pf-sec'); const abre = !sec.classList.contains('open'); sec.classList.toggle('open', abre); h.setAttribute('aria-expanded', String(abre)); ls.set('mmr-pf-abertas', { ...(ls.get('mmr-pf-abertas', {}) || {}), [sec.dataset.sec]: abre }); });
 // Perfil: digitou o CEP, o endereço é preenchido sozinho
@@ -9164,6 +9167,7 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'go': ui.voltaCfg = false; go(v); break;
+    case 'cad-tipo': { const f = document.getElementById('mform'); const nv = f ? { nome: f.elements['nome']?.value || '', telefone: f.elements['telefone']?.value || '' } : null; if (v === 'f') modalFornecedor(null, nv); else modalCliente(null, nv); break; }
     case 'go-cfg': ui.voltaCfg = true; go(v); break;
     case 'voltar': go(ui.voltaCfg && ui.g !== 'config' ? 'config' : 'inicio'); if (ui.g === 'config' || ui.g === 'inicio') ui.voltaCfg = false; break;
     case 'notif-abrir': { const x = notificacoes(true).find(n => n.id === id); if (!x) break; notifLidas.add(x.id); salvarLidas(); notifIr(x); break; }
