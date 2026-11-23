@@ -4028,6 +4028,7 @@ async function hashPin(pin) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 async function autenticarBiometria() {
+  window.__bioErr = '';
   if (!window.PublicKeyCredential) return false;
   const cfg = getLockCfg();
   try {
@@ -4036,7 +4037,7 @@ async function autenticarBiometria() {
     const publicKey = {
       challenge,
       timeout: 60000,
-      userVerification: 'required'
+      userVerification: 'preferred'
     };
     if (cfg.credId) {
       try {
@@ -4051,6 +4052,7 @@ async function autenticarBiometria() {
     return !!cred;
   } catch (err) {
     console.warn('Biometria não reconhecida ou cancelada:', err);
+    window.__bioErr = (err && err.name) || 'erro';
     return false;
   }
 }
@@ -4083,8 +4085,8 @@ async function registrarBiometria() {
       ],
       authenticatorSelection: {
         authenticatorAttachment: 'platform',
-        residentKey: 'discouraged',
-        userVerification: 'required'
+        residentKey: 'preferred',
+        userVerification: 'preferred'
       },
       timeout: 60000
     }
@@ -9112,7 +9114,7 @@ document.addEventListener('click', async e => {
       if (ok) {
         unlockApp();
       } else {
-        toast('Não reconhecido. Toque no sensor de novo ou use o PIN.');
+        toast('Não reconhecido' + (window.__bioErr ? ' (' + window.__bioErr + ')' : '') + '. Toque no sensor de novo ou use o PIN.');
       }
       break;
     }
