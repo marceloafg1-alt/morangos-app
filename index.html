@@ -2675,6 +2675,18 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
   border-radius: 8px;
 }
 .lock-foot button:hover { color: var(--ink); text-decoration: underline; }
+/* Tela de desbloqueio: folha escura embaixo sobre fundo vinho (igual ao modelo) */
+.app-lock-screen { position: fixed; inset: 0; z-index: 3000; overflow-y: auto; justify-content: flex-end; padding: 0; background: radial-gradient(circle at 50% 38%, #4a1414 0%, #1d1012 38%, #0d0b0c 78%); color: #fff; }
+.app-lock-screen .lock-card { max-width: none; border-radius: 28px 28px 0 0; background: #1d2330; border: 1px solid rgba(255,255,255,.09); border-bottom: 0; box-shadow: 0 -10px 40px rgba(0,0,0,.35); padding: 30px 24px calc(26px + env(safe-area-inset-bottom)); }
+.app-lock-screen .lock-icon-wrap { width: 64px; height: 64px; border-radius: 18px; background: #3b4150; color: #ef4444; border: 1px solid rgba(255,255,255,.12); }
+.app-lock-screen .lock-title { color: #fff; }
+.app-lock-screen .lock-sub { color: #b9c0cd; }
+.app-lock-screen .lock-dot { border-color: rgba(255,255,255,.55); }
+.app-lock-screen .lock-dot.filled { background: #fff; border-color: #fff; }
+.app-lock-screen .lock-btn { background: #3b4150; color: #fff; }
+.app-lock-screen .lock-btn.fn { color: #aeb6c6; }
+.app-lock-screen .lock-foot button { color: #8ec5ff; }
+.app-lock-screen .lock-foot button:hover { color: #fff; }
 
 /* ===== Cobranças no WhatsApp ===== */
 .cbr-badge-btn {
@@ -4095,8 +4107,6 @@ let lockShake = false;
 let lastAppHideTs = 0;
 
 function isAppLocked() {
-  const u = window.__fb?.auth?.currentUser;
-  if (!u) return false;
   const cfg = getLockCfg();
   if (!cfg.ativo) return false;
   // Se não houver PIN configurado, não bloqueia para não travar o usuário
@@ -4148,17 +4158,15 @@ function renderLockPadOnly() {
 function gLockScreen() {
   const cfg = getLockCfg();
   const temPin = !!cfg.pinHash;
-  const temBio = !!cfg.bio;
+  const temBio = false; /* biometria desligada: evita o pop-up do Gerenciador de Senhas */
 
   return `<section class="app-lock-screen" aria-label="Desbloqueio do aplicativo">
     <div class="lock-card">
-      <div class="lock-icon-wrap">${ic(temBio ? 'fingerprint' : 'lock')}</div>
+      <div class="lock-icon-wrap">${ic('morango')}</div>
       <h1 class="lock-title">Morangos · Gestão</h1>
       <p class="lock-sub">${
-        temPin && temBio
-          ? 'Digite o PIN de 4 dígitos ou use a Digital / Face ID.'
-          : temPin
-          ? 'Digite o PIN de 4 dígitos para acessar.'
+        temPin
+          ? 'Digite seu PIN para entrar'
           : 'Nenhum PIN configurado. Toque abaixo para desbloquear.'
       }</p>
 
@@ -4188,7 +4196,7 @@ function gLockScreen() {
       `}
 
       <div class="lock-foot">
-        <button type="button" data-act="lock-esqueci">Esqueci meu PIN · Sair da conta</button>
+        <button type="button" data-act="lock-esqueci">Esqueci meu PIN</button>
       </div>
     </div>
   </section>`;
@@ -4319,7 +4327,7 @@ function lockCfgSheet(wrap) {
 
   return wrap('Desbloqueio do app', `
     <p class="muted" style="margin:0 0 14px;font-size:13.5px">
-      Proteja a gestão no seu aparelho. Quando ativo, o app exige seu PIN de 4 dígitos ou biometria (Digital / Face ID) para abrir.
+      Proteja a gestão no seu aparelho. Quando ativo, o app exige seu PIN de 4 dígitos para abrir.
     </p>
 
     <div class="card" style="padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -4342,14 +4350,6 @@ function lockCfgSheet(wrap) {
         ${ic('right', 'i chev')}
       </button>
 
-      <div class="ml" style="cursor:default">
-        <span class="ml-ic">${ic('fingerprint')}</span>
-        <div class="grow" style="text-align:left">
-          <b>Digital e Face ID</b>
-          <small class="muted" style="display:block;font-size:12px">${bioSuportada ? (cfg.bio && temPin ? 'Ativado neste celular' : (temPin ? 'Disponível para ativar' : 'Crie o PIN antes de ativar')) : 'Não suportado pelo navegador'}</small>
-        </div>
-        <input type="checkbox" class="lt-switch" id="lock-bio-sw" data-act="lock-toggle-bio" ${cfg.bio && temPin ? 'checked' : ''} ${bioSuportada ? '' : 'disabled'} style="${temPin && bioSuportada ? '' : 'opacity:0.5'}">
-      </div>
     </nav>
 
     ${temPin && cfg.ativo ? `
@@ -4457,7 +4457,7 @@ function modalConfigPin() {
       setLockCfg({ pinHash: h });
       try { document.activeElement?.blur?.(); } catch (_) {}
       closeModal();
-      toast('PIN salvo! Agora você já pode ligar o bloqueio e a biometria.', 'ok');
+      toast('PIN salvo! Agora você já pode ligar o bloqueio.', 'ok');
       render();
       return true;
     } catch (err) {
@@ -9041,14 +9041,14 @@ document.addEventListener('click', async e => {
     }
     case 'lock-esqueci': {
       modalConfirm(
-        'Para redefinir ou remover o PIN com segurança, você será desconectado da sua conta e precisará entrar novamente com Google ou E-mail e senha.',
-        'Sair da conta',
+        'O PIN será removido deste aparelho e o app abre sem bloqueio. Depois você pode criar um novo PIN em Configurações.',
+        'Remover PIN',
         async () => {
           setLockCfg({ ativo: false, bio: false, pinHash: '', credId: '' });
           appLocked = false;
           lockDigits = '';
           const fb = window.__fb;
-          if (fb && fb.auth && fb.signOut) {
+          if (fb && fb.auth && fb.auth.currentUser && fb.signOut) {
             try {
               clearCachedAuth();
               stopListeners();
@@ -9063,6 +9063,7 @@ document.addEventListener('click', async e => {
               return false;
             }
           }
+          toast('PIN removido. Crie um novo em Configurações > Desbloqueio do app.');
           render();
           return true;
         }
