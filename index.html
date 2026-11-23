@@ -8039,13 +8039,15 @@ const iaFerramenta = {
       descricao: { type: 'string', description: 'Despesa: o que foi pago. Produto (criar/editar): a descrição que aparece na Loja.' },
       categoria: { type: 'string', description: 'Só para despesa: uma das categorias informadas, ou vazio.' },
       itens: { type: 'array', description: 'Só para venda e compra.', items: { type: 'object', properties: {
-        produto: { type: 'string' }, quantidade: { type: 'number' }, preco_unitario: { type: 'number', description: 'Venda: preço de venda por unidade. Compra: custo por unidade. 0 se não informado.' } }, required: ['produto', 'quantidade'] } },
-      valor: { type: 'number', description: 'Valor total em reais. Para despesa é obrigatório; para venda/compra use só se não houver preço unitário.' },
+        produto: { type: 'string' }, quantidade: { type: 'number', description: 'Número de unidades deste produto ("10 caixas" = 10).' }, preco_unitario: { type: 'number', description: 'Preço de UMA unidade. Venda: preço de venda. Compra: custo pago. 0 se não informado ou se só deu o total da linha.' },
+        valor_item: { type: 'number', description: 'Total desta linha (quantidade × preço) quando o texto só dá o total do produto, ex.: "10 caixas por R$ 300". 0 se deu o preço unitário.' },
+        preco_venda: { type: 'number', description: 'Só em compra: o preço de venda por unidade que o dono quer para este produto ("vendo a 35"). 0 se não disse.' } }, required: ['produto', 'quantidade'] } },
+      valor: { type: 'number', description: 'Valor total em reais. Para despesa é obrigatório; para venda/compra use só se o texto der um total geral e não houver preço dos itens (o app soma os itens sozinho).' },
       forma: { type: 'string', enum: ['pix', 'dinheiro', 'debito', 'credito', 'fiado', ''] },
       entrega: { type: 'string', enum: ['entregue', 'separado', 'em_rota', ''], description: 'Só para venda. entregue: só se o texto disser que já foi entregue, retirada ou levada na hora. separado: se disser que a entrega está pendente, a entregar ou para entregar depois. em_rota: se disser que já saiu para entrega. Vazio se o texto não disser nada sobre entrega.' },
       pago: { type: 'boolean', description: 'true se o pagamento já foi feito.' },
       pago_informado: { type: 'boolean', description: 'true SÓ se o conteúdo diz se já foi pago ou não (vale fiado e pagamento parcial). false se não fala nada sobre pagamento.' },
-      valor_pago: { type: 'number', description: 'Quanto já foi pago, se for pagamento parcial. 0 se não informado.' },
+      valor_pago: { type: 'number', description: 'Quanto já foi pago no TOTAL do lançamento (todos os produtos somados), se for pagamento parcial. 0 se não informado.' },
       data: { type: 'string', description: 'AAAA-MM-DD, ou vazio se não foi dita (vale hoje).' },
       observacao: { type: 'string', description: 'SÓ preencha se o usuário mandou expressamente colocar algo na observação ("coloque na observação..."). Caso contrário, deixe vazio.' } }, required: ['tipo'] } },
     nao_entendido: { type: 'array', items: { type: 'string' }, description: 'Trechos que não deu para transformar em lançamento.' } },
@@ -8064,6 +8066,10 @@ Regras:
 - pago=true só se o texto disser que pagou. Se pagou menos que o total (inclusive "metade"), pago=false e informe valor_pago em reais, calculando com o preço cadastrado quando o texto não disser o valor. "Fiado" ou "a prazo" = forma fiado e pago=false.
 - Observação: nunca crie observação por conta própria nem resuma o texto nela. Só use o campo observacao se o usuário mandar colocar algo na observação.
 - Nunca invente valores, quantidades ou datas. Se faltar, deixe 0 ou vazio.
+- VÁRIOS PRODUTOS: compra ou venda do MESMO fornecedor/cliente e mesma data é UM só lançamento, com todos os produtos em itens. Só separe se o fornecedor/cliente ou a data forem diferentes.
+- CADA ITEM: quantidade = número de unidades ("10 caixas" = 10; "meia dúzia" = 6). preco_unitario = preço de UMA unidade. Se o texto der só o total do produto ("10 caixas por R$ 300"), preencha valor_item=300 e deixe preco_unitario 0; nunca coloque o total da linha em preco_unitario. Em COMPRA, "vendo a R$ X" ou "preço de venda X" é preco_venda do item (novo preço de venda do produto), diferente do custo.
+- O app soma os itens sozinho. Só preencha "valor" se o texto der um total geral sem preço dos itens.
+- PAGAMENTO PARCIAL com vários produtos vale para o lançamento inteiro: valor_pago = quanto foi pago no total. "Metade", "50%" ou "um terço" são calculados sobre a SOMA de todos os itens (quantidade × preço de cada, somados). pago=false quando é parcial.
 - Não preencha o que o conteúdo não diz: data vazia se não foi dita; entrega vazia se não falou de entrega; pago_informado=false se não falou de pagamento; forma vazia se não disse como pagou; categoria da despesa vazia se não der para associar; preco_unitario 0 numa compra sem preço. O app pergunta o que faltar.
 Hoje é ${todayInput()}.
 Produtos cadastrados: ${S.produtos.filter(p => p.ativo !== false).map(p => `${p.nome} (${p.unidade || 'un'}, R$ ${n2(p.preco)})`).join('; ') || 'nenhum'}.
@@ -8308,12 +8314,14 @@ function iaPrepara(l) {
     const p = iaAchaProduto(i.produto), q = n2(i.quantidade);
     if (!p) { o.problemas.push('produto "' + (i.produto || '?') + '" não cadastrado'); continue; }
     if (!(q > 0)) { o.problemas.push('quantidade de ' + p.nome + ' não informada'); continue; }
-    let u = n2(i.preco_unitario); if (!(u > 0)) { u = n2(o.tipo === 'venda' ? p.preco : p.custo); if (u > 0) o.avisos.push('preço de ' + p.nome + ' do cadastro'); }
-    o.itens.push({ produtoId: p.id, nome: p.nome, qtd: q, un: u });
+    let u = n2(i.preco_unitario); if (!(u > 0) && n2(i.valor_item) > 0) u = n2(n2(i.valor_item) / q);
+    if (!(u > 0)) { u = n2(o.tipo === 'venda' ? p.preco : p.custo); if (u > 0) o.avisos.push('preço de ' + p.nome + ' do cadastro'); }
+    o.itens.push({ produtoId: p.id, nome: p.nome, qtd: q, un: u, pv: o.tipo === 'compra' ? n2(i.preco_venda) : 0 });
   }
   if (!o.itens.length && !o.problemas.length) o.problemas.push('sem itens');
   if (o.itens.length === 1 && n2(l.valor) > 0 && n2(l.itens[0]?.preco_unitario) === 0 && !(o.itens[0].un > 0)) o.itens[0].un = n2(n2(l.valor) / o.itens[0].qtd);
   o.total = n2(o.itens.reduce((s, i) => s + i.qtd * i.un, 0));
+  if (o.itens.length > 1 && n2(l.valor) > 0 && Math.abs(o.total - n2(l.valor)) > 0.01) o.avisos.push('a soma dos itens (' + money(o.total) + ') não bate com o total dito (' + money(n2(l.valor)) + '): confira os preços');
   if (o.itens.length && !(o.total > 0)) o.problemas.push('sem preço');
   if (o.tipo === 'venda') { const c = S.clientes.find(x => norm(x.nome) === norm(o.pessoa)); if (c) o.clienteId = c.id; else if (o.pessoa) o.avisos.push('cliente novo: fica só como nome na venda'); }
   else { if (!o.pessoa) o.problemas.push('sem fornecedor'); const f = S.fornecedores.find(x => norm(x.nome) === norm(o.pessoa)); if (f) o.fornecedorId = f.id; }
@@ -8489,8 +8497,8 @@ async function iaGravar(o) {
   }
   const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, custo: i.un }));
   await put('compras', uid(), { ts, fornecedor: o.pessoa, ...(o.fornecedorId ? { fornecedorId: o.fornecedorId } : {}), itens, total: o.total, forma: ['pix', 'dinheiro', 'fiado'].includes(forma) ? forma : 'pix', pago: o.pago, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, obs: o.obs || '' });
-  for (const i of itens) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0;
-    await patch('produtos', p.id, { estoque: n2((p.estoque || 0) + i.qtd), custo: n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo) }); }
+  for (const [k, i] of itens.entries()) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0, pv = n2(o.itens[k] && o.itens[k].pv);
+    await patch('produtos', p.id, { ...(pv > 0 ? { preco: pv } : {}), estoque: n2((p.estoque || 0) + i.qtd), custo: n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo) }); }
 }
 /* texto da situação do pagamento: pago, pago parcial (com os valores) ou não pago */
 const iaParcial = o => !o.pago && o.valorPago > 0 && o.valorPago < (o.total || 0);
@@ -8503,7 +8511,7 @@ function iaCard(o, i) {
     <small style="display:block">${esc([o.telefone, [o.rua, o.numero].filter(Boolean).join(', '), o.complemento, o.bairro, o.cidade, o.cep ? 'CEP ' + cepFmt(o.cep) : ''].filter(Boolean).join(' · ') || 'sem telefone nem endereço')}</small>
     ${bad ? `<small style="display:block;color:#c0392b">⚠ Não dá para cadastrar: ${esc(o.problemas.join('; '))}.</small>` : ''}${o.avisos.map(a => `<small class="muted" style="display:block">ℹ ${esc(a)}</small>`).join('')}</span>
     <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : 'checked'}></label>`;
-  const det = o.tipo === 'despesa' ? `${esc(o.descricao)} · ${esc(catNome(o.categoria) || '')}` : o.itens.map(x => `${x.qtd}× ${esc(x.nome)} a ${money(x.un)}`).join(', ');
+  const det = o.tipo === 'despesa' ? `${esc(o.descricao)} · ${esc(catNome(o.categoria) || '')}` : o.itens.map(x => `${x.qtd}× ${esc(x.nome)} a ${money(x.un)} = ${money(n2(x.qtd * x.un))}${x.pv > 0 ? ' (venda a ' + money(x.pv) + ')' : ''}`).join(', ');
   const val = o.tipo === 'despesa' ? o.valor : o.total;
   return `<label class="nt-pref ia-i" style="align-items:flex-start;${bad ? 'opacity:.75' : ''}"><span class="nt-ic">${ic(icn)}</span><span class="grow"><b>${tl}${o.pessoa ? ' · ' + esc(o.pessoa) : ''} · ${money(val)}</b>
     <small style="display:block">${det || '—'}</small><small style="display:block">${esc(FORMAS[o.forma] || (o.pago ? 'forma não informada' : ''))}${o.forma || o.pago || iaParcial(o) ? ' · ' : ''}${esc(iaPagoTxt(o))} · ${esc(o.data.split('-').reverse().join('/'))}${o.tipo === 'venda' ? ' · entrega: ' + esc({ entregue: 'já entregue', separado: 'entregar depois', em_rota: 'na rota' }[o.entrega] || '') : ''}</small>
@@ -8837,6 +8845,7 @@ O que fazer:
 - Ao falar do pagamento, nunca diga "não pago" quando houve pagamento parcial: diga "pago parcial", com o valor pago e o total.
 - pago=true só se o dono disser que pagou ou recebeu o valor todo. Se pagou ou recebeu MENOS que o total (inclusive "metade", "50%", "um terço", "R$ 100 de entrada"), pago=false e informe valor_pago em reais, calculando sobre o total (quantidade x preço do pedido, ou o preço cadastrado quando ele não disser o preço): "50%" ou "metade" = valor_pago igual à metade do total. Vale para venda e para compra. "Fiado" ou "a prazo" = forma fiado e pago=false.
 - Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar.
+- Vários produtos do mesmo fornecedor ou cliente na mesma data são UM só lançamento, com todos em itens. Item: quantidade em unidades, preco_unitario = preço de UMA unidade; se ele disser só o total do produto, use valor_item. Em compra, "vendo a X" é preco_venda do item. Pagamento parcial vale para o lançamento inteiro: valor_pago é o total já pago, e "metade" é calculada sobre a soma de todos os itens.
 ${dados}
 
 DADOS DO APP (agora):
@@ -8995,7 +9004,7 @@ function iaFalta(l, o) {
     const ehV = l.tipo === 'venda', itens = l.itens || [];
     if (!String(l.pessoa || '').trim()) q.push(ehV ? 'o nome do cliente' : 'o nome do fornecedor');
     if (!itens.length) q.push('quais produtos e quantidades');
-    itens.forEach(i => { const nome = i.produto || 'o produto'; if (!(n(i.quantidade) > 0)) q.push('a quantidade de ' + nome); else if (!ehV && !(n(i.preco_unitario) > 0) && !(n(l.valor) > 0)) q.push('o valor pago por ' + nome); });
+    itens.forEach(i => { const nome = i.produto || 'o produto'; if (!(n(i.quantidade) > 0)) q.push('a quantidade de ' + nome); else if (!ehV && !(n(i.preco_unitario) > 0) && !(n(i.valor_item) > 0) && !(n(l.valor) > 0)) q.push('o valor pago por ' + nome); });
     if (l.pago_informado !== true) q.push('se já foi pago');
     if ((l.pago === true || n(l.valor_pago) > 0) && !l.forma) q.push('como foi pago: Pix, dinheiro ou cartão');
     if (ehV && !l.entrega) q.push('se já foi entregue');
