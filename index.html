@@ -2715,6 +2715,9 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
 }
 .cbr-badge-btn:active { transform: scale(.95); opacity: .9; }
 .cbr-badge-btn svg { width: 16px; height: 16px; flex: none; stroke: currentColor; }
+.tm-ck{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;display:inline-block}
+.li.on .tm-ck{background:#25D366;border-color:#25D366;box-shadow:inset 0 0 0 4px var(--card)}
+.li[disabled]{opacity:.5}
 .cbr-fila-head {
   display: flex;
   flex-direction: column;
@@ -4641,71 +4644,112 @@ function modalCobrancaSequencial(idx = 0) {
   });
 }
 
-/* ---------------- Lista de transmissão (promoções e lembretes no WhatsApp) ---------------- */
-const TRANSM_GRUPOS = [
-  { k: 'semanal', nome: 'Compra toda semana' },
-  { k: 'quer', nome: 'Quer comprar' },
-  { k: 'interessado', nome: 'Interessado' }
-];
+/* ---------------- Transmissão (promoções e lembretes no WhatsApp) ---------------- */
 const TRANSM_MSG_PADRAO = 'Olá, {nome}! Tudo bem? 🍓\nTem morango fresquinho da roça essa semana! Quer que eu separe uma caixa para você?';
-const transmUi = { grupo: 'semanal' };
+let transmSel = new Set();
+const pl0 = (n, a, b) => `${n} ${n === 1 ? a : b}`;
+const TRANSM_MODELOS_PADRAO = [
+  { id: 'm1', nome: 'Promoção', texto: 'Olá, {nome}! Tudo bem? 🍓\nPromoção de morangos fresquinhos da roça essa semana! Quer que eu separe uma caixa para você?' },
+  { id: 'm2', nome: 'Lembrete semanal', texto: 'Oi, {nome}! 🍓 Já é dia de garantir os morangos da semana. Posso anotar o seu pedido?' },
+  { id: 'm3', nome: 'Novidade', texto: 'Olá, {nome}! Chegaram morangos novos da roça! 🍓 Se quiser, é só me responder aqui que eu entrego.' }
+];
+function transmModelos() { const m = ls.get('mmr-transm-modelos', null); return Array.isArray(m) ? m : TRANSM_MODELOS_PADRAO; }
+function transmSetModelos(m) { ls.set('mmr-transm-modelos', m); }
 function transmMsg() { return ls.get('mmr-transm-msg', '') || TRANSM_MSG_PADRAO; }
 function transmLog() { try { return JSON.parse(localStorage.getItem('mmr-transm-log') || '{}'); } catch (_) { return {}; } }
-function transmRegistra(grupo, cid) {
-  try { const l = transmLog(); l[grupo + ':' + cid] = Date.now(); localStorage.setItem('mmr-transm-log', JSON.stringify(l)); } catch (_) {}
+function transmRegistra(cid) {
+  try { const l = transmLog(); l[cid] = Date.now(); localStorage.setItem('mmr-transm-log', JSON.stringify(l)); } catch (_) {}
 }
-function transmLista(grupo) {
-  const log = transmLog();
-  return S.clientes
-    .filter(c => grupo === 'todos' ? true : (c.listas || []).includes(grupo))
-    .map(c => ({ cliente: c, key: c.id, tel: soDig(c.telefone || ''), ultimo: log[grupo + ':' + c.id] || 0 }))
-    .sort((a, b) => (a.cliente.nome || '').localeCompare(b.cliente.nome || '', 'pt-BR'));
+const transmCidade = c => String(c.cidade || '').trim() || 'Sem cidade';
+/* clientes por cidade (a do cadastro), em ordem alfabética; "Sem cidade" por último */
+function transmCidades() {
+  const log = transmLog(), m = new Map();
+  for (const c of S.clientes) {
+    const k = transmCidade(c);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push({ cliente: c, id: c.id, tel: soDig(c.telefone || ''), ultimo: log[c.id] || 0 });
+  }
+  return [...m.entries()]
+    .sort((a, b) => a[0] === 'Sem cidade' ? 1 : b[0] === 'Sem cidade' ? -1 : a[0].localeCompare(b[0], 'pt-BR'))
+    .map(([nome, itens]) => ({ nome, itens: itens.sort((x, y) => (x.cliente.nome || '').localeCompare(y.cliente.nome || '', 'pt-BR')) }));
 }
-function transmSummary() {
-  const n = S.clientes.filter(c => (c.listas || []).length).length;
-  return n ? `${n} ${n === 1 ? 'cliente nas listas' : 'clientes nas listas'}` : 'Nenhum cliente nas listas ainda';
+function transmSelecionados() {
+  return transmCidades().flatMap(g => g.itens).filter(i => i.tel && transmSel.has(i.id));
 }
 function transmTexto(item, modelo) {
   const nome = String(item.cliente.nome || 'Cliente').trim().split(/\s+/)[0];
   return String(modelo).replace(/{nome}/g, nome);
 }
-function transmAbrirWa(grupo, item, msg) {
+function transmAbrirWa(item, msg) {
   if (!item.tel) { toast('Cliente sem número de telefone cadastrado.'); return false; }
   const num = item.tel.length <= 11 ? '55' + item.tel : item.tel;
-  transmRegistra(grupo, item.key);
+  transmRegistra(item.id);
   window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
   return true;
 }
+function transmSalvaMsg() { const m = document.getElementById('transm-msg'); if (m) ls.set('mmr-transm-msg', m.value); }
+/* atualiza marcas e contadores sem refazer a janela (mantém a rolagem e o texto) */
+function transmAtualiza() {
+  document.querySelectorAll('[data-act="transm-tog"]').forEach(b => { const on = transmSel.has(b.dataset.id); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  document.querySelectorAll('[data-act="transm-cidade"]').forEach(b => {
+    const ids = (b.dataset.ids || '').split(',').filter(Boolean), todos = ids.length && ids.every(id => transmSel.has(id));
+    b.textContent = todos ? 'Desmarcar cidade' : 'Marcar cidade';
+  });
+  const n = transmSelecionados().length, bt = document.getElementById('transm-go'), tt = document.getElementById('transm-n');
+  if (tt) tt.textContent = n + (n === 1 ? ' selecionado' : ' selecionados');
+  if (bt) { bt.disabled = !n; bt.lastChild.textContent = ` Enviar em sequência (${n})`; }
+  const bto = document.querySelector('[data-act="transm-todos"]');
+  if (bto) { const all = transmCidades().flatMap(g => g.itens).filter(i => i.tel); bto.textContent = all.length && all.every(i => transmSel.has(i.id)) ? 'Desmarcar todos' : 'Todos'; }
+}
 function modalTransmissao() {
-  const g = transmUi.grupo;
-  const lista = transmLista(g);
-  const comTel = lista.filter(i => i.tel).length;
-  const cont = k => k === 'todos' ? S.clientes.length : S.clientes.filter(c => (c.listas || []).includes(k)).length;
-  openModal('Lista de transmissão · WhatsApp', `
+  const gr = transmCidades();
+  openModal('Transmissão · WhatsApp', `
     <div class="cbr-fila-head">
-      <div class="lt-chips" role="group" aria-label="Escolha a lista">${[...TRANSM_GRUPOS, { k: 'todos', nome: 'Todos os clientes' }].map(x => `<button type="button" class="lt-chip ${g === x.k ? 'on' : ''}" data-act="transm-grupo" data-v="${x.k}" aria-pressed="${g === x.k}">${x.nome} · ${cont(x.k)}</button>`).join('')}</div>
       <div>
-        <label for="transm-msg" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px">Mensagem (use {nome} para o nome do cliente):</label>
+        ${transmModelos().length ? `<small class="muted" style="display:block;margin-bottom:6px">Mensagens prontas (toque para usar):</small><div class="lt-chips" role="group" aria-label="Mensagens prontas" style="margin-bottom:10px">${transmModelos().map(m => `<button type="button" class="lt-chip" data-act="transm-modelo-usar" data-id="${esc(m.id)}">${esc(m.nome)}</button>`).join('')}</div>` : ''}
+        <label for="transm-msg" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px">Mensagem (use {nome} para o nome do cliente; pode alterar):</label>
         <textarea id="transm-msg" class="cbr-preview no-autofocus" data-no-autofocus="1" rows="5">${esc(transmMsg())}</textarea>
       </div>
-      ${comTel ? `<button type="button" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="transm-iniciar">${ic('chat')} ▶ Enviar em sequência (${comTel})</button>` : ''}
-      <small class="muted">O WhatsApp abre uma conversa por vez, com a mensagem pronta. Você só toca em enviar.</small>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <b id="transm-n">0 selecionados</b>
+        <button type="button" class="lt-chip" data-act="transm-todos">Todos</button>
+      </div>
     </div>
-    <div class="card list" style="max-height:40vh;overflow-y:auto">
-      ${lista.map((i, idx) => `<div class="li" style="padding:12px 14px;align-items:center;gap:12px">
+    <div style="max-height:42vh;overflow-y:auto">
+      ${gr.map((g, gi) => `<div class="sec-h" style="margin:10px 0 6px"><h2>${esc(g.nome)} · ${g.itens.length}</h2><button type="button" class="link" data-act="transm-cidade" data-ids="${g.itens.filter(i => i.tel).map(i => esc(i.id)).join(',')}">Marcar cidade</button></div>
+      <div class="card list">${g.itens.map(i => `<button type="button" class="li" data-act="transm-tog" data-id="${esc(i.id)}" ${i.tel ? '' : 'disabled'} aria-pressed="false" style="padding:12px 14px;align-items:center;gap:12px;text-align:left;width:100%">
         <span class="av">${esc((i.cliente.nome || 'A')[0])}</span>
-        <div style="flex:1;min-width:0"><b>${esc(i.cliente.nome || 'Cliente')}</b>
+        <span style="flex:1;min-width:0"><b>${esc(i.cliente.nome || 'Cliente')}</b>
           <small style="display:block;color:var(--muted)">${esc(i.cliente.telefone || 'Sem telefone')}</small>
-          ${i.ultimo ? `<small style="display:block;color:#1B7F47;font-weight:600">✓ Enviado ${relTime(i.ultimo)}</small>` : ''}</div>
-        <button type="button" class="cbr-badge-btn" data-act="transm-um" data-idx="${idx}" ${i.tel ? '' : 'disabled'}>${ic('chat')} Enviar</button>
-      </div>`).join('') || '<div class="empty">Ninguém nesta lista ainda. Abra um cliente e marque as listas dele.</div>'}
-    </div>`);
+          ${i.ultimo ? `<small style="display:block;color:#1B7F47;font-weight:600">✓ Enviado ${relTime(i.ultimo)}</small>` : ''}</span>
+        <span class="tm-ck" aria-hidden="true"></span>
+      </button>`).join('')}</div>`).join('') || '<div class="empty">Nenhum cliente cadastrado ainda.</div>'}
+    </div>
+    <div style="margin-top:12px">
+      <button type="button" id="transm-go" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="transm-iniciar" disabled>${ic('chat')}<span> Enviar em sequência (0)</span></button>
+      <small class="muted" style="display:block;margin-top:6px">O WhatsApp abre uma conversa por vez, com a mensagem pronta. Você só toca em enviar.</small>
+    </div>`, undefined, () => { transmAtualiza(); });
+}
+function modalTransmModelos() {
+  const ms = transmModelos();
+  openModal('Mensagens de transmissão', `
+    <p class="muted" style="margin:0 0 10px;font-size:13px">Deixe mensagens prontas. Ao enviar uma transmissão pelo botão + você escolhe uma delas e ainda pode alterar o texto. Use {nome} para o nome do cliente.</p>
+    <div class="card list">${ms.map(m => `<div class="li" style="padding:12px 14px;align-items:center;gap:10px"><span style="flex:1;min-width:0"><b>${esc(m.nome)}</b><small style="display:block;color:var(--muted);white-space:pre-line;max-height:3.6em;overflow:hidden">${esc(m.texto)}</small></span><button type="button" class="link" data-act="transm-modelo-editar" data-id="${esc(m.id)}">Editar</button></div>`).join('') || '<div class="empty">Nenhuma mensagem pronta ainda.</div>'}</div>
+    <div class="form-acts" style="margin-top:12px"><button type="button" class="btn" data-act="close-modal">Fechar</button><button type="button" class="btn primary" data-act="transm-modelo-editar" data-id="">+ Nova mensagem</button></div>`);
+}
+function modalTransmModeloEdit(id) {
+  const m = transmModelos().find(x => x.id === id) || { id: '', nome: '', texto: '' };
+  openModal(id ? 'Editar mensagem' : 'Nova mensagem', `
+    <div class="fgrid">
+      <div class="f full"><label for="tm-nome">Nome (aparece no botão)</label><input type="text" id="tm-nome" value="${esc(m.nome)}" placeholder="Ex.: Promoção de sexta" maxlength="40"></div>
+      <div class="f full"><label for="tm-texto">Mensagem (use {nome} para o nome do cliente)</label><textarea id="tm-texto" class="cbr-preview no-autofocus" data-no-autofocus="1" rows="7">${esc(m.texto)}</textarea></div>
+    </div>
+    <div class="form-acts">${id ? `<button type="button" class="btn ghost" data-act="transm-modelo-apagar" data-id="${esc(id)}" style="margin-right:auto">Apagar</button>` : ''}<button type="button" class="btn" data-act="transm-modelos">Voltar</button><button type="button" class="btn primary" data-act="transm-modelo-salvar" data-id="${esc(id)}">Salvar mensagem</button></div>`);
 }
 function modalTransmissaoSeq(idx = 0) {
-  const g = transmUi.grupo;
-  const lista = transmLista(g).filter(i => i.tel);
+  const lista = transmSelecionados();
   if (idx >= lista.length) {
-    openModal('Transmissão concluída', `<div style="text-align:center;padding:24px 10px"><span class="chipico g" style="width:56px;height:56px;margin:0 auto 14px">${ic('check')}</span><h2>Lista finalizada!</h2><p class="muted" style="margin:6px 0 20px;font-size:14px">Você passou por todos os ${lista.length} clientes da lista.</p><button type="button" class="btn primary block" data-act="close-modal">Fechar</button></div>`);
+    openModal('Transmissão concluída', `<div style="text-align:center;padding:24px 10px"><span class="chipico g" style="width:56px;height:56px;margin:0 auto 14px">${ic('check')}</span><h2>Transmissão finalizada!</h2><p class="muted" style="margin:6px 0 20px;font-size:14px">Você passou por todos os ${lista.length} clientes escolhidos.</p><button type="button" class="btn primary block" data-act="close-modal">Fechar</button></div>`);
     return;
   }
   const i = lista[idx], pct = Math.round(((idx + 1) / lista.length) * 100);
@@ -4713,7 +4757,7 @@ function modalTransmissaoSeq(idx = 0) {
     <div class="cbr-seq-box">
       <div class="cbr-progress-bar"><div class="cbr-progress-fill" style="width:${pct}%"></div></div>
       <small class="muted">Progresso: ${idx + 1} de ${lista.length} (${pct}%)</small>
-      <div class="card" style="padding:14px;margin:0"><b style="font-size:16px">${esc(i.cliente.nome || 'Cliente')}</b><small class="muted" style="display:block">${esc(i.cliente.telefone || '')}${i.ultimo ? ' · enviado ' + relTime(i.ultimo) : ''}</small></div>
+      <div class="card" style="padding:14px;margin:0"><b style="font-size:16px">${esc(i.cliente.nome || 'Cliente')}</b><small class="muted" style="display:block">${esc(i.cliente.telefone || '')} · ${esc(transmCidade(i.cliente))}${i.ultimo ? ' · enviado ' + relTime(i.ultimo) : ''}</small></div>
       <div><label for="transm-txt" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px">Mensagem que será enviada no WhatsApp:</label>
         <textarea id="transm-txt" class="cbr-preview no-autofocus" data-no-autofocus="1" rows="6">${esc(transmTexto(i, transmMsg()))}</textarea>
         <small class="muted" style="display:block;margin-top:4px">Você pode alterar o texto acima antes de enviar se desejar.</small></div>
@@ -5281,7 +5325,7 @@ function gConfig() {
     ${cfgRow('megaphone', 'Notícias', `${newsNoAr().length} no ar`, 'go-cfg', 'noticias')}
     ${cfgRow('receipt', 'Categorias de despesa', pl(catLista().length, 'categoria', 'categorias'), 'sheet', 'cat-cfg')}
     ${cfgRow('chat', 'Cobranças no WhatsApp', cobrancaSummary(), 'sheet', 'cobrancas-cfg')}
-    ${cfgRow('megaphone', 'Lista de transmissão', transmSummary(), 'transm-abrir', 'x')}
+    ${cfgRow('megaphone', 'Lista de transmissão', pl0(transmModelos().length, 'mensagem pronta', 'mensagens prontas'), 'transm-modelos', 'x')}
   </nav>
   <div class="sec-h"><h2>App</h2></div>
   <nav class="card menu-list cfg-list" aria-label="App">
@@ -6137,7 +6181,7 @@ const AJ_G = [
     ['Como adicionar pessoas na Gestão?', 'Em <b>Configurações → Usuários e Equipe</b> você pode cadastrar membros diretamente com <b>Nome, E-mail e Senha</b> (sem sair da sua conta) ou gerar um <b>Código / Link de convite</b> para entrar com Google ou E-mail e senha. Todos acessam o mesmo estoque, vendas e caixa em tempo real, inclusive com o mesmo login em vários aparelhos ao mesmo tempo.', [['Abrir Usuários e Equipe', 'sheet', 'usuarios-cfg']]],
     ['Como instalar o app no celular?', '<ol><li>Abra o endereço do app no navegador.</li><li>No Android: três pontinhos do Chrome → <b>Adicionar à tela inicial</b> (ou <b>Instalar app</b>).</li><li>No iPhone: botão <b>Compartilhar</b> do Safari → <b>Adicionar à Tela de Início</b>.</li></ol>O ícone do morango aparece na tela do celular e abre em tela cheia.'],
     ['Como andar pelas telas?', '<b>Barra de baixo</b>: os atalhos principais. <b>Botão +</b> no meio: lança algo novo (muda conforme a tela). <b>Mais (⋮)</b>: o que não está na barra e as <b>Configurações</b>. Para voltar, use o botão voltar do Android ou deslize o dedo para a esquerda (para a direita avança). Toque em qualquer cartão com <b>Editar</b> para alterar.', [['Escolher os botões da barra', 'sheet', 'menu-cfg']]],
-    ['O que faz o botão +?', 'No Início ele abre <b>Lançar</b>: Venda, Compra, Despesa, Notícia, Cliente e Fornecedor. Em Vendas abre a venda avulsa; em Compras, a compra na roça; em Estoque, novo produto; em Notícias, nova notícia; em Clientes e Fornecedores, novo cadastro; no Caixa, despesa, venda, compra, estorno, A receber e Relatório; no Chat, novo chat ou nova venda para o cliente da conversa.'],
+    ['O que faz o botão +?', 'No Início ele abre <b>Lançar</b>: Venda, Compra, Despesa, Transmissão, Cliente e Fornecedor. Em Vendas abre a venda avulsa; em Compras, a compra na roça; em Estoque, novo produto; em Notícias, nova notícia; em Clientes e Fornecedores, novo cadastro; no Caixa, despesa, venda, compra, estorno, A receber e Relatório; no Chat, novo chat ou nova venda para o cliente da conversa.'],
     ['Como funciona o Período?', 'Vendas, Entregas, Compras, Caixa e Relatórios têm o campo <b>Período</b> no topo: Hoje, 7 dias, 30 dias, Este mês, Tudo ou <b>Escolher período</b> (data inicial e final no calendário). Cada tela abre no <b>Período padrão</b> (de início, 7 dias) e volta para ele quando você sai dela. Para mudar, vá em <b>Configurações → Período padrão</b>.', [['Abrir Período padrão', 'sheet', 'per-cfg']]],
     ['O que mostra a tela Início?', 'De cima para baixo:<ul><li><b>Vendas de hoje</b>: total do dia, comparação com o mesmo dia da semana passada, o anel de <b>% recebido</b> (recebido, falta receber e lucro bruto) e as barras dos últimos 7 dias.</li><li><b>Precisa de você</b>: os assuntos mais urgentes, cada um com um botão (Separar, Responder, Receber, Pagar…).</li><li><b>Divisão das vendas</b>: por Pagamento, Produto ou App × Avulsa, em Hoje, 7 dias ou Mês.</li><li><b>Vendas × gastos</b>: quanto entrou, quanto saiu (compras e despesas) e se sobrou ou faltou.</li><li><b>Rota de hoje</b>: entregas feitas e a próxima parada.</li><li><b>Clientes sumidos</b> e as <b>Movimentações</b> do dia.</li></ul>', [['Abrir o Início', 'go', 'inicio']]],
     ['Como escolho o que aparece no Início?', 'Em <b>Configurações → Tela inicial</b> você liga ou desliga cada bloco: Vendas de hoje, Precisa de você, Divisão das vendas, Vendas × gastos, Rota de hoje, Clientes sumidos e Movimentações. <b>Mostrar tudo</b> traz todos de volta. Vale só para este aparelho.', [['Abrir Tela inicial', 'sheet', 'inicio-cfg']]],
@@ -6572,7 +6616,7 @@ function sheetHTML() {
   if (s.type === 'novo') {
     return fabWrap(FAB_K[ui.g] || 'Lançar', `<div class="fab-grid">
       ${ft('receipt', 'Venda', 'nova-venda')}${ft('basket', 'Compra', 'nova-compra')}${ft('cash', 'Despesa', 'nova-despesa')}
-      ${ft('megaphone', 'Notícia', 'nova-noticia')}${ft('user', 'Novo cadastro', 'novo-cadastro')}${ft('box', 'Produto', 'novo-produto')}${fti()}
+      ${ft('megaphone', 'Transmissão', 'transm-abrir')}${ft('user', 'Novo cadastro', 'novo-cadastro')}${ft('box', 'Produto', 'novo-produto')}${fti()}
     </div>`);
   }
   if (s.type === 'mais') { const naBarra = menuNaBarra();
@@ -7093,11 +7137,10 @@ function modalCliente(id, novo) {
     <div class="f full"><label for="k-cid">Cidade / UF</label><input type="text" id="k-cid" name="cidade" value="${esc(c.cidade)}"></div>
     <div class="f full"><label for="k-ref">Ponto de referência</label><input type="text" id="k-ref" name="referencia" value="${esc(c.referencia)}" placeholder="Ex.: portão verde, ao lado da padaria"></div>
     <div class="f full"><label for="k-obs">Observação</label><input type="text" id="k-obs" name="obs" value="${esc(c.obs)}" placeholder="Ex.: prefere Pix, entregar depois das 17h"></div>
-    <div class="f full"><span class="lbl">Listas de transmissão (promoções e lembretes)</span><div class="opts">${TRANSM_GRUPOS.map(g => `<label class="opt"><input type="checkbox" name="listas" value="${g.k}" ${(c.listas || []).includes(g.k) ? 'checked' : ''}><span>${g.nome}</span></label>`).join('')}</div></div>
   </div><div class="form-acts">${id ? `<button type="button" class="btn ghost" data-act="apagar-cliente" data-id="${id}" style="margin-right:auto">Apagar cliente</button>` : ''}<button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar cliente</button></div>`,
   async f => { const fd = new FormData(f); const nome = String(fd.get('nome') || '').trim(); if (!nome) { toast('Escreva o nome do cliente.'); return false; }
     const g = k => String(fd.get(k) || '').trim();
-    const body = { nome, tipo: fd.get('tipo') || 'pessoa', telefone: g('telefone'), cep: g('cep').replace(/\D/g, ''), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs'), email: g('email').toLowerCase(), complemento: g('complemento'), listas: fd.getAll('listas').map(String) };
+    const body = { nome, tipo: fd.get('tipo') || 'pessoa', telefone: g('telefone'), cep: g('cep').replace(/\D/g, ''), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs'), email: g('email').toLowerCase(), complemento: g('complemento') };
     if (id) return safe(async () => { await patch('clientes', id, body); await vincularVendas(id, body); }, 'Cliente salvo.');
     if (S.clientes.some(x => (x.nome || '').trim().toLowerCase() === nome.toLowerCase())) { toast('Já existe um cliente com esse nome.'); return false; }
     const nid = uid(); return safe(async () => { await put('clientes', nid, { ...body, ts: Date.now() }); await vincularVendas(nid, body); }, 'Cliente cadastrado.'); },
@@ -9422,18 +9465,25 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'cbr-seq-pular': modalCobrancaSequencial(Number(v) + 1); break;
-    case 'transm-abrir': modalTransmissao(); break;
-    case 'transm-grupo': { const m = document.getElementById('transm-msg'); if (m) ls.set('mmr-transm-msg', m.value); transmUi.grupo = v; modalTransmissao(); break; }
-    case 'transm-iniciar': { const m = document.getElementById('transm-msg'); if (m) ls.set('mmr-transm-msg', m.value); modalTransmissaoSeq(0); break; }
-    case 'transm-um': {
-      const m = document.getElementById('transm-msg'); if (m) ls.set('mmr-transm-msg', m.value);
-      const it = transmLista(transmUi.grupo)[Number(t.dataset.idx)];
-      if (it && transmAbrirWa(transmUi.grupo, it, transmTexto(it, transmMsg()))) { toast('WhatsApp aberto!'); modalTransmissao(); }
-      break;
+    case 'transm-modelos': if (ui.sheet) ui.sheet = null; modalTransmModelos(); break;
+    case 'transm-modelo-editar': modalTransmModeloEdit(t.dataset.id || ''); break;
+    case 'transm-modelo-salvar': {
+      const nome = (document.getElementById('tm-nome')?.value || '').trim(), texto = (document.getElementById('tm-texto')?.value || '').trim();
+      if (!nome || !texto) { toast('Escreva o nome e a mensagem.'); break; }
+      const id = t.dataset.id, ms = transmModelos().map(x => ({ ...x }));
+      if (id) { const x = ms.find(y => y.id === id); if (x) { x.nome = nome; x.texto = texto; } } else ms.push({ id: 'm' + Date.now().toString(36), nome, texto });
+      transmSetModelos(ms); toast('Mensagem salva.', 'ok'); modalTransmModelos(); render(); break;
     }
+    case 'transm-modelo-apagar': transmSetModelos(transmModelos().filter(x => x.id !== t.dataset.id)); toast('Mensagem apagada.'); modalTransmModelos(); render(); break;
+    case 'transm-modelo-usar': { const m = transmModelos().find(x => x.id === t.dataset.id), ta = document.getElementById('transm-msg'); if (m && ta) { ta.value = m.texto; ls.set('mmr-transm-msg', m.texto); } break; }
+    case 'transm-abrir': if (ui.sheet) ui.sheet = null; transmSel = new Set(); modalTransmissao(); break;
+    case 'transm-tog': { const id = t.dataset.id; transmSel.has(id) ? transmSel.delete(id) : transmSel.add(id); transmAtualiza(); break; }
+    case 'transm-cidade': { const ids = (t.dataset.ids || '').split(',').filter(Boolean); const todos = ids.length && ids.every(x => transmSel.has(x)); ids.forEach(x => todos ? transmSel.delete(x) : transmSel.add(x)); transmAtualiza(); break; }
+    case 'transm-todos': { const all = transmCidades().flatMap(g => g.itens).filter(i => i.tel); const todos = all.length && all.every(i => transmSel.has(i.id)); all.forEach(i => todos ? transmSel.delete(i.id) : transmSel.add(i.id)); transmAtualiza(); break; }
+    case 'transm-iniciar': transmSalvaMsg(); if (transmSelecionados().length) modalTransmissaoSeq(0); else toast('Escolha pelo menos um cliente.'); break;
     case 'transm-seq-abrir': {
-      const idx = Number(v), it = transmLista(transmUi.grupo).filter(i => i.tel)[idx];
-      if (it) { const txt = document.getElementById('transm-txt')?.value || transmTexto(it, transmMsg()); transmAbrirWa(transmUi.grupo, it, txt); toast('WhatsApp aberto!'); setTimeout(() => modalTransmissaoSeq(idx + 1), 600); }
+      const idx = Number(v), it = transmSelecionados()[idx];
+      if (it) { const txt = document.getElementById('transm-txt')?.value || transmTexto(it, transmMsg()); transmAbrirWa(it, txt); toast('WhatsApp aberto!'); setTimeout(() => modalTransmissaoSeq(idx + 1), 600); }
       break;
     }
     case 'transm-seq-pular': modalTransmissaoSeq(Number(v) + 1); break;
