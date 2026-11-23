@@ -2687,6 +2687,11 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
 .app-lock-screen .lock-btn.fn { color: #aeb6c6; }
 .app-lock-screen .lock-foot button { color: #8ec5ff; }
 .app-lock-screen .lock-foot button:hover { color: #fff; }
+.app-lock-screen .lock-pill { width: 100%; max-width: 360px; height: 54px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: #3b4150; color: #38bdf8; font-size: 17px; font-weight: 800; cursor: pointer; margin: 6px 0 20px; }
+.app-lock-screen .lock-pill:active { transform: scale(.98); opacity: .9; }
+.app-lock-screen .lock-hint { color: #e5e7eb; font-size: 15px; margin: 0 0 14px; }
+.app-lock-screen .lock-bio-circle { width: 76px; height: 76px; border-radius: 50%; border: 3px solid #e5e7eb; background: transparent; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 22px rgba(255,255,255,.18); margin-bottom: 8px; }
+.app-lock-screen .lock-bio-circle svg { width: 34px; height: 34px; }
 
 /* ===== Cobranças no WhatsApp ===== */
 .cbr-badge-btn {
@@ -4014,7 +4019,7 @@ function lockSummary() {
   const c = getLockCfg();
   if (!c.pinHash) return 'Desativado';
   if (!c.ativo) return 'PIN salvo (desligado)';
-  if (c.bio) return 'Digital/Face ID + PIN';
+  if (c.bio) return 'Digital + PIN';
   return 'Ativo · PIN de 4 dígitos';
 }
 async function hashPin(pin) {
@@ -4031,7 +4036,7 @@ async function autenticarBiometria() {
     const publicKey = {
       challenge,
       timeout: 60000,
-      userVerification: 'preferred'
+      userVerification: 'required'
     };
     if (cfg.credId) {
       try {
@@ -4078,8 +4083,8 @@ async function registrarBiometria() {
       ],
       authenticatorSelection: {
         authenticatorAttachment: 'platform',
-        residentKey: 'preferred',
-        userVerification: 'preferred'
+        residentKey: 'discouraged',
+        userVerification: 'required'
       },
       timeout: 60000
     }
@@ -4105,6 +4110,8 @@ let appLocked = (function(){
 let lockDigits = '';
 let lockShake = false;
 let lastAppHideTs = 0;
+let lockView = 'bio'; /* 'bio' = tela da digital, 'pin' = tela do PIN */
+let lockBioTried = false;
 
 function isAppLocked() {
   const cfg = getLockCfg();
@@ -4118,6 +4125,8 @@ function isAppLocked() {
 }
 function unlockApp() {
   appLocked = false;
+  lockView = 'bio';
+  lockBioTried = false;
   lockDigits = '';
   lockShake = false;
   toast('Aplicativo desbloqueado!', 'ok');
@@ -4155,26 +4164,38 @@ function renderLockPadOnly() {
     <div class="lock-dot ${lockDigits.length >= 4 ? 'filled' : ''}"></div>
   `;
 }
+function lockAutoBio() {
+  const cfg = getLockCfg();
+  if (!cfg.bio || !window.PublicKeyCredential || lockView === 'pin' || lockBioTried) return;
+  lockBioTried = true;
+  setTimeout(async () => {
+    if (!isAppLocked() || lockView === 'pin') return;
+    const ok = await autenticarBiometria();
+    if (ok) unlockApp();
+  }, 300);
+}
 function gLockScreen() {
   const cfg = getLockCfg();
   const temPin = !!cfg.pinHash;
-  const temBio = false; /* biometria desligada: evita o pop-up do Gerenciador de Senhas */
+  const temBio = !!cfg.bio && !!window.PublicKeyCredential;
+  const head = `<div class="lock-icon-wrap">${ic('morango')}</div><h1 class="lock-title">Morangos · Gestão</h1>`;
+
+  if (temBio && lockView !== 'pin') {
+    return `<section class="app-lock-screen" aria-label="Desbloqueio do aplicativo">
+    <div class="lock-card">
+      ${head}
+      <p class="lock-sub">Autenticar com biometria</p>
+      <button type="button" class="lock-pill" data-act="lock-view-pin">Usar PIN</button>
+      <p class="lock-hint">Toque no sensor</p>
+      <button type="button" class="lock-bio-circle" data-act="lock-trigger-bio" aria-label="Autenticar com a digital">${ic('fingerprint')}</button>
+    </div>
+  </section>`;
+  }
 
   return `<section class="app-lock-screen" aria-label="Desbloqueio do aplicativo">
     <div class="lock-card">
-      <div class="lock-icon-wrap">${ic('morango')}</div>
-      <h1 class="lock-title">Morangos · Gestão</h1>
-      <p class="lock-sub">${
-        temPin
-          ? 'Digite seu PIN para entrar'
-          : 'Nenhum PIN configurado. Toque abaixo para desbloquear.'
-      }</p>
-
-      ${temBio ? `
-        <button type="button" class="lock-bio-trigger" data-act="lock-trigger-bio" aria-label="Desbloquear com digital ou Face ID">
-          ${ic('fingerprint')} Desbloquear com Digital / Face ID
-        </button>
-      ` : ''}
+      ${head}
+      <p class="lock-sub">${temPin ? 'Digite seu PIN para entrar' : 'Nenhum PIN configurado. Toque abaixo para criar.'}</p>
 
       ${temPin ? `
         <div class="lock-dots ${lockShake ? 'shake' : ''}">
@@ -4194,7 +4215,11 @@ function gLockScreen() {
           <button type="button" class="btn primary block" data-act="lock-pin-modal">${ic('key')} Definir PIN de 4 dígitos</button>
         </div>
       `}
-
+      ${temBio ? `
+      <div class="lock-foot">
+        <button type="button" data-act="lock-sistema">Usar padrão do aparelho</button>
+        <button type="button" data-act="lock-view-bio">Voltar para a digital</button>
+      </div>` : ''}
     </div>
   </section>`;
 }
@@ -4207,13 +4232,15 @@ document.addEventListener('visibilitychange', () => {
     const pass = (Date.now() - (lastAppHideTs || 0)) / 1000;
     if (pass >= (cfg.timeout || 0)) {
       appLocked = true;
+      lockView = 'bio';
+      lockBioTried = false;
       lockDigits = '';
       render();
     }
   }
 });
 document.addEventListener('keydown', e => {
-  if (isAppLocked()) {
+  if (isAppLocked() && (lockView === 'pin' || !getLockCfg().bio)) {
     if (e.key >= '0' && e.key <= '9') { e.preventDefault(); onPinDigit(e.key); }
     else if (e.key === 'Backspace') { e.preventDefault(); lockDigits = lockDigits.slice(0, -1); renderLockPadOnly(); }
     else if (e.key === 'Escape') { e.preventDefault(); lockDigits = ''; renderLockPadOnly(); }
@@ -4324,7 +4351,7 @@ function lockCfgSheet(wrap) {
 
   return wrap('Desbloqueio do app', `
     <p class="muted" style="margin:0 0 14px;font-size:13.5px">
-      Proteja a gestão no seu aparelho. Quando ativo, o app exige seu PIN de 4 dígitos para abrir.
+      Proteja a gestão no seu aparelho. Quando ativo, o app pede a digital ou o PIN de 4 dígitos para abrir.
     </p>
 
     <div class="card" style="padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -4347,6 +4374,15 @@ function lockCfgSheet(wrap) {
         ${ic('right', 'i chev')}
       </button>
 
+
+      <div class="ml" style="cursor:default">
+        <span class="ml-ic">${ic('fingerprint')}</span>
+        <div class="grow" style="text-align:left">
+          <b>Digital</b>
+          <small class="muted" style="display:block;font-size:12px">${bioSuportada ? (cfg.bio && temPin ? 'Ativada neste celular' : (temPin ? 'Toque na chave para ativar' : 'Crie o PIN antes de ativar')) : 'Não suportada pelo navegador'}</small>
+        </div>
+        <input type="checkbox" class="lt-switch" id="lock-bio-sw" data-act="lock-toggle-bio" ${cfg.bio && temPin ? 'checked' : ''} ${bioSuportada ? '' : 'disabled'} style="${temPin && bioSuportada ? '' : 'opacity:0.5'}">
+      </div>
     </nav>
 
     ${temPin && cfg.ativo ? `
@@ -4365,11 +4401,11 @@ function lockCfgSheet(wrap) {
       </div>
     ` : temPin ? `
       <div class="note" style="margin-top:8px">
-        <b>PIN salvo!</b> Agora ligue a opção <b>Exigir desbloqueio</b> acima (e se quiser, a <b>Digital e Face ID</b>) para proteger o app.
+        <b>PIN salvo!</b> Agora ligue a opção <b>Exigir desbloqueio</b> acima (e se quiser, a <b>Digital</b>) para proteger o app.
       </div>
     ` : `
       <div class="note" style="margin-top:8px">
-        Cadastre primeiro um <b>PIN de 4 dígitos</b> para habilitar o bloqueio do app e o uso da Digital / Face ID.
+        Cadastre primeiro um <b>PIN de 4 dígitos</b> para habilitar o bloqueio do app e o uso da Digital.
       </div>
     `}
   `);
@@ -4454,7 +4490,7 @@ function modalConfigPin() {
       setLockCfg({ pinHash: h });
       try { document.activeElement?.blur?.(); } catch (_) {}
       closeModal();
-      toast('PIN salvo! Agora você já pode ligar o bloqueio.', 'ok');
+      toast('PIN salvo! Agora você já pode ligar o bloqueio e a digital.', 'ok');
       render();
       return true;
     } catch (err) {
@@ -4672,6 +4708,7 @@ function render() {
   }
   if (isAppLocked()) {
     $main.innerHTML = gLockScreen();
+    lockAutoBio();
     document.getElementById('nav-root').innerHTML = '';
     document.getElementById('sheet-root').innerHTML = '';
     cabecalhoFixo();
@@ -8996,10 +9033,10 @@ document.addEventListener('click', async e => {
           break;
         }
         try {
-          toast('Toque no leitor para cadastrar a digital/Face ID…');
+          toast('Toque no sensor para cadastrar a digital…');
           const ok = await registrarBiometria();
           if (ok) {
-            toast('Digital / Face ID ativado!', 'ok');
+            toast('Digital ativada!', 'ok');
           } else {
             t.checked = false;
             toast('Biometria não confirmada pelo aparelho.');
@@ -9010,7 +9047,7 @@ document.addEventListener('click', async e => {
         }
       } else {
         setLockCfg({ bio: false });
-        toast('Digital / Face ID desativado. O PIN continua ativo.');
+        toast('Digital desativada. O PIN continua ativo.');
       }
       render();
       break;
@@ -9031,6 +9068,8 @@ document.addEventListener('click', async e => {
       }
       ui.sheet = null;
       appLocked = true;
+      lockView = 'bio';
+      lockBioTried = false;
       lockDigits = '';
       render();
       toast('Tela de bloqueio ativada para teste.');
@@ -9067,16 +9106,18 @@ document.addEventListener('click', async e => {
       );
       break;
     }
-    case 'lock-trigger-bio': {
-      toast('Toque no leitor biométrico do aparelho…');
+    case 'lock-trigger-bio':
+    case 'lock-sistema': {
       const ok = await autenticarBiometria();
       if (ok) {
         unlockApp();
       } else {
-        toast('Digital/Face ID não reconhecida. Use o PIN numérico abaixo.');
+        toast('Não reconhecido. Toque no sensor de novo ou use o PIN.');
       }
       break;
     }
+    case 'lock-view-pin': { lockView = 'pin'; lockDigits = ''; render(); break; }
+    case 'lock-view-bio': { lockView = 'bio'; lockBioTried = true; lockDigits = ''; render(); break; }
     case 'lock-digit': {
       if (v === 'clear') { lockDigits = ''; renderLockPadOnly(); }
       else if (v === 'back') { lockDigits = lockDigits.slice(0, -1); renderLockPadOnly(); }
