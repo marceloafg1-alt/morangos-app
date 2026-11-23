@@ -5192,9 +5192,6 @@ function gConfig() {
   </nav>
   <div class="sec-h"><h2>Loja e cadastros</h2></div>
   <nav class="card menu-list cfg-list" aria-label="Loja e cadastros">
-    ${cfgRow('box', 'Estoque', pl(S.produtos.length, 'produto', 'produtos') + (baixo ? ` · ${baixo} acabando` : ''), 'go-cfg', 'estoque')}
-    ${cfgRow('user', 'Clientes', pl(S.clientes.length, 'cliente', 'clientes'), 'go-cfg', 'clientes')}
-    ${cfgRow('basket', 'Fornecedores', pl(S.fornecedores.length, 'fornecedor', 'fornecedores'), 'go-cfg', 'fornecedores')}
     ${cfgRow('megaphone', 'Notícias', `${newsNoAr().length} no ar`, 'go-cfg', 'noticias')}
     ${cfgRow('receipt', 'Categorias de despesa', pl(catLista().length, 'categoria', 'categorias'), 'sheet', 'cat-cfg')}
     ${cfgRow('chat', 'Cobranças no WhatsApp', cobrancaSummary(), 'sheet', 'cobrancas-cfg')}
@@ -6404,7 +6401,7 @@ function sheetHTML() {
   if (s.type === 'mais') { const naBarra = menuNaBarra();
     return wrap('Mais', `<div class="menu">
     ${MENU_ITENS.filter(i => !naBarra.includes(i.k)).map(i => menuBtn(i.ic, i.l === 'Compras' ? 'Compras na roça' : i.l, i.k === 'conversas' ? (naoLidasG() ? naoLidasG() + ' mensagem(ns) sem resposta' : 'Chat com os clientes') : i.d, i.act, i.act === 'go-conversas' ? '' : i.k)).join('')}
-    ${menuBtn('gear', 'Configurações', 'Estoque, clientes, notícias, aparência e mais', 'go', 'config')}</div>`); }
+    ${menuBtn('gear', 'Configurações', 'Notícias, aparência e mais', 'go', 'config')}</div>`); }
   if (s.type === 'menu-cfg') { const naBarra = menuNaBarra(); const cheio = naBarra.length >= MENU_MAX;
     return wrap('Menu inferior', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Escolha até ${MENU_MAX} botões para ficar sempre à mostra na barra. Os outros ficam no menu de 3 pontinhos (⋮). Vale para este aparelho.</p>
     <div class="nt-prefs">${MENU_ITENS.map(i => { const on = naBarra.includes(i.k); return `<label class="nt-pref" for="mn-${i.k}"><span class="nt-ic">${ic(i.ic)}</span><span class="grow"><b>${i.l}</b><small>${on ? 'Na barra' : 'No menu ⋮'}</small></span><input type="checkbox" class="lt-switch" id="mn-${i.k}" data-act="menu-tgl" data-v="${i.k}" ${on ? 'checked' : ''} ${!on && cheio ? 'disabled' : ''}></label>`; }).join('')}</div>
@@ -7021,7 +7018,7 @@ function gCadastros(k) {
   const lista = tq.length ? todos.filter(c => { const h = sa([c.nome, c.telefone, c.email, c.produtos, c.cidade, c.bairro, c.endereco, c.referencia, c.obs].filter(Boolean).join(' ')); const tel = String(c.telefone || '').replace(/\D/g, ''); return tq.every(t => h.includes(t)) || (dig.length >= 3 && tel.includes(dig)); }) : todos;
   const nome = n => n === 1 ? (ehC ? 'cliente' : 'fornecedor') : (ehC ? 'clientes' : 'fornecedores');
   const busca = todos.length ? `<label class="bs-search cad-busca">${icOwn('searchp')}<input type="search" id="cad-q-${ehC ? 'c' : 'f'}" data-k="${qk}" value="${esc(qv)}" placeholder="${ehC ? 'Buscar cliente' : 'Buscar fornecedor'}" aria-label="Buscar" autocomplete="off" enterkeyhint="search"></label>` : '';
-  return pageHeader(ehC ? 'Clientes' : 'Fornecedores', btnImportar) + busca +
+  return pageHeader(ehC ? 'Clientes' : 'Fornecedores', btnImportar) + `<div class="lt-chips" role="group" aria-label="Cadastros" style="margin:0 0 10px"><button type="button" class="lt-chip ${ehC ? 'on' : ''}" data-act="go" data-v="clientes" aria-pressed="${ehC}">Clientes</button><button type="button" class="lt-chip ${ehC ? '' : 'on'}" data-act="go" data-v="fornecedores" aria-pressed="${!ehC}">Fornecedores</button></div>` + busca +
   `<p class="sub cad-cnt">${tq.length ? `${lista.length} de ${todos.length} ${nome(todos.length)}` : `${todos.length} ${nome(todos.length)}`}</p>
   ${lista.length ? `<div class="cad-list">${lista.map(c => linha(c, ehC)).join('')}</div>` : todos.length ? `<div class="card list"><div class="empty">Nada encontrado para essa busca.</div></div>` : vazio}`;
 }
