@@ -8044,7 +8044,7 @@ const iaFerramenta = {
         preco_venda: { type: 'number', description: 'Só em compra: o preço de venda por unidade que o dono quer para este produto ("vendo a 35"). 0 se não disse.' } }, required: ['produto', 'quantidade'] } },
       valor: { type: 'number', description: 'Valor total em reais. Para despesa é obrigatório; para venda/compra use só se o texto der um total geral e não houver preço dos itens (o app soma os itens sozinho).' },
       forma: { type: 'string', enum: ['pix', 'dinheiro', 'debito', 'credito', 'fiado', ''] },
-      entrega: { type: 'string', enum: ['entregue', 'separado', 'em_rota', ''], description: 'Só para venda. entregue: só se o texto disser que já foi entregue, retirada ou levada na hora. separado: se disser que a entrega está pendente, a entregar ou para entregar depois. em_rota: se disser que já saiu para entrega. Vazio se o texto não disser nada sobre entrega.' },
+      entrega: { type: 'string', enum: ['entregue', 'separado', 'em_rota', ''], description: 'Só para venda. entregue: só se o texto disser que já foi entregue, retirada ou levada na hora. separado: se disser que a entrega está pendente, a fazer, em haver, não efetuada, não realizada, a entregar ou para entregar depois. em_rota: se disser que já saiu para entrega. Vazio se o texto não disser nada sobre entrega.' },
       pago: { type: 'boolean', description: 'true se o pagamento já foi feito.' },
       pago_informado: { type: 'boolean', description: 'true SÓ se o conteúdo diz se já foi pago ou não (vale fiado e pagamento parcial). false se não fala nada sobre pagamento.' },
       fracao_paga: { type: 'number', description: 'Só quando o texto diz porcentagem ou fração do total já paga ("paguei 50%", "metade", "um terço"): a fração de 0 a 1 (0.5, 0.33). O app calcula o valor sobre a soma dos itens. 0 se não disse.' },
@@ -8062,7 +8062,7 @@ Regras:
 - Se algo não for um lançamento do app, coloque o trecho em nao_entendido. Se nada servir, devolva lancamentos vazio.
 - "X comprou/levou" = venda para o cliente X. "Comprei de Y" = compra do fornecedor Y. Gasto com combustível, embalagem, energia etc. = despesa.
 - Use os nomes de produtos e clientes cadastrados quando o texto se referir a eles (mesmo com apelido ou erro de digitação).
-- Entrega de venda: se o texto falar em entrega pendente, a entregar ou entregar depois, use entrega=separado; nunca marque entregue sem o texto dizer.
+- Entrega de venda: SEMPRE que o texto der a entender que a entrega ainda não aconteceu, use entrega=separado (entregar depois). Exemplos: entrega pendente, em aberto, atrasada, agendada, marcada, programada, "a fazer", "em haver", "a haver", "não efetuada", "não realizada", "não feita", "não concluída", "não entregue", "não entregou", "ainda não entregue", "aguardando entrega", "pendente de entrega", "falta entregar", "a entregar", "vou entregar", "entregar depois", "entrego amanhã", "entrega para amanhã", "não saiu para entrega"; nunca marque entregue sem o texto dizer. Cada venda tem a sua própria entrega: leia a frase de cada cliente separadamente.
 - Imagens enviadas (foto de cupom fiscal, nota, caderno ou print): leia o texto da imagem. Cupom fiscal de loja ou posto é DESPESA (descricao = nome do estabelecimento, valor = total, data do cupom); só vira COMPRA se os itens forem produtos cadastrados comprados de um fornecedor.
 - pago=true só se o texto disser que pagou. Se pagou menos que o total (inclusive "metade"), pago=false e informe valor_pago em reais, calculando com o preço cadastrado quando o texto não disser o valor. "Fiado" ou "a prazo" = forma fiado e pago=false.
 - Observação: nunca crie observação por conta própria nem resuma o texto nela. Só use o campo observacao se o usuário mandar colocar algo na observação.
@@ -8309,6 +8309,19 @@ function iaAplicaFracao(texto, ls_, lista) {
     if ((o.tipo !== 'compra' && o.tipo !== 'venda') || o.pago || o.valorPago > 0 || o.forma === 'fiado' || !(o.total > 0) || o.problemas.length) return;
     o.valorPago = n2(o.total * fr); if (ls_[i]) { ls_[i].valor_pago = o.valorPago; ls_[i].pago_informado = true; }
     o.avisos.push('você disse que pagou ' + Math.round(fr * 100) + '%: calculei ' + money(o.valorPago) + ' de ' + money(o.total));
+  });
+}
+/* rede de segurança: expressões como "entrega em haver" ou "entrega não efetuada" = entregar depois (separado), lidas só na frase de cada cliente */
+function iaAplicaEntrega(texto, ls_, lista) {
+  const nz = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const t = nz(texto), re = /\b(?:entrega\s+(?:em\s+haver|a\s+haver|a\s+fazer|a\s+realizar|pendente|em\s+aberto|atrasada|agendada|marcada|programada|futura|depois|amanha|mais\s+tarde|nao\s+(?:\w+\s+)?(?:efetuada|realizada|feita|entregue|concluida|finalizada|ocorreu)|para\s+(?:depois|amanha|outro\s+dia|mais\s+tarde))|(?:a|por|para|falta|faltam|vou|vamos|vai|iremos|irei)\s+entregar|entregar\s+(?:depois|amanha|mais\s+tarde|na\s+semana)|entrego\s+(?:depois|amanha)|(?:aguardando|pendente\s+de)\s+entrega|(?:ainda\s+)?nao\s+(?:foi\s+|esta\s+|ficou\s+)?(?:entregue|entregou|entregaram)|nao\s+saiu\s+(?:para|pra)\s+(?:a\s+)?entrega)\b/;
+  const nomes = lista.map(o => nz(String(o.pessoa || '').trim().split(/\s+/)[0]));
+  const pos = nomes.map(n => (n.length > 1 ? t.indexOf(n) : -1));
+  lista.forEach((o, i) => {
+    if (o.tipo !== 'venda' || o.problemas.length || (ls_[i] && ls_[i].entrega) || pos[i] < 0) return;
+    const fim = pos.filter(p => p > pos[i]).sort((a, b) => a - b)[0] ?? t.length;
+    if (!re.test(t.slice(pos[i], fim))) return;
+    o.entrega = 'separado'; if (ls_[i]) ls_[i].entrega = 'separado'; o.avisos = o.avisos.filter(a => !/entrega não mencionada/.test(a));
   });
 }
 /* prepara cada lançamento: normaliza, casa cadastros e aponta problemas (problema => não dá para lançar) */
@@ -8628,7 +8641,7 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
         const texto = (ctx && (partes.length || imgs.length || pdfs.length) ? ctx + '\n\n' : '') + partes.join('\n\n'); if (!texto.trim() && !pdfs.length && !imgs.length) throw new Error('Escreva um texto, dite por voz, envie um arquivo ou tire uma foto.');
         if (texto.length > IA_MAX_TXT) throw new Error('Conteúdo grande demais (' + texto.length + ' caracteres; máximo ' + IA_MAX_TXT + '). Envie em partes.');
         const r = await iaChamar(texto, pdfs, imgs, null, 'ia');
-        lista = r.lanc.map(iaPrepara); iaAplicaFracao(texto, r.lanc, lista); lista.forEach((o, i) => { o.falta = o.problemas.length ? [] : iaFalta(r.lanc[i], o); }); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
+        lista = r.lanc.map(iaPrepara); iaAplicaFracao(texto, r.lanc, lista); iaAplicaEntrega(texto, r.lanc, lista); lista.forEach((o, i) => { o.falta = o.problemas.length ? [] : iaFalta(r.lanc[i], o); }); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
         res.innerHTML = (lista.length ? `<div class="nt-prefs">${lista.map(iaCard).join('')}</div><small class="muted">Confira. Desligue o que não quiser lançar.</small>` : '<div class="note">A IA não achou nenhum lançamento nesse conteúdo.</div>')
           + (r.sobra.length ? `<div class="note" style="margin-top:8px"><b>Não entendi:</b><br>${r.sobra.map(esc).join('<br>')}</div>` : '');
         atualiza();
@@ -8867,7 +8880,7 @@ O que fazer:
 - "X comprou/levou" = venda para X. "Comprei de Y" = compra do fornecedor Y. Gasto com combustível, embalagem etc. = despesa.
 - Ao falar do pagamento, nunca diga "não pago" quando houve pagamento parcial: diga "pago parcial", com o valor pago e o total.
 - pago=true só se o dono disser que pagou ou recebeu o valor todo. Se pagou ou recebeu MENOS que o total (inclusive "metade", "50%", "um terço", "R$ 100 de entrada"), pago=false e informe valor_pago em reais, calculando sobre o total (quantidade x preço do pedido, ou o preço cadastrado quando ele não disser o preço): "50%" ou "metade" = valor_pago igual à metade do total. Vale para venda e para compra. "Fiado" ou "a prazo" = forma fiado e pago=false.
-- Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar.
+- Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar. SEMPRE que ele der a entender que a entrega ainda não aconteceu, use entrega=separado (entregar depois): entrega pendente, em aberto, atrasada, agendada, "a fazer", "em haver", "a haver", "não efetuada", "não realizada", "não feita", "não entregue", "ainda não entregue", "aguardando entrega", "falta entregar", "vou entregar", "entrego amanhã", "não saiu para entrega".
 - Vários produtos do mesmo fornecedor ou cliente na mesma data são UM só lançamento, com todos em itens. Item: quantidade em unidades, preco_unitario = preço de UMA unidade; se ele disser só o total do produto, use valor_item. Em compra, "vendo a X" é preco_venda do item. Pagamento parcial vale para o lançamento inteiro: valor_pago é o total já pago, e "metade" é calculada sobre a soma de todos os itens.
 ${dados}
 
@@ -9047,7 +9060,7 @@ async function vozComando(texto) {
   try {
     if (!iaTemChave()) throw new Error('Falta a chave da IA. Coloque em Configurações, Lançar com IA.');
     const r = await iaChamar(texto, [], [], { sistema: vozSistema(), ferramenta: vozFerramenta(), hist: VOZ.hist }, 'voz');
-    const lista = r.lanc.map(iaPrepara); iaAplicaFracao(texto, r.lanc, lista); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
+    const lista = r.lanc.map(iaPrepara); iaAplicaFracao(texto, r.lanc, lista); iaAplicaEntrega(texto, r.lanc, lista); await Promise.all(lista.filter(o => !o.problemas.length).map(iaCompletaCep));
     const assim = /assim mesmo|deixa assim|pode lancar assim|lanca assim|sem isso/.test(vozNormTxt(texto));
     const faltas = assim ? [] : r.lanc.map((l, i) => iaFalta(l, lista[i]));
     if (faltas.some(f => f.length)) {
