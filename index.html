@@ -5417,10 +5417,9 @@ function gEntregas() {
   const doneHtml = v => `<div class="li tc-li" data-act="editar-entrega" data-id="${v.id}" tabindex="0"><span class="av in">${ic('check')}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || '')}</small></span><span class="val">${money(v.total)}</span></div>`;
   const nada = 'Nada encontrado para essa busca.';
   return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
-  buscaBox('en', 'eq', ui.eq, 'Buscar cliente, endereço ou cidade') +
-  `<div class="cx-fseg" style="margin:0 0 6px"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>
-  <p class="sub" style="margin:0">A ordem abaixo é a que o cliente vê no app. A primeira parada é a próxima entrega.</p>
-  <div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
+  buscaBox('en', 'eq', ui.eq, 'Buscar cliente, endereço ou cidade').replace('class="bs-search bq-busca"', 'class="bs-search bq-busca" style="margin:-14px 0 -6px"') +
+  `<div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
+  <div class="cx-fseg" style="margin:0 0 -4px"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>
   <div class="stack">${agrupa(rotaI, x => x.v, rotaHtml, false) || emptyBox(q && r.length ? nada : 'Nenhuma entrega na rota.')}</div>
   <div class="sec-h"><h2>Aguardando rota · ${q ? sepF.length + ' de ' + sep.length : sep.length}</h2>${sep.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" ${W()}>Pôr todos</button>` : ''}</div>
   <div class="stack">${agrupa(sepF, v => v, sepHtml, true) || `<p class="sub" style="margin:0">${q && sep.length ? nada : 'Nada esperando.'}</p>`}</div>
