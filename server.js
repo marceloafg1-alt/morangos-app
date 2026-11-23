@@ -10,6 +10,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const HOST = '0.0.0.0';
 
 app.use(express.static(__dirname, {
+  index: false,
   extensions: ['html'],
   setHeaders(res, filePath) {
     if (filePath.endsWith('.webmanifest')) {
@@ -20,6 +21,10 @@ app.use(express.static(__dirname, {
     }
   }
 }));
+
+app.get(['/', '/gestao', '/gestao/*', '/gestao/index.html'], (_req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 app.use((_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
