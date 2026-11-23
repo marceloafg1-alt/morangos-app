@@ -4105,10 +4105,7 @@ async function registrarBiometria() {
   return false;
 }
 
-let appLocked = (function(){
-  const cfg = getLockCfg();
-  return !!cfg.ativo && !!cfg.pinHash;
-})();
+let appLocked = false; /* ao atualizar a página não bloqueia; bloqueia ao voltar do app (visibilitychange) */
 let lockDigits = '';
 let lockShake = false;
 let lastAppHideTs = 0;
