@@ -4641,6 +4641,89 @@ function modalCobrancaSequencial(idx = 0) {
   });
 }
 
+/* ---------------- Lista de transmissão (promoções e lembretes no WhatsApp) ---------------- */
+const TRANSM_GRUPOS = [
+  { k: 'semanal', nome: 'Compra toda semana' },
+  { k: 'quer', nome: 'Quer comprar' },
+  { k: 'interessado', nome: 'Interessado' }
+];
+const TRANSM_MSG_PADRAO = 'Olá, {nome}! Tudo bem? 🍓\nTem morango fresquinho da roça essa semana! Quer que eu separe uma caixa para você?';
+const transmUi = { grupo: 'semanal' };
+function transmMsg() { return ls.get('mmr-transm-msg', '') || TRANSM_MSG_PADRAO; }
+function transmLog() { try { return JSON.parse(localStorage.getItem('mmr-transm-log') || '{}'); } catch (_) { return {}; } }
+function transmRegistra(grupo, cid) {
+  try { const l = transmLog(); l[grupo + ':' + cid] = Date.now(); localStorage.setItem('mmr-transm-log', JSON.stringify(l)); } catch (_) {}
+}
+function transmLista(grupo) {
+  const log = transmLog();
+  return S.clientes
+    .filter(c => grupo === 'todos' ? true : (c.listas || []).includes(grupo))
+    .map(c => ({ cliente: c, key: c.id, tel: soDig(c.telefone || ''), ultimo: log[grupo + ':' + c.id] || 0 }))
+    .sort((a, b) => (a.cliente.nome || '').localeCompare(b.cliente.nome || '', 'pt-BR'));
+}
+function transmSummary() {
+  const n = S.clientes.filter(c => (c.listas || []).length).length;
+  return n ? `${n} ${n === 1 ? 'cliente nas listas' : 'clientes nas listas'}` : 'Nenhum cliente nas listas ainda';
+}
+function transmTexto(item, modelo) {
+  const nome = String(item.cliente.nome || 'Cliente').trim().split(/\s+/)[0];
+  return String(modelo).replace(/{nome}/g, nome);
+}
+function transmAbrirWa(grupo, item, msg) {
+  if (!item.tel) { toast('Cliente sem número de telefone cadastrado.'); return false; }
+  const num = item.tel.length <= 11 ? '55' + item.tel : item.tel;
+  transmRegistra(grupo, item.key);
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
+  return true;
+}
+function modalTransmissao() {
+  const g = transmUi.grupo;
+  const lista = transmLista(g);
+  const comTel = lista.filter(i => i.tel).length;
+  const cont = k => k === 'todos' ? S.clientes.length : S.clientes.filter(c => (c.listas || []).includes(k)).length;
+  openModal('Lista de transmissão · WhatsApp', `
+    <div class="cbr-fila-head">
+      <div class="lt-chips" role="group" aria-label="Escolha a lista">${[...TRANSM_GRUPOS, { k: 'todos', nome: 'Todos os clientes' }].map(x => `<button type="button" class="lt-chip ${g === x.k ? 'on' : ''}" data-act="transm-grupo" data-v="${x.k}" aria-pressed="${g === x.k}">${x.nome} · ${cont(x.k)}</button>`).join('')}</div>
+      <div>
+        <label for="transm-msg" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px">Mensagem (use {nome} para o nome do cliente):</label>
+        <textarea id="transm-msg" class="cbr-preview no-autofocus" data-no-autofocus="1" rows="5">${esc(transmMsg())}</textarea>
+      </div>
+      ${comTel ? `<button type="button" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="transm-iniciar">${ic('chat')} ▶ Enviar em sequência (${comTel})</button>` : ''}
+      <small class="muted">O WhatsApp abre uma conversa por vez, com a mensagem pronta. Você só toca em enviar.</small>
+    </div>
+    <div class="card list" style="max-height:40vh;overflow-y:auto">
+      ${lista.map((i, idx) => `<div class="li" style="padding:12px 14px;align-items:center;gap:12px">
+        <span class="av">${esc((i.cliente.nome || 'A')[0])}</span>
+        <div style="flex:1;min-width:0"><b>${esc(i.cliente.nome || 'Cliente')}</b>
+          <small style="display:block;color:var(--muted)">${esc(i.cliente.telefone || 'Sem telefone')}</small>
+          ${i.ultimo ? `<small style="display:block;color:#1B7F47;font-weight:600">✓ Enviado ${relTime(i.ultimo)}</small>` : ''}</div>
+        <button type="button" class="cbr-badge-btn" data-act="transm-um" data-idx="${idx}" ${i.tel ? '' : 'disabled'}>${ic('chat')} Enviar</button>
+      </div>`).join('') || '<div class="empty">Ninguém nesta lista ainda. Abra um cliente e marque as listas dele.</div>'}
+    </div>`);
+}
+function modalTransmissaoSeq(idx = 0) {
+  const g = transmUi.grupo;
+  const lista = transmLista(g).filter(i => i.tel);
+  if (idx >= lista.length) {
+    openModal('Transmissão concluída', `<div style="text-align:center;padding:24px 10px"><span class="chipico g" style="width:56px;height:56px;margin:0 auto 14px">${ic('check')}</span><h2>Lista finalizada!</h2><p class="muted" style="margin:6px 0 20px;font-size:14px">Você passou por todos os ${lista.length} clientes da lista.</p><button type="button" class="btn primary block" data-act="close-modal">Fechar</button></div>`);
+    return;
+  }
+  const i = lista[idx], pct = Math.round(((idx + 1) / lista.length) * 100);
+  openModal(`Transmissão (${idx + 1} de ${lista.length})`, `
+    <div class="cbr-seq-box">
+      <div class="cbr-progress-bar"><div class="cbr-progress-fill" style="width:${pct}%"></div></div>
+      <small class="muted">Progresso: ${idx + 1} de ${lista.length} (${pct}%)</small>
+      <div class="card" style="padding:14px;margin:0"><b style="font-size:16px">${esc(i.cliente.nome || 'Cliente')}</b><small class="muted" style="display:block">${esc(i.cliente.telefone || '')}${i.ultimo ? ' · enviado ' + relTime(i.ultimo) : ''}</small></div>
+      <div><label for="transm-txt" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px">Mensagem que será enviada no WhatsApp:</label>
+        <textarea id="transm-txt" class="cbr-preview no-autofocus" data-no-autofocus="1" rows="6">${esc(transmTexto(i, transmMsg()))}</textarea>
+        <small class="muted" style="display:block;margin-top:4px">Você pode alterar o texto acima antes de enviar se desejar.</small></div>
+      <div class="cbr-step-actions">
+        <button type="button" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;padding:14px;font-size:15px;gap:8px" data-act="transm-seq-abrir" data-v="${idx}">${ic('chat')} Abrir WhatsApp de ${esc((i.cliente.nome || '').split(' ')[0])} e Enviar</button>
+        <button type="button" class="btn ghost" data-act="transm-seq-pular" data-v="${idx}">Pular este ▶</button>
+      </div>
+    </div>`, undefined, () => { try { document.activeElement?.blur?.(); } catch (_) {} });
+}
+
 function statusNote() {
   return !canWrite ? '<div class="note" role="status">Modo leitura: só o dono e editores podem alterar os dados.</div>' : '';
 }
@@ -5198,6 +5281,7 @@ function gConfig() {
     ${cfgRow('megaphone', 'Notícias', `${newsNoAr().length} no ar`, 'go-cfg', 'noticias')}
     ${cfgRow('receipt', 'Categorias de despesa', pl(catLista().length, 'categoria', 'categorias'), 'sheet', 'cat-cfg')}
     ${cfgRow('chat', 'Cobranças no WhatsApp', cobrancaSummary(), 'sheet', 'cobrancas-cfg')}
+    ${cfgRow('megaphone', 'Lista de transmissão', transmSummary(), 'transm-abrir', 'x')}
   </nav>
   <div class="sec-h"><h2>App</h2></div>
   <nav class="card menu-list cfg-list" aria-label="App">
@@ -7010,10 +7094,11 @@ function modalCliente(id, novo) {
     <div class="f full"><label for="k-cid">Cidade / UF</label><input type="text" id="k-cid" name="cidade" value="${esc(c.cidade)}"></div>
     <div class="f full"><label for="k-ref">Ponto de referência</label><input type="text" id="k-ref" name="referencia" value="${esc(c.referencia)}" placeholder="Ex.: portão verde, ao lado da padaria"></div>
     <div class="f full"><label for="k-obs">Observação</label><input type="text" id="k-obs" name="obs" value="${esc(c.obs)}" placeholder="Ex.: prefere Pix, entregar depois das 17h"></div>
+    <div class="f full"><span class="lbl">Listas de transmissão (promoções e lembretes)</span><div class="opts">${TRANSM_GRUPOS.map(g => `<label class="opt"><input type="checkbox" name="listas" value="${g.k}" ${(c.listas || []).includes(g.k) ? 'checked' : ''}><span>${g.nome}</span></label>`).join('')}</div></div>
   </div><div class="form-acts">${id ? `<button type="button" class="btn ghost" data-act="apagar-cliente" data-id="${id}" style="margin-right:auto">Apagar cliente</button>` : ''}<button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar cliente</button></div>`,
   async f => { const fd = new FormData(f); const nome = String(fd.get('nome') || '').trim(); if (!nome) { toast('Escreva o nome do cliente.'); return false; }
     const g = k => String(fd.get(k) || '').trim();
-    const body = { nome, tipo: fd.get('tipo') || 'pessoa', telefone: g('telefone'), cep: g('cep').replace(/\D/g, ''), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs'), email: g('email').toLowerCase(), complemento: g('complemento') };
+    const body = { nome, tipo: fd.get('tipo') || 'pessoa', telefone: g('telefone'), cep: g('cep').replace(/\D/g, ''), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs'), email: g('email').toLowerCase(), complemento: g('complemento'), listas: fd.getAll('listas').map(String) };
     if (id) return safe(async () => { await patch('clientes', id, body); await vincularVendas(id, body); }, 'Cliente salvo.');
     if (S.clientes.some(x => (x.nome || '').trim().toLowerCase() === nome.toLowerCase())) { toast('Já existe um cliente com esse nome.'); return false; }
     const nid = uid(); return safe(async () => { await put('clientes', nid, { ...body, ts: Date.now() }); await vincularVendas(nid, body); }, 'Cliente cadastrado.'); },
@@ -9338,6 +9423,21 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'cbr-seq-pular': modalCobrancaSequencial(Number(v) + 1); break;
+    case 'transm-abrir': modalTransmissao(); break;
+    case 'transm-grupo': { const m = document.getElementById('transm-msg'); if (m) ls.set('mmr-transm-msg', m.value); transmUi.grupo = v; modalTransmissao(); break; }
+    case 'transm-iniciar': { const m = document.getElementById('transm-msg'); if (m) ls.set('mmr-transm-msg', m.value); modalTransmissaoSeq(0); break; }
+    case 'transm-um': {
+      const m = document.getElementById('transm-msg'); if (m) ls.set('mmr-transm-msg', m.value);
+      const it = transmLista(transmUi.grupo)[Number(t.dataset.idx)];
+      if (it && transmAbrirWa(transmUi.grupo, it, transmTexto(it, transmMsg()))) { toast('WhatsApp aberto!'); modalTransmissao(); }
+      break;
+    }
+    case 'transm-seq-abrir': {
+      const idx = Number(v), it = transmLista(transmUi.grupo).filter(i => i.tel)[idx];
+      if (it) { const txt = document.getElementById('transm-txt')?.value || transmTexto(it, transmMsg()); transmAbrirWa(transmUi.grupo, it, txt); toast('WhatsApp aberto!'); setTimeout(() => modalTransmissaoSeq(idx + 1), 600); }
+      break;
+    }
+    case 'transm-seq-pular': modalTransmissaoSeq(Number(v) + 1); break;
     case 'cbr-seq-pago': {
       const idxP = Number(v);
       const devsP = devedoresLista();
