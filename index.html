@@ -4112,7 +4112,7 @@ let appLocked = (function(){
 let lockDigits = '';
 let lockShake = false;
 let lastAppHideTs = 0;
-let lockView = 'bio'; /* 'bio' = tela da digital, 'pin' = tela do PIN */
+let lockView = 'pin';
 let lockBioTried = false;
 
 function isAppLocked() {
@@ -4127,7 +4127,7 @@ function isAppLocked() {
 }
 function unlockApp() {
   appLocked = false;
-  lockView = 'bio';
+  lockView = 'pin';
   lockBioTried = false;
   lockDigits = '';
   lockShake = false;
@@ -4166,38 +4166,17 @@ function renderLockPadOnly() {
     <div class="lock-dot ${lockDigits.length >= 4 ? 'filled' : ''}"></div>
   `;
 }
-function lockAutoBio() {
-  const cfg = getLockCfg();
-  if (!cfg.bio || !window.PublicKeyCredential || lockView === 'pin' || lockBioTried) return;
-  lockBioTried = true;
-  setTimeout(async () => {
-    if (!isAppLocked() || lockView === 'pin') return;
-    const ok = await autenticarBiometria();
-    if (ok) unlockApp();
-  }, 300);
-}
 function gLockScreen() {
   const cfg = getLockCfg();
   const temPin = !!cfg.pinHash;
   const temBio = !!cfg.bio && !!window.PublicKeyCredential;
-  const head = `<div class="lock-icon-wrap">${ic('morango')}</div><h1 class="lock-title">Morangos · Gestão</h1>`;
-
-  if (temBio && lockView !== 'pin') {
-    return `<section class="app-lock-screen" aria-label="Desbloqueio do aplicativo">
-    <div class="lock-card">
-      ${head}
-      <p class="lock-sub">Autenticar com biometria</p>
-      <button type="button" class="lock-pill" data-act="lock-view-pin">Usar PIN</button>
-      <p class="lock-hint">Toque no sensor</p>
-      <button type="button" class="lock-bio-circle" data-act="lock-trigger-bio" aria-label="Autenticar com a digital">${ic('fingerprint')}</button>
-    </div>
-  </section>`;
-  }
-
   return `<section class="app-lock-screen" aria-label="Desbloqueio do aplicativo">
     <div class="lock-card">
-      ${head}
+      <div class="lock-icon-wrap">${ic('morango')}</div>
+      <h1 class="lock-title">Morangos · Gestão</h1>
       <p class="lock-sub">${temPin ? 'Digite seu PIN para entrar' : 'Nenhum PIN configurado. Toque abaixo para criar.'}</p>
+
+      ${temPin && temBio ? `<button type="button" class="lock-pill" data-act="lock-sistema">Biometria do sistema</button>` : ''}
 
       ${temPin ? `
         <div class="lock-dots ${lockShake ? 'shake' : ''}">
@@ -4217,11 +4196,10 @@ function gLockScreen() {
           <button type="button" class="btn primary block" data-act="lock-pin-modal">${ic('key')} Definir PIN de 4 dígitos</button>
         </div>
       `}
-      ${temBio ? `
+
       <div class="lock-foot">
-        <button type="button" data-act="lock-sistema">Usar padrão do aparelho</button>
-        <button type="button" data-act="lock-view-bio">Voltar para a digital</button>
-      </div>` : ''}
+        <button type="button" data-act="lock-esqueci">Sair da conta (não sei o PIN)</button>
+      </div>
     </div>
   </section>`;
 }
@@ -4234,7 +4212,7 @@ document.addEventListener('visibilitychange', () => {
     const pass = (Date.now() - (lastAppHideTs || 0)) / 1000;
     if (pass >= (cfg.timeout || 0)) {
       appLocked = true;
-      lockView = 'bio';
+      lockView = 'pin';
       lockBioTried = false;
       lockDigits = '';
       render();
@@ -4710,7 +4688,6 @@ function render() {
   }
   if (isAppLocked()) {
     $main.innerHTML = gLockScreen();
-    lockAutoBio();
     document.getElementById('nav-root').innerHTML = '';
     document.getElementById('sheet-root').innerHTML = '';
     cabecalhoFixo();
@@ -9070,7 +9047,7 @@ document.addEventListener('click', async e => {
       }
       ui.sheet = null;
       appLocked = true;
-      lockView = 'bio';
+      lockView = 'pin';
       lockBioTried = false;
       lockDigits = '';
       render();
@@ -9079,8 +9056,8 @@ document.addEventListener('click', async e => {
     }
     case 'lock-esqueci': {
       modalConfirm(
-        'O PIN será removido deste aparelho e o app abre sem bloqueio. Depois você pode criar um novo PIN em Configurações.',
-        'Remover PIN',
+        'Você vai sair da conta neste aparelho e o PIN será apagado. Depois, entre com Google e crie um novo PIN.',
+        'Sair da conta',
         async () => {
           setLockCfg({ ativo: false, bio: false, pinHash: '', credId: '' });
           appLocked = false;
@@ -9101,7 +9078,7 @@ document.addEventListener('click', async e => {
               return false;
             }
           }
-          toast('PIN removido. Crie um novo em Configurações > Desbloqueio do app.');
+          toast('PIN removido. Entre com Google e crie um novo PIN.');
           render();
           return true;
         }
