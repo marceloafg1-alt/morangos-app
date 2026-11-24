@@ -1832,6 +1832,22 @@ form .is-off { opacity: .55; }
 .bs-scrim { z-index: 70; background: rgb(20 12 12 / .5); animation: bsFade .14s ease-out; }
 .bs { width: min(560px, 100%); max-height: 90dvh; overflow: auto; overscroll-behavior: contain; background: var(--card); color: var(--ink); border-radius: 28px 28px 0 0;
   padding: 10px 22px calc(22px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 40px rgb(0 0 0 / .18); display: grid; gap: 14px; align-content: start; animation: bsUp .2s cubic-bezier(.2,.8,.2,1); }
+.cfg-hero{display:flex;gap:12px;align-items:flex-start;margin:0 0 14px}
+.cfg-hero p{margin:0;font-size:13.5px;line-height:1.45;color:var(--muted)}
+.cfg-hero .ml-ic{flex:none}
+.cfg-h{margin:18px 2px 8px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cfg-card{padding:14px;display:grid;gap:14px;margin:0;background:color-mix(in srgb,var(--ink) 4.5%,transparent);border:1px solid var(--line);box-shadow:none}
+.bs .cfg-h{margin:6px 2px -6px}
+.cfg-card .lt-btn2{height:40px;padding:0 16px;font-weight:700}
+.cfg-card .f select,.cfg-card .f input[type=password]{width:100%}
+.cfg-card input[type=range]{width:100%;accent-color:var(--accent)}
+.cfg-ln{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cfg-tx{display:grid;gap:2px;min-width:0}.cfg-tx b{font-size:15px}.cfg-tx small{font-size:12.5px;line-height:1.35}
+.cfg-step{display:flex;align-items:center;gap:8px}.cfg-step input{flex:1}
+.cfg-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:var(--surface-2,var(--line));font-size:11px;font-weight:700;color:var(--muted)}
+.cfg-tag.ok{background:var(--accent);color:var(--onA,#fff)}
+body.voz-on .bs { max-height: min(calc(var(--voz-h0, 100dvh) - 132px), calc(100dvh - 8px)); }
+body.voz-on .fab-pop { max-height: min(calc(var(--voz-h0, 100dvh) - 84px - env(safe-area-inset-bottom, 0px) - 132px), calc(100dvh - 8px)); }
 .bs::before { content: ""; justify-self: center; width: 44px; height: 5px; border-radius: 3px; background: var(--line); }
 .bs-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -22px; padding: 6px 22px; position: sticky; top: -10px; z-index: 2; background: var(--card); }
 .bs-h h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
@@ -8939,7 +8955,7 @@ function iaBlocoUsoResumo(soVoz = false) {
   const r = iaResumoMes(), u = r.ultima;
   const fmtUlt = l => l ? `${l.slotFinal === 'reserva' ? 'Chave Reserva (Paga)' : (l.tipoFinal === 'gratis' ? 'Chave Principal (Grátis)' : 'Chave Principal (Paga)')} · ${esc(l.apiFinal || '?')} (${esc(l.modeloFinal || '?')}) · ${iaFmtMs(l.duracaoMs || 0)}${l.ok ? '' : ' · erro'}` : '';
   const ultVoz = soVoz ? (r.logs.find(x => x.origem === 'voz') || u) : u;
-  return `<div class="note" style="margin:12px 0 0;font-size:13px;line-height:1.45">
+  return `<div class="card cfg-card" style="font-size:13px;line-height:1.5;font-weight:500">
     <div><b>Uso neste mês (neste aparelho):</b> ${r.total} ${r.total === 1 ? 'chamada' : 'chamadas'}${r.mediaMs ? ` · média ${iaFmtMs(r.mediaMs)}` : ''} · <b>${iaFmtR(r.totalReais)}</b></div>
     <div style="margin-top:4px">• <b>Chave Principal (${r.principal.ehGratis ? 'Grátis' : 'Paga'}):</b> ${r.principal.n} ${r.principal.n === 1 ? 'chamada' : 'chamadas'}${r.principal.erro ? ` (${r.principal.erro} ${r.principal.erro === 1 ? 'falha' : 'falhas'})` : ''} · <b>${r.principal.ehGratis ? 'R$ 0,00' : iaFmtR(r.principal.reais)}</b></div>
     <div style="margin-top:2px">• <b>Chave Reserva (Fallback Pago):</b> ${r.reserva.n} ${r.reserva.n === 1 ? 'chamada' : 'chamadas'}${r.reserva.erro ? ` (${r.reserva.erro} ${r.reserva.erro === 1 ? 'falha' : 'falhas'})` : ''} · <b>${iaFmtR(r.reserva.reais || 0)}</b></div>
@@ -8949,14 +8965,18 @@ function iaBlocoUsoResumo(soVoz = false) {
 }
 function iaCfgSheet(wrap) {
   const c = iaChave(), cr = iaChaveReserva();
-  return wrap('Lançar com IA', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Cole aqui a chave gratuita do Google AI Studio (começa com <b>AQ.</b> ou <b>AIza</b>). Opcionalmente, adicione uma chave reserva paga do Google ou da Anthropic (<b>sk-ant-</b>) para troca instantânea caso o limite gratuito oscile. Elas ficam só neste aparelho.</p>
-    <div class="f"><label for="ia-chave">Chave da IA (Principal - Grátis)</label><input type="password" id="ia-chave" autocomplete="off" placeholder="${c ? 'chave salva (' + esc(c.slice(0, 7)) + '…)' : 'AQ… ou AIza…'}"></div>
-    <div class="f" style="margin-top:10px"><label for="ia-chave-res">Chave Reserva (Fallback Pago)</label><input type="password" id="ia-chave-res" autocomplete="off" placeholder="${cr ? 'chave reserva salva (' + esc(cr.slice(0, 7)) + '…)' : 'Opcional: AIza… / AQ… / sk-ant-…'}"></div>
-    <button class="lt-btn lt-block" style="margin-top:10px" data-act="ia-chave-salvar">Salvar chaves</button>
-    ${c ? '<button class="lt-btn lt-block" style="margin-top:8px" data-act="ia-chave-remover">Remover chave principal</button>' : ''}
-    ${cr ? '<button class="lt-btn lt-block" style="margin-top:8px" data-act="ia-chave-res-remover">Remover chave reserva</button>' : ''}
+  return wrap('Lançar com IA', `
+    <div class="cfg-hero"><span class="ml-ic">${ic('bolt')}</span><p>Cole a chave gratuita do Google AI Studio (começa com <b>AQ.</b> ou <b>AIza</b>). Se quiser, adicione uma chave reserva paga do Google ou da Anthropic (<b>sk-ant-</b>) para troca automática quando o limite gratuito oscilar. As chaves ficam só neste aparelho.</p></div>
+    <div class="cfg-h">Chaves</div>
+    <div class="card cfg-card">
+      <div class="f"><label for="ia-chave">Chave principal <span class="cfg-tag">Grátis</span>${c ? '<span class="cfg-tag ok">Salva</span>' : ''}</label><input type="password" id="ia-chave" autocomplete="off" placeholder="${c ? 'chave salva (' + esc(c.slice(0, 7)) + '…)' : 'AQ… ou AIza…'}"></div>
+      <div class="f"><label for="ia-chave-res">Chave reserva <span class="cfg-tag">Paga</span>${cr ? '<span class="cfg-tag ok">Salva</span>' : ''}</label><input type="password" id="ia-chave-res" autocomplete="off" placeholder="${cr ? 'chave reserva salva (' + esc(cr.slice(0, 7)) + '…)' : 'Opcional: AIza… / AQ… / sk-ant-…'}"></div>
+      <button class="lt-btn lt-block" data-act="ia-chave-salvar">Salvar chaves</button>
+      ${c || cr ? `<div class="lt-chips">${c ? '<button type="button" class="lt-chip" data-act="ia-chave-remover">Remover principal</button>' : ''}${cr ? '<button type="button" class="lt-chip" data-act="ia-chave-res-remover">Remover reserva</button>' : ''}</div>` : ''}
+    </div>
+    <div class="cfg-h">Uso da IA</div>
     ${iaBlocoUsoResumo(false)}
-    <button class="lt-btn lt-block" style="margin-top:10px;background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor" data-act="sheet" data-v="ia-relatorio">Ver relatório de chamadas da IA</button>`);
+    <nav class="card menu-list" style="margin-top:10px"><button type="button" class="ml" data-act="sheet" data-v="ia-relatorio"><span class="ml-ic">${ic('list')}</span><span class="ml-l">Relatório de chamadas da IA</span><span></span>${ic('right', 'i chev')}</button></nav>`);
 }
 function iaRelatorioSheet(wrap) {
   const r = iaResumoMes(), f = ui.iaLogF || 'todas';
@@ -9173,8 +9193,16 @@ function vozPill() {
 }
 /* quando abre um cartão por baixo (lançamento, formulário, filtro), o botão da voz sobe para ficar acima dele */
 /* posição do botão: só vale até você mudar de tela ou atualizar a página; depois ele volta ao lugar fixo */
-const vozPagina = () => 'g:' + ui.g;
+const vozPagina = () => 'g:' + ui.g + '|' + document.querySelectorAll('.bs, .fab-pop, .modal').length + '|' + (ui.sheet ? ui.sheet.type : '');
 function vozPosLe() { const k = vozPagina(); if (VOZ.pagina !== k) { VOZ.pagina = k; VOZ.pos = null; } return VOZ.pos || null; }
+/* altura da tela sem teclado: os cards não mudam de tamanho quando o teclado abre e há espaço livre para o balão acima deles */
+let VOZ_H0 = 0, VOZ_W0 = 0;
+function vozAlturaEstavel() {
+  const kb = document.body.classList.contains('kb'); if (!kb && (innerHeight > VOZ_H0 * 0.8 || innerWidth !== VOZ_W0)) { VOZ_H0 = innerHeight; VOZ_W0 = innerWidth; }
+  const on = typeof vozLigado === 'function' && vozLigado();
+  document.body.classList.toggle('voz-on', !!on);
+  document.documentElement.style.setProperty('--voz-h0', (VOZ_H0 || innerHeight) + 'px');
+}
 function vozPosiciona() {
   const box = document.getElementById('voz-box'); if (!box) return;
   const pos = vozPosLe();
@@ -9183,7 +9211,8 @@ function vozPosiciona() {
     Object.assign(box.style, { left: l + 'px', top: t + 'px', right: 'auto', bottom: 'auto', flexDirection: t < innerHeight / 2 ? 'column-reverse' : 'column', alignItems: l > innerWidth / 2 ? 'flex-end' : 'flex-start' }); return;
   }
   let topo = Infinity;
-  document.querySelectorAll('.bs, .fab-pop, .modal').forEach(el => { const r = el.getBoundingClientRect(); if (r.height > 40 && r.bottom > innerHeight - 200 && r.top < topo) topo = r.top; });
+  vozAlturaEstavel();
+  document.querySelectorAll('.bs, .fab-pop, .modal').forEach(el => { const r = el.getBoundingClientRect(); let dy = 0; try { dy = new DOMMatrix(getComputedStyle(el).transform).m42 || 0; } catch { /* ok */ } const top = r.top - dy, bot = r.bottom - dy; if (r.height > 40 && bot > innerHeight - 200 && top < topo) topo = top; });
   Object.assign(box.style, { left: '', top: '', right: '', flexDirection: '', alignItems: '', bottom: topo === Infinity ? '' : Math.min(Math.max(innerHeight - topo + 10, 0), innerHeight - 56) + 'px' });
 }
 /* arrastar o botão: toque e segure, depois arraste; a posição fica salva neste aparelho */
@@ -9357,31 +9386,35 @@ async function vozConfirma(sim, tempo) {
   await vozDiz(d); vozContinua();
 }
 function vozCfgSheet(wrap) {
-  const on = vozLigado();
-  return wrap('Assistente de voz', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Diga <b>“oi Ander”</b> e fale o que precisa: tirar dúvidas do app (Ajuda), abrir telas, mudar a aparência e configurações ou lançar vendas, compras e despesas. Usa a chave da IA de <b>Lançar com IA</b>.</p>
-    <p class="muted" style="margin:0 0 10px;font-size:13.5px">Abrir telas e mudar configurações ele faz na hora. O que mexe em vendas, compras, despesas, cadastros, preços ou estoque ele repete e só faz depois de você dizer <b>sim</b>.</p>
-    <p class="muted" style="margin:0 0 10px;font-size:13px">Funciona no Chrome e no Edge (computador e Android), com o app aberto e a tela ligada. Permita o microfone quando o navegador pedir. No Chrome, o áudio é processado pelo serviço de voz do Google. Toque no botão do microfone na tela para falar sem a palavra de ativação.</p>
-    ${(() => { const vs = vozVozes(), uri = ls.get('mmr-voz-voz', ''); return `<div class="f"><label for="voz-sel">Voz</label><select id="voz-sel"><option value="">Automática (padrão do aparelho)</option>${vs.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === uri ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('')}</select>${vs.length ? '' : '<small class="muted">Nenhuma voz em português encontrada neste aparelho. Ele usa a voz padrão.</small>'}</div>
-      <div class="f" style="margin-top:8px"><label for="voz-vel">Velocidade: <b id="voz-vel-v">${vozVel().toFixed(2).replace('.', ',')}×</b></label><input type="range" id="voz-vel" min="0.7" max="1.5" step="0.05" value="${vozVel()}"></div>
-      <button class="lt-btn lt-block" style="margin:8px 0 12px" data-act="voz-teste">Ouvir a voz</button>
-      <button class="lt-btn lt-block" style="margin-bottom:6px" data-act="voz-conversa">Conversa contínua: ${vozConversa() ? 'ligada' : 'desligada'}</button>
-      <p class="muted" style="margin:0 0 12px;font-size:13px">Ligada, ele continua ouvindo por <b>${vozContinuaEspera()} segundos</b> depois de responder e lembra da conversa. Diga “obrigado” ou “tchau” para encerrar.</p>
-      <div class="f" style="margin-bottom:12px">
-        <label for="voz-conv-esp">Esperar outra fala minha (conversa contínua): <b id="voz-conv-esp-v">${vozContinuaEspera()} s</b></label>
-        <div style="display:flex;align-items:center;gap:8px;margin:4px 0 6px">
-          <button type="button" class="lt-chip" data-act="voz-conv-step" data-v="-5" ${vozConversa() ? '' : 'disabled'}>−5 s</button>
-          <input type="range" id="voz-conv-esp" min="5" max="60" step="5" value="${vozContinuaEspera()}" style="flex:1" ${vozConversa() ? '' : 'disabled'}>
-          <button type="button" class="lt-chip" data-act="voz-conv-step" data-v="5" ${vozConversa() ? '' : 'disabled'}>+5 s</button>
-        </div>
-        <div class="lt-chips" style="margin-bottom:4px">${[5, 10, 15, 20, 30, 45, 60].map(s => `<button type="button" class="lt-chip ${vozContinuaEspera() === s ? 'on' : ''}" data-act="voz-conv-set" data-v="${s}" ${vozConversa() ? '' : 'disabled'}>${s} s</button>`).join('')}</div>
-        <small class="muted">Tempo que o Ander fica esperando você falar de novo antes de encerrar.</small>
-      </div>
-      <p class="muted" style="margin:0 0 12px;font-size:13px">Em último caso, dá para <b>arrastar o botão do microfone</b> para outro lugar. Ele volta ao lugar fixo quando você muda de tela ou atualiza a página.</p>
-      <div class="f" style="margin-bottom:12px"><label for="voz-esp">Esperar depois que eu parar de falar: <b id="voz-esp-v">${vozEspera().toFixed(1).replace('.', ',')} s</b></label><input type="range" id="voz-esp" min="1" max="6" step="0.5" value="${vozEspera()}"><small class="muted">Aumente se ele responder antes de você terminar.</small></div>`; })()}
+  const on = vozLigado(), conv = vozConversa(), vs = vozVozes(), uri = ls.get('mmr-voz-voz', '');
+  const sw = (id, act, checked, dis) => `<input type="checkbox" class="lt-switch" id="${id}" data-act="${act}" ${checked ? 'checked' : ''} ${dis ? 'disabled' : ''}>`;
+  const lin = (tit, sub, ctl) => `<div class="cfg-ln"><div class="cfg-tx"><b>${tit}</b>${sub ? `<small class="muted">${sub}</small>` : ''}</div>${ctl}</div>`;
+  return wrap('Assistente de voz', `
+    <div class="cfg-hero"><span class="ml-ic">${ic('bolt')}</span><p>Diga <b>“oi Ander”</b> e fale o que precisa: tirar dúvidas, abrir telas, mudar configurações ou lançar vendas, compras e despesas. Abrir telas e mudar a aparência ele faz na hora; o que mexe em dados ele repete e só faz depois do seu <b>sim</b>.</p></div>
     ${VOZ_SR ? '' : '<div class="note" style="margin-bottom:10px">Este navegador não tem reconhecimento de voz. Use o Chrome ou o Edge.</div>'}
-    <button class="lt-btn lt-block" data-act="voz-toggle" ${VOZ_SR ? '' : 'disabled'}>${on ? 'Desligar assistente de voz' : 'Ligar assistente de voz'}</button>
+    <div class="card cfg-card">${lin('Assistente de voz', on ? 'Ligado: ouvindo a palavra de ativação' : 'Desligado', sw('voz-sw', 'voz-toggle', on, !VOZ_SR))}</div>
+    <div class="cfg-h">Voz e velocidade</div>
+    <div class="card cfg-card">
+      <div class="f"><label for="voz-sel">Voz</label><select id="voz-sel"><option value="">Automática (padrão do aparelho)</option>${vs.map(v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === uri ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)}</option>`).join('')}</select>${vs.length ? '' : '<small class="muted">Nenhuma voz em português encontrada neste aparelho. Ele usa a voz padrão.</small>'}</div>
+      <div class="f"><label for="voz-vel">Velocidade <b id="voz-vel-v">${vozVel().toFixed(2).replace('.', ',')}×</b></label><input type="range" id="voz-vel" min="0.7" max="1.5" step="0.05" value="${vozVel()}"></div>
+      <button class="lt-btn2" data-act="voz-teste" style="justify-self:start">Ouvir a voz</button>
+    </div>
+    <div class="cfg-h">Conversa</div>
+    <div class="card cfg-card">
+      ${lin('Conversa contínua', `Depois de responder, continua ouvindo por ${vozContinuaEspera()} s e lembra do assunto. Diga “obrigado” ou “tchau” para encerrar.`, sw('voz-conv-sw', 'voz-conversa', conv, false))}
+      <div class="f"><label for="voz-conv-esp">Esperar outra fala sua <b id="voz-conv-esp-v">${vozContinuaEspera()} s</b></label>
+        <div class="cfg-step"><button type="button" class="lt-chip" data-act="voz-conv-step" data-v="-5" ${conv ? '' : 'disabled'}>−5 s</button><input type="range" id="voz-conv-esp" min="5" max="60" step="5" value="${vozContinuaEspera()}" ${conv ? '' : 'disabled'}><button type="button" class="lt-chip" data-act="voz-conv-step" data-v="5" ${conv ? '' : 'disabled'}>+5 s</button></div>
+        <div class="lt-chips">${[5, 10, 15, 20, 30, 45, 60].map(x => `<button type="button" class="lt-chip ${vozContinuaEspera() === x ? 'on' : ''}" data-act="voz-conv-set" data-v="${x}" ${conv ? '' : 'disabled'}>${x} s</button>`).join('')}</div>
+      </div>
+    </div>
+    <div class="cfg-h">Escuta</div>
+    <div class="card cfg-card">
+      <div class="f"><label for="voz-esp">Esperar depois que você parar de falar <b id="voz-esp-v">${vozEspera().toFixed(1).replace('.', ',')} s</b></label><input type="range" id="voz-esp" min="1" max="6" step="0.5" value="${vozEspera()}"><small class="muted">Aumente se ele responder antes de você terminar.</small></div>
+      <small class="muted">Funciona no Chrome e no Edge, com o app aberto e a tela ligada. No Chrome o áudio passa pelo serviço de voz do Google. Dá para arrastar o botão do microfone; ele volta ao lugar ao mudar de tela.</small>
+    </div>
+    <div class="cfg-h">Uso da IA</div>
     ${iaBlocoUsoResumo(true)}
-    <button class="lt-btn lt-block" style="margin-top:10px;background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor" data-act="sheet" data-v="ia-relatorio">Ver relatório de chamadas da IA</button>`);
+    <nav class="card menu-list" style="margin-top:10px"><button type="button" class="ml" data-act="sheet" data-v="ia-relatorio"><span class="ml-ic">${ic('list')}</span><span class="ml-l">Relatório de chamadas da IA</span><span></span>${ic('right', 'i chev')}</button></nav>`);
 }
 document.addEventListener('change', e => { const t = e.target; if (!t) return; if (t.id === 'voz-sel') ls.set('mmr-voz-voz', t.value); else if (t.id === 'voz-vel') ls.set('mmr-voz-vel', Number(t.value)); else if (t.id === 'voz-esp') { ls.set('mmr-voz-espera', Number(t.value)); return; } else if (t.id === 'voz-conv-esp') { ls.set('mmr-voz-conversa-espera', Number(t.value)); render(); return; } else return; vozTeste(); });
 document.addEventListener('input', e => { if (e.target && e.target.id === 'voz-esp') { const o = document.getElementById('voz-esp-v'); if (o) o.textContent = Number(e.target.value).toFixed(1).replace('.', ',') + ' s'; } if (e.target && e.target.id === 'voz-vel') { const o = document.getElementById('voz-vel-v'); if (o) o.textContent = Number(e.target.value).toFixed(2).replace('.', ',') + '×'; } if (e.target && e.target.id === 'voz-conv-esp') { const o = document.getElementById('voz-conv-esp-v'); if (o) o.textContent = Number(e.target.value) + ' s'; } });
@@ -9392,6 +9425,7 @@ function vozInit() {
   setInterval(() => { vozPill(); vozPosiciona(); }, 2000);
   let tPos = 0; const agenda = () => { cancelAnimationFrame(tPos); tPos = requestAnimationFrame(vozPosiciona); setTimeout(vozPosiciona, 350); };
   new MutationObserver(agenda).observe(document.body, { childList: true, subtree: true }); addEventListener('resize', agenda);
+  const volta = () => { VOZ.pos = null; agenda(); setTimeout(vozPosiciona, 600); }; addEventListener('popstate', volta); addEventListener('hashchange', volta); addEventListener('pageshow', volta);
   document.addEventListener('visibilitychange', () => { if (document.hidden) vozParaRec(); else vozIniciaRec(); });
   if (vozLigado()) { vozPill(); vozIniciaRec(); }
 }
