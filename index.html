@@ -8679,6 +8679,39 @@ function iaPreparaAcao(o, l) {
       if (pgT) { ui.perPg = pgT[0]; ui.sheet = { type: 'per-cfg-pg' }; } else ui.sheet = { type: it[1] };
       render();
     };
+  } else if (l.acao === 'abrir_novo') {
+    const MAP = { venda: ['nova venda', () => modalVenda(), 1], compra: ['nova compra', () => modalCompra(), 1], despesa: ['nova despesa', () => modalDespesa(), 1], cliente: ['novo cadastro de cliente', () => modalCliente(), 1], fornecedor: ['novo cadastro de fornecedor', () => modalFornecedor(), 1], produto: ['novo produto', () => modalProduto(), 1], noticia: ['nova notícia', () => modalNoticia(), 1], transmissao: ['nova transmissão', () => { transmSel = new Set(); modalTransmissao(); }, 0], cobranca: ['nova cobrança', () => modalFilaCobranca(), 0], lancar_ia: ['Lançar com IA', () => modalIA(), 1] };
+    const m = MAP[l.novo]; if (!m) o.problemas.push('não entendi qual janela abrir (venda, compra, despesa, cadastro, transmissão ou cobrança)'); else if (m[2] && !canWrite) o.problemas.push('modo leitura: não dá para lançar');
+    o.resumo = 'Abrir ' + (m ? m[0] : '?');
+    o.exec = async () => { ui.voltaCfg = false; ui.sheet = null; closeModal(); if (ui.g !== 'inicio') go('inicio'); else render(); await new Promise(r => setTimeout(r, 120)); m[1](); };
+  } else if (l.acao === 'preencher_tela') {
+    const campos = Array.isArray(l.campos) ? l.campos.filter(c => c && c.rotulo) : [];
+    if (!campos.length) o.problemas.push('diga o que preencher');
+    o.resumo = 'Preencher: ' + campos.map(c => c.rotulo + (String(c.valor || '') ? ' = ' + c.valor : '') + (c.linha ? ' (item ' + c.linha + ')' : '')).join('; ');
+    o.exec = async () => { for (let k = 0; k < 12 && !document.querySelector('#modal-root .bs'); k++) await new Promise(r => setTimeout(r, 100)); if (!document.querySelector('#modal-root .bs')) throw new Error('não há janela aberta para preencher'); const falhas = []; for (const c of campos) { const ok = vozPreenche(c.rotulo, String(c.valor ?? ''), Number(c.linha) || 0); await new Promise(r => setTimeout(r, 60)); if (!ok) falhas.push(c.rotulo); } if (falhas.length) throw new Error('não achei na tela: ' + falhas.join(', ')); };
+  } else if (l.acao === 'salvar_tela') {
+    const bs = document.querySelector('#modal-root .bs'), btn = bs && (bs.querySelector('.form-acts button[type=submit]') || bs.querySelector('button[type=submit]'));
+    if (!btn) o.problemas.push('não há janela com botão de salvar aberta');
+    o.resumo = 'Salvar a janela "' + (bs?.querySelector('#mtitle')?.textContent || 'aberta') + '" (' + (btn ? btn.textContent.trim() : '?') + ').';
+    o.exec = async () => { btn.click(); };
+  } else if (l.acao === 'selecao_envio') {
+    const op = ['todos', 'nenhum', 'marcar', 'desmarcar'].includes(l.operacao_selecao) ? l.operacao_selecao : ((l.cidades || l.nomes || []).length ? 'marcar' : '');
+    const cidades = (l.cidades || []).map(nz).filter(Boolean), nomes = (l.nomes || []).map(nz).filter(Boolean);
+    if (!op) o.problemas.push('diga o que marcar ou desmarcar');
+    if ((op === 'marcar' || op === 'desmarcar') && !cidades.length && !nomes.length) o.problemas.push('diga quais cidades ou nomes');
+    o.resumo = { todos: 'Marcar todos', nenhum: 'Desmarcar todos', marcar: 'Marcar', desmarcar: 'Desmarcar', '': 'Seleção' }[op] + (op === 'marcar' || op === 'desmarcar' ? ': ' + [...(l.cidades || []), ...(l.nomes || [])].join(', ') : '') + ' na transmissão ou cobrança aberta.';
+    o.exec = async () => {
+      for (let k = 0; k < 12 && !document.querySelector('#modal-root [data-act="cbr-tog"], #modal-root [data-act="transm-tog"]'); k++) await new Promise(r => setTimeout(r, 100));
+      const cobr = !!document.querySelector('#modal-root [data-act="cbr-tog"]'), transm = !!document.querySelector('#modal-root [data-act="transm-tog"]');
+      if (!cobr && !transm) throw new Error('abra primeiro a nova transmissão ou a nova cobrança');
+      const itens = cobr ? devedoresLista().map(d => ({ id: String(d.key), nome: d.cliente?.nome || 'Cliente avulso', cidade: d.cliente ? transmCidade(d.cliente) : '', tel: true })) : transmCidades().flatMap(g => g.itens.map(i => ({ id: i.id, nome: i.cliente.nome || '', cidade: g.nome, tel: !!i.tel })));
+      const casa = i => { const c = cidades.length ? cidades.some(x => nz(i.cidade).includes(x) || x.includes(nz(i.cidade))) : null, n = nomes.length ? nomes.some(x => nz(i.nome).includes(x) || x.includes(nz(i.nome))) : null; return cidades.length && nomes.length ? (c || n) : (c ?? n ?? false); };
+      const alvo = op === 'todos' || op === 'nenhum' ? itens : itens.filter(casa);
+      if ((op === 'marcar' || op === 'desmarcar') && !alvo.length) throw new Error('não achei ninguém com ' + [...(l.cidades || []), ...(l.nomes || [])].join(', '));
+      const set = cobr ? cobrSel : transmSel;
+      if (op === 'nenhum') set.clear(); else if (op === 'todos') itens.filter(i => i.tel).forEach(i => set.add(i.id)); else if (op === 'desmarcar') alvo.forEach(i => set.delete(i.id)); else alvo.filter(i => i.tel).forEach(i => set.add(i.id));
+      cobr ? cobrAtualiza() : transmAtualiza();
+    };
   } else if (l.acao === 'periodo_padrao') {
     if (!PERIODOS[l.periodo]) o.problemas.push('período não reconhecido');
     o.resumo = 'Período padrão: ' + (PERIODOS[l.periodo] || '?');
@@ -9182,7 +9215,7 @@ async function vozFazEstorno(col, id, valorOp, motivo, cancelar) {
   if (voltaEst) await adjustStock(its.filter(i => prodById(i.produtoId)), col === 'compras' ? -1 : 1);
   if (cancela && x.status === 'em_rota') await rtSemParada(id);
 }
-const VOZ_SEGURAS = ['tema', 'abrir_tela', 'abrir_config', 'abrir_filtro', 'periodo_padrao', 'whatsapp_numero', 'enviar_mensagem'];
+const VOZ_SEGURAS = ['tema', 'abrir_tela', 'abrir_config', 'abrir_novo', 'preencher_tela', 'selecao_envio', 'abrir_filtro', 'periodo_padrao', 'whatsapp_numero', 'enviar_mensagem'];
 const VOZ_DESTRUTIVAS = ['excluir', 'cancelar_venda', 'estornar', 'produto_excluir'];
 const vozNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const vozLigado = () => !!ls.get('mmr-voz', false);
@@ -9193,12 +9226,17 @@ P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.
 function vozFerramenta() {
   const f = JSON.parse(JSON.stringify(iaFerramenta));
   const it = f.input_schema.properties.lancamentos.items.properties;
-  it.acao.enum = [...it.acao.enum, 'excluir', 'desfazer_exclusao', 'abrir_filtro', 'enviar_mensagem', 'dar_baixa', 'pagamento_parcial', 'cancelar_venda', 'estornar'];
+  it.acao.enum = [...it.acao.enum, 'abrir_novo', 'preencher_tela', 'selecao_envio', 'salvar_tela', 'excluir', 'desfazer_exclusao', 'abrir_filtro', 'enviar_mensagem', 'dar_baixa', 'pagamento_parcial', 'cancelar_venda', 'estornar'];
+  it.novo = { type: 'string', enum: ['venda', 'compra', 'despesa', 'cliente', 'fornecedor', 'produto', 'noticia', 'transmissao', 'cobranca', 'lancar_ia', ''], description: 'Só para abrir_novo: qual janela de criação abrir.' };
+  it.campos = { type: 'array', description: 'Só para preencher_tela: campos da janela ABERTA (ver TELA ABERTA AGORA) a preencher ou marcar.', items: { type: 'object', properties: { rotulo: { type: 'string', description: 'Nome do campo, botão ou opção como aparece na tela (ex.: Cliente, Telefone, Pago com, Já foi pago?, + Item). Em itens: Produto, Quantidade ou Preço.' }, valor: { type: 'string', description: 'O que colocar: texto, número, nome da opção; "sim"/"não" para liga e desliga. Vazio para só tocar num botão.' }, linha: { type: 'number', description: 'Para itens de venda/compra: o número do item (1, 2...). 0 se não se aplica.' } }, required: ['rotulo'] } };
+  it.operacao_selecao = { type: 'string', enum: ['todos', 'nenhum', 'marcar', 'desmarcar', ''], description: 'Só para selecao_envio (janela de Transmissão ou Cobrança aberta): todos marca todos, nenhum limpa, marcar/desmarcar usa cidades e/ou nomes.' };
+  it.cidades = { type: 'array', items: { type: 'string' }, description: 'Só para selecao_envio: cidades.' };
+  it.nomes = { type: 'array', items: { type: 'string' }, description: 'Só para selecao_envio: nomes de clientes.' };
   it.mensagem = { type: 'string', description: 'Só para enviar_mensagem: o texto pronto que será enviado ao cliente.' };
   it.valor_operacao = { type: 'number', description: 'Só para pagamento_parcial (quanto foi pago ou recebido agora) e estornar (valor a estornar; 0 = tudo).' };
   it.motivo = { type: 'string', description: 'Só para estornar e cancelar_venda: o motivo, se o dono disser.' };
   it.visao_caixa = { type: 'string', enum: ['movimentacoes', 'saldo', 'a_receber', 'contas_a_pagar', 'despesas_a_pagar', 'vendas', 'compras', 'despesas', 'estornos', ''], description: 'Só para acao abrir_filtro com tela caixa: a_receber = contas a receber (quem deve); contas_a_pagar = compras a pagar; despesas_a_pagar = despesas a pagar; vendas, compras, despesas = lista só daquele tipo.' };
-  it.acao.description += ' excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz. enviar_mensagem: manda uma mensagem no chat para um cliente (use pessoa e mensagem). dar_baixa: marca como paga uma venda, compra ou despesa em aberto (colecao + como achar). pagamento_parcial: registra um pagamento parcial de venda ou compra (colecao, valor_operacao). cancelar_venda: cancela uma venda (como achar). estornar: estorna valor de uma venda, compra ou despesa (colecao, valor_operacao, motivo). Para achar o lançamento use pessoa/descricao, valor (o total do lançamento), data ou mais_recente. abrir_filtro: abre a tela pedida (use tela) já com o período (use periodo) e, no caixa, a lista pedida (use visao_caixa), por exemplo "relatório só de contas a receber".';
+  it.acao.description += ' abrir_novo: abre direto a janela de criar (use novo): "nova venda", "nova compra", "nova despesa", "novo cadastro de cliente", "nova transmissão", "nova cobrança" etc. Sempre abre a janela de novo lançamento, nunca Configurações (Configurações só quando ele disser "configurações, ..." = abrir_config). preencher_tela: depois da janela aberta, preenche campos ou toca em botões/opções dela (use campos; os rótulos estão em TELA ABERTA AGORA); pode preencher vários campos de uma vez e o dono vai dizendo o resto aos poucos. salvar_tela: toca no botão de salvar da janela aberta, SÓ quando ele mandar salvar/lançar/confirmar. selecao_envio: na janela de Transmissão ou Cobrança, marca ou desmarca clientes (operacao_selecao, cidades, nomes); na Cobrança todos já vêm marcados. excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz. enviar_mensagem: manda uma mensagem no chat para um cliente (use pessoa e mensagem). dar_baixa: marca como paga uma venda, compra ou despesa em aberto (colecao + como achar). pagamento_parcial: registra um pagamento parcial de venda ou compra (colecao, valor_operacao). cancelar_venda: cancela uma venda (como achar). estornar: estorna valor de uma venda, compra ou despesa (colecao, valor_operacao, motivo). Para achar o lançamento use pessoa/descricao, valor (o total do lançamento), data ou mais_recente. abrir_filtro: abre a tela pedida (use tela) já com o período (use periodo) e, no caixa, a lista pedida (use visao_caixa), por exemplo "relatório só de contas a receber".';
   it.colecao = { type: 'string', enum: ['venda', 'compra', 'despesa', ''], description: 'Só para acao excluir.' };
   it.mais_recente = { type: 'boolean', description: 'Só para acao excluir: true se ele pediu a última/mais recente.' };
   f.name = 'atender'; f.description = 'Responde ao dono em voz e, se ele pediu, registra lançamentos ou ações no app.';
@@ -9220,6 +9258,9 @@ O que fazer:
 - Mensagem para cliente: use acao=enviar_mensagem com pessoa (nome do cliente) e mensagem pronta, educada e curta, em nome da loja, com o que o dono pediu (não invente preços, horários nem promessas). Ela é enviada direto.
 - Baixa e pagamentos: "marca como paga", "recebi" = dar_baixa; "recebi 50 da venda do João" ou "paguei 200 da compra" = pagamento_parcial com valor_operacao; "cancela a venda" = cancelar_venda; "estorna 30 reais" = estornar. Para achar o lançamento use pessoa, valor total, data ou mais_recente. Um por pedido.
 - Excluir: use acao=excluir para apagar UMA venda, compra ou despesa por pedido, com colecao e o que ele disser para achar (pessoa ou descricao, valor, data) ou mais_recente=true. Nunca exclua mais de um lançamento por pedido nem em lote: se ele pedir "apaga todas" ou "apaga tudo", diga em "fala" que só exclui um de cada vez e lancamentos vazio. Para trazer de volta a última exclusão use acao=desfazer_exclusao.
+- Nova venda, nova compra, nova despesa, novo cadastro, nova transmissão, nova cobrança, novo produto: use acao=abrir_novo (abre direto a janela de criar). Nunca Configurações para isso. Só use abrir_config quando ele disser "configurações, ...".
+- Com uma janela aberta (veja TELA ABERTA AGORA), o dono dita o que quer em cada campo: use acao=preencher_tela com campos (rotulo exatamente como na tela, valor), podendo vários campos num só pedido. Para venda/compra, itens: rotulo Produto, Quantidade ou Preço com linha=1,2...; "+ Item" adiciona outro item. Só use salvar_tela quando ele mandar salvar, lançar ou confirmar; antes de salvar, se faltar algo, pergunte.
+- Na janela de Transmissão ou Cobrança, use acao=selecao_envio: "todos", "ninguém", marcar ou desmarcar por cidade e/ou nomes. Na Cobrança todos já vêm marcados.
 - A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
 - Se não for sobre o app, diga em uma frase que você cuida só do aplicativo.
@@ -9229,6 +9270,7 @@ O que fazer:
 - Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar. SEMPRE que ele der a entender que a entrega ainda não aconteceu, use entrega=separado (entregar depois): entrega pendente, em aberto, atrasada, agendada, "a fazer", "em haver", "a haver", "não efetuada", "não realizada", "não feita", "não entregue", "ainda não entregue", "aguardando entrega", "falta entregar", "vou entregar", "entrego amanhã", "não saiu para entrega".
 - Vários produtos do mesmo fornecedor ou cliente na mesma data são UM só lançamento, com todos em itens. Item: quantidade em unidades, preco_unitario = preço de UMA unidade; se ele disser só o total do produto, use valor_item. Em compra, "vendo a X" é preco_venda do item. Pagamento parcial vale para o lançamento inteiro: valor_pago é o total já pago, e "metade" é calculada sobre a soma de todos os itens.
 ${dados}
+${vozTelaAberta()}
 
 DADOS DO APP (agora):
 ${vozDados()}
@@ -9490,6 +9532,54 @@ function vozCfgSheet(wrap) {
 }
 document.addEventListener('change', e => { const t = e.target; if (!t) return; if (t.id === 'voz-sel') ls.set('mmr-voz-voz', t.value); else if (t.id === 'voz-vel') ls.set('mmr-voz-vel', Number(t.value)); else if (t.id === 'voz-esp') { ls.set('mmr-voz-espera', Number(t.value)); return; } else if (t.id === 'voz-conv-esp') { vozConvSet(Number(t.value)); return; } else return; vozTeste(); });
 document.addEventListener('input', e => { if (e.target && e.target.id === 'voz-esp') { const o = document.getElementById('voz-esp-v'); if (o) o.textContent = Number(e.target.value).toFixed(1).replace('.', ',') + ' s'; } if (e.target && e.target.id === 'voz-vel') { const o = document.getElementById('voz-vel-v'); if (o) o.textContent = Number(e.target.value).toFixed(2).replace('.', ',') + '×'; } if (e.target && e.target.id === 'voz-conv-esp') { const o = document.getElementById('voz-conv-esp-v'); if (o) o.textContent = Number(e.target.value) + ' s'; } });
+/* ===== assistente de voz: ver e preencher a janela que está aberta ===== */
+function vozRotuloDe(el) {
+  const f = el.closest('.f, .fx, .nt-pref, .opt'); const lb = el.id && document.querySelector('#modal-root label[for="' + CSS.escape(el.id) + '"]');
+  const r = [el.getAttribute('aria-label'), lb && lb.textContent, f && (f.querySelector('label, .lbl, b, span') || {}).textContent].filter(Boolean).map(t => String(t).trim());
+  return r.length ? r : [el.placeholder, el.name].filter(Boolean);
+}
+const nz = x => String(x || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function vozPreenche(rotulo, valor, linha) {
+  const root = document.querySelector('#modal-root .bs'); if (!root) return false;
+  const q = nz(rotulo), v = nz(valor), setV = (el, x) => { const d = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value'); d && d.set ? d.set.call(el, x) : (el.value = x); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
+  const sim = !/^(nao|não|desligar|desligado|desmarcar|false)/.test(v);
+  const ctrls = [...root.querySelectorAll('input:not([type=hidden]):not([type=radio]), select, textarea')].filter(e => !e.disabled && !e.closest('[hidden]'));
+  let achados = ctrls.filter(e => vozRotuloDe(e).some(t => { const n = nz(t); return n && (n === q || n.includes(q) || (n.length >= 6 && q.includes(n))); }));
+  if (linha > 0 && achados.length) achados = [achados[linha - 1] || achados[achados.length - 1]]; else if (linha > 0) achados = [];
+  const e = achados[0];
+  if (e) {
+    if (e.type === 'checkbox') { if (e.checked !== sim) e.click(); return true; }
+    if (e.tagName === 'SELECT') { const op = [...e.options].find(o => nz(o.textContent) === v) || [...e.options].find(o => nz(o.textContent).includes(v) || (v && v.includes(nz(o.textContent)) && nz(o.textContent).length > 2)); if (!op) return false; setV(e, op.value); return true; }
+    setV(e, valor); return true;
+  }
+  /* opções (rádio), chaves e botões pelo texto */
+  const rad = [...root.querySelectorAll('input[type=radio]')].filter(r => nz((r.closest('label') || {}).textContent || '').includes(v || q));
+  if (rad.length) { rad[0].click(); return true; }
+  if (!v) { const bt = [...root.querySelectorAll('button, .opt, .lt-chip, .bs-row')].find(b => nz(b.textContent).includes(q)); if (bt) { bt.click(); return true; } }
+  const nt = [...root.querySelectorAll('.nt-pref')].find(b => nz(b.textContent).includes(q)); if (nt) { const ck = nt.querySelector('input[type=checkbox]'); if (ck) { if (ck.checked !== sim) ck.click(); return true; } nt.click(); return true; }
+  /* qualquer lista com a opção dita (ex.: "cliente" = Maria, sem rótulo igual) */
+  if (v) { for (const sel of root.querySelectorAll('select')) { const op = [...sel.options].find(o => nz(o.textContent) === v) || [...sel.options].find(o => nz(o.textContent).includes(v)); if (op) { setV(sel, op.value); return true; } } }
+  const gr = [...root.querySelectorAll('.opts')].find(g => nz((g.previousElementSibling || {}).textContent || '').includes(q)); if (gr && v) { const o = [...gr.querySelectorAll('label.opt')].find(l => nz(l.textContent).includes(v)); if (o) { o.click(); return true; } }
+  return false;
+}
+function vozTelaAberta() {
+  const root = document.querySelector('#modal-root .bs'); if (!root) return '';
+  const tit = (root.querySelector('#mtitle') || {}).textContent || 'Janela', L = ['TELA ABERTA AGORA: janela "' + tit + '".'];
+  if (root.querySelector('[data-act="cbr-tog"]')) { const ds = devedoresLista(); L.push('Cobrança. Clientes (✓ = marcado): ' + ds.slice(0, 60).map(d => (cobrSel && cobrSel.has(String(d.key)) ? '✓' : '○') + (d.cliente?.nome || 'Cliente avulso') + ' (' + (d.cliente ? transmCidade(d.cliente) : '?') + ', ' + money(d.totalFalta) + ')').join('; ') + '.'); return L.join('\n'); }
+  if (root.querySelector('[data-act="transm-tog"]')) { L.push('Transmissão. Cidades e clientes (✓ = marcado): ' + transmCidades().map(g => g.nome + ': ' + g.itens.slice(0, 40).map(i => (transmSel.has(i.id) ? '✓' : '○') + (i.cliente.nome || '?')).join(', ')).join(' | ').slice(0, 2500) + '.'); return L.join('\n'); }
+  const cs = [];
+  root.querySelectorAll('input:not([type=hidden]):not([type=radio]), select, textarea').forEach(e => {
+    if (e.disabled || e.type === 'submit' || e.type === 'button') return;
+    const rot = vozRotuloDe(e)[0] || e.name || '?'; let val = '';
+    if (e.type === 'checkbox') val = e.checked ? 'ligado' : 'desligado'; else if (e.tagName === 'SELECT') val = (e.selectedOptions[0] || {}).textContent || ''; else val = e.value;
+    const ln = e.closest('.line:not(.line-h)'), nl = ln ? [...root.querySelectorAll('.line:not(.line-h)')].indexOf(ln) + 1 : 0;
+    cs.push(rot + (nl ? ' (item ' + nl + ')' : '') + ' = ' + (String(val).trim() || 'vazio') + (e.tagName === 'SELECT' && e.options.length <= 14 ? ' [opções: ' + [...e.options].map(o => o.textContent.trim()).join(' / ') + ']' : ''));
+  });
+  root.querySelectorAll('.opts').forEach(g => { const t = (g.previousElementSibling || {}).textContent || ''; cs.push(t.trim() + ' = ' + [...g.querySelectorAll('label.opt')].map(l => (l.querySelector('input').checked ? '[x]' : '[ ]') + l.textContent.trim()).join(' ')); });
+  const bt = [...root.querySelectorAll('button')].map(b => b.textContent.trim()).filter(t => t && t.length < 30 && !/^(×|x)$/i.test(t));
+  L.push('Campos: ' + cs.join('; ') + '.'); L.push('Botões: ' + [...new Set(bt)].slice(0, 14).join(', ') + '.');
+  return L.join('\n').slice(0, 3500);
+}
 /* muda o tempo da conversa contínua sem redesenhar a tela (a janela não pula) */
 function vozConvSet(n) {
   const nv = Math.min(60, Math.max(5, Math.round(n))); ls.set('mmr-voz-conversa-espera', nv);
