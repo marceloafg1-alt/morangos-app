@@ -2716,8 +2716,9 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
 .cbr-badge-btn:active { transform: scale(.95); opacity: .9; }
 .cbr-badge-btn svg { width: 16px; height: 16px; flex: none; stroke: currentColor; }
 .tm-ck{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;display:inline-block}
-.li.on .tm-ck{background:#25D366;border-color:#25D366;box-shadow:inset 0 0 0 4px var(--card)}
-.li[disabled]{opacity:.5}
+.li.on .tm-ck{box-shadow:inset 0 0 0 4px var(--card)}
+.li[aria-disabled="true"]{opacity:.5;pointer-events:none}
+.li.on .tm-ck{background:var(--accent);border-color:var(--accent)}
 .cbr-fila-head {
   display: flex;
   flex-direction: column;
@@ -4717,13 +4718,12 @@ function modalTransmissao() {
     </div>
     <div style="max-height:42vh;overflow-y:auto">
       ${gr.map((g, gi) => `<div class="sec-h" style="margin:10px 0 6px"><h2>${esc(g.nome)} · ${g.itens.length}</h2><button type="button" class="link" data-act="transm-cidade" data-ids="${g.itens.filter(i => i.tel).map(i => esc(i.id)).join(',')}">Marcar cidade</button></div>
-      <div class="card list">${g.itens.map(i => `<button type="button" class="li" data-act="transm-tog" data-id="${esc(i.id)}" ${i.tel ? '' : 'disabled'} aria-pressed="false" style="padding:12px 14px;align-items:center;gap:12px;text-align:left;width:100%">
+      <div class="card list">${g.itens.map(i => `<div class="li tc-li" role="button" tabindex="0" data-act="transm-tog" data-id="${esc(i.id)}" ${i.tel ? '' : 'aria-disabled="true"'} aria-pressed="false">
         <span class="av">${esc((i.cliente.nome || 'A')[0])}</span>
-        <span style="flex:1;min-width:0"><b>${esc(i.cliente.nome || 'Cliente')}</b>
-          <small style="display:block;color:var(--muted)">${esc(i.cliente.telefone || 'Sem telefone')}</small>
-          ${i.ultimo ? `<small style="display:block;color:#1B7F47;font-weight:600">✓ Enviado ${relTime(i.ultimo)}</small>` : ''}</span>
+        <span style="min-width:0"><b>${esc(i.cliente.nome || 'Cliente')}</b>
+          <small>${esc(i.cliente.telefone || 'Sem telefone')}${i.ultimo ? ` · ✓ enviado ${relTime(i.ultimo)}` : ''}</small></span>
         <span class="tm-ck" aria-hidden="true"></span>
-      </button>`).join('')}</div>`).join('') || '<div class="empty">Nenhum cliente cadastrado ainda.</div>'}
+      </div>`).join('')}</div>`).join('') || '<div class="empty">Nenhum cliente cadastrado ainda.</div>'}
     </div>
     <div style="margin-top:12px">
       <button type="button" id="transm-go" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="transm-iniciar" disabled>${ic('chat')}<span> Enviar em sequência (0)</span></button>
@@ -4734,7 +4734,7 @@ function modalTransmModelos() {
   const ms = transmModelos();
   openModal('Mensagens de transmissão', `
     <p class="muted" style="margin:0 0 10px;font-size:13px">Deixe mensagens prontas. Ao enviar uma transmissão pelo botão + você escolhe uma delas e ainda pode alterar o texto. Use {nome} para o nome do cliente.</p>
-    <div class="card list">${ms.map(m => `<div class="li" style="padding:12px 14px;align-items:center;gap:10px"><span style="flex:1;min-width:0"><b>${esc(m.nome)}</b><small style="display:block;color:var(--muted);white-space:pre-line;max-height:3.6em;overflow:hidden">${esc(m.texto)}</small></span><button type="button" class="link" data-act="transm-modelo-editar" data-id="${esc(m.id)}">Editar</button></div>`).join('') || '<div class="empty">Nenhuma mensagem pronta ainda.</div>'}</div>
+    <div class="card list">${ms.map(m => `<div class="li tc-li" role="button" tabindex="0" data-act="transm-modelo-editar" data-id="${esc(m.id)}"><span class="av">${ic('chat')}</span><span style="min-width:0"><b>${esc(m.nome)}</b><small>${esc(String(m.texto).replace(/\s+/g, ' '))}</small></span>${ic('right', 'i chev')}</div>`).join('') || '<div class="empty">Nenhuma mensagem pronta ainda.</div>'}</div>
     <div class="form-acts" style="margin-top:12px"><button type="button" class="btn" data-act="close-modal">Fechar</button><button type="button" class="btn primary" data-act="transm-modelo-editar" data-id="">+ Nova mensagem</button></div>`);
 }
 function modalTransmModeloEdit(id) {
