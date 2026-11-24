@@ -1304,6 +1304,7 @@ body::before { background: var(--band); }
 .ml:hover { background: var(--surface-2); }
 .ml-ic { width: 40px; height: 40px; border-radius: 13px; background: var(--surface-2); color: var(--fg); display: grid; place-items: center; }
 .ml-ic svg { width: 20px; height: 20px; }
+.ml-sw { cursor: pointer; }
 .ml-l { font-weight: 700; font-size: 15.5px; }
 .ml-v { color: var(--muted); font-size: 14px; font-weight: 600; }
 .ml .chev { width: 18px; height: 18px; }
@@ -5451,7 +5452,7 @@ function gConfig() {
   </nav>
   <div class="sec-h"><h2>IA</h2></div>
   <nav class="card menu-list cfg-list" aria-label="IA">
-    ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi Ander' : 'desligado', 'sheet', 'voz-cfg')}
+    <div class="ml ml-sw" role="button" tabindex="0" data-act="sheet" data-v="voz-cfg"><span class="ml-ic">${ic('mic')}</span><span class="ml-l">Assistente de voz</span><input type="checkbox" class="lt-switch" data-act="voz-toggle" aria-label="Ligar ou desligar o assistente de voz" ${vozLigado() ? 'checked' : ''} ${VOZ_SR ? '' : 'disabled'}>${ic('right', 'i chev')}</div>
     ${cfgRow('bolt', 'Lançar com IA', iaGConfigVal(), 'sheet', 'ia-cfg')}
     ${cfgRow('list', 'Planilha modelo', 'baixar para cadastrar em lote', 'baixar-modelo', 'x')}
     ${cfgRow('chart', 'Relatório da IA', iaRelConfigVal(), 'sheet', 'ia-relatorio')}
