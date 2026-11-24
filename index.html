@@ -1827,6 +1827,7 @@ form .is-off { opacity: .55; }
 .lt[data-visual="bento"] .fab-tile[aria-pressed="true"] { background: var(--jet); color: var(--ground); }
 .lt[data-visual="bento"] .fab-tile[aria-pressed="true"] svg.i { color: var(--ground); }
 /* janela padrão do app: folha branca que sobe do rodapé (alça, título grande e X) */
+.sem-anim .bs-scrim, .sem-anim .bs { animation: none !important; }
 .bs-scrim { z-index: 70; background: rgb(20 12 12 / .5); animation: bsFade .18s ease-out; }
 .bs { width: min(560px, 100%); max-height: 90dvh; overflow: auto; overscroll-behavior: contain; background: var(--card); color: var(--ink); border-radius: 28px 28px 0 0;
   padding: 10px 22px calc(22px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 40px rgb(0 0 0 / .18); display: grid; gap: 14px; align-content: start; animation: bsUp .22s ease-out; }
@@ -6825,7 +6826,7 @@ function openModal(title, inner, onSubmit, onOpen) {
   if (ui.sheet) ui.sheet = null; const _sr = document.getElementById('sheet-root'); if (_sr) _sr.innerHTML = '';
   $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" data-act="close-modal" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
   document.getElementById('nav-root').innerHTML = nav();
-  if (['Novo cliente', 'Novo fornecedor', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
+  if (['Novo cliente', 'Novo fornecedor', 'Novo cadastro', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g); g.innerHTML = btnImportar.replace('class="lt-iconbtn"', 'class="bs-x" style="margin-right:0"');
     g.appendChild(x); } }
   if (title === 'Lançar com IA') { // upload e câmera no topo, ao lado do título (mesmo estilo do upload da Venda avulsa)
@@ -9639,7 +9640,7 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'go': ui.voltaCfg = false; go(v); break;
-    case 'cad-tipo': { const f = document.getElementById('mform'); const nv = f ? { nome: f.elements['nome']?.value || '', telefone: f.elements['telefone']?.value || '' } : null; if (v === 'f') modalFornecedor(null, nv); else modalCliente(null, nv); break; }
+    case 'cad-tipo': { const f = document.getElementById('mform'); const nv = f ? { nome: f.elements['nome']?.value || '', telefone: f.elements['telefone']?.value || '' } : null; document.body.classList.add('sem-anim'); try { if (v === 'f') modalFornecedor(null, nv); else modalCliente(null, nv); } finally { setTimeout(() => document.body.classList.remove('sem-anim'), 60); } break; }
     case 'go-cfg': ui.voltaCfg = true; go(v); break;
     case 'voltar': go(ui.voltaCfg && ui.g !== 'config' ? 'config' : 'inicio'); if (ui.g === 'config' || ui.g === 'inicio') ui.voltaCfg = false; break;
     case 'notif-abrir': { const x = notificacoes(true).find(n => n.id === id); if (!x) break; notifLidas.add(x.id); salvarLidas(); notifIr(x); break; }
