@@ -9870,10 +9870,11 @@ document.addEventListener('pointerdown', e => { /* Configurações > Menu inferi
     rows.forEach((r, j) => { if (r !== row) r.style.transform = i0 < alvo && j > i0 && j <= alvo ? `translateY(${-alt}px)` : i0 > alvo && j < i0 && j >= alvo ? `translateY(${alt}px)` : ''; });
   };
   const fim = ev => { h.removeEventListener('pointermove', mover); h.removeEventListener('pointerup', fim); h.removeEventListener('pointercancel', fim); h.removeEventListener('contextmenu', cm);
-    rows.forEach(r => { r.style.transform = ''; }); row.classList.remove('mn-drag');
-    if (ev.type === 'pointercancel' || alvo === i0) return;
-    const ks = rows.map(r => r.dataset.k); ks.splice(i0, 1); ks.splice(alvo, 0, row.dataset.k);
-    ls.set('mmr-menu', ['inicio', ...ks].filter(k => menuNaBarra().includes(k))); render(); };
+    const volta = ev.type === 'pointercancel' || alvo === i0; rows.forEach(r => { r.style.transition = 'none'; });
+    if (!volta) { const ref = rows[alvo], ks = rows.map(r => r.dataset.k); ks.splice(i0, 1); ks.splice(alvo, 0, row.dataset.k);
+      box.insertBefore(row, alvo > i0 ? ref.nextSibling : ref); /* reordena no lugar, sem redesenhar a tela (não pisca) */
+      ls.set('mmr-menu', ['inicio', ...ks].filter(k => menuNaBarra().includes(k))); const nv = document.getElementById('nav-root'); if (nv) nv.innerHTML = nav(); }
+    rows.forEach(r => { r.style.transform = ''; }); row.classList.remove('mn-drag'); requestAnimationFrame(() => rows.forEach(r => { r.style.transition = ''; })); };
   h.addEventListener('pointermove', mover); h.addEventListener('pointerup', fim); h.addEventListener('pointercancel', fim); h.addEventListener('contextmenu', cm);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($modal.innerHTML) closeModal(); else if (ui.sheet) { ui.sheet = null; render(); } } });
