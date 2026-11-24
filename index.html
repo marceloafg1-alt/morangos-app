@@ -6624,7 +6624,7 @@ function nav() {
   const cnt = n => n ? `<span class="lt-dot">${n}</span>` : '';
   const novos = S.vendas.filter(v => v.status === 'recebido').length;
   const naBarra = menuNaBarra();
-  const extras = { vendas: cnt(novos), entregas: cnt(rota().length), conversas: cnt(naoLidasG()) };
+  const extras = { conversas: cnt(naoLidasG()) };
   const menuBar = naBarra.map(k => MENU_ITENS.find(i => i.k === k)).map(i => t(i.k, i.ic, i.l, extras[i.k] || '', i.act));
   const maisOn = (!naBarra.includes(cur) && MENU_ITENS.some(i => i.k === cur)) || ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].filter(k => !naBarra.includes(k === 'fornecedores' ? 'clientes' : k)).includes(cur);
   const fabOn = ui.sheet?.type === 'novo' || ui.sheet?.type === 'conv-mais';
