@@ -3104,8 +3104,20 @@ const STATUS = { recebido: 'Recebido', separado: 'Separado', em_rota: 'Saiu para
 const STATUS_PILL = { recebido: 'p-blue', separado: 'p-gray', em_rota: 'p-red', entregue: 'p-ok', cancelado: 'p-gray' };
 const PERIODOS = { hoje: 'Hoje', '7d': '7 dias', '30d': '30 dias', mes: 'Este mês', tudo: 'Tudo' };
 /* período com que Vendas, Entregas, Compras, Caixa e Relatórios abrem (Configurações > Período padrão; vale para este aparelho) */
-const perPadrao = () => { const v = ls.get('mmr-periodo-padrao', '7d'); return PERIODOS[v] ? v : '7d'; };
 const PER_PAG = { vendas: 'vp', caixa: 'cp', entregas: 'ep', compras: 'kp', relatorios: 'rp' };
+/* cada tela tem o seu (mmr-periodos-padrao = { vendas: 'hoje', ... }); sem escolha, usa o geral antigo (mmr-periodo-padrao) ou 7 dias.
+   O cartão Divisão das vendas do Início só tem Hoje, 7 dias e Mês, e começa em Hoje. */
+const PER_TELAS = [['inicio', 'Início · Divisão das vendas'], ['vendas', 'Vendas'], ['entregas', 'Entregas'], ['compras', 'Compras'], ['caixa', 'Caixa'], ['relatorios', 'Relatórios']];
+const PER_INICIO = { hoje: 'Hoje', '7d': '7 dias', mes: 'Este mês' };
+const perOpcoes = pg => pg === 'inicio' ? PER_INICIO : PERIODOS;
+const perPadrao = (pg = 'vendas') => { const o = ls.get('mmr-periodos-padrao', {}) || {}, ops = perOpcoes(pg);
+  if (ops[o[pg]]) return o[pg]; if (pg === 'inicio') return 'hoje'; const v = ls.get('mmr-periodo-padrao', '7d'); return ops[v] ? v : '7d'; };
+const perPadraoSet = (pg, v) => { const o = { ...(ls.get('mmr-periodos-padrao', {}) || {}) };
+  for (const [p] of PER_TELAS) if (pg === 'todas' || pg === p) { const ops = perOpcoes(p); o[p] = ops[v] ? v : (v === '30d' || v === 'tudo') && p === 'inicio' ? 'mes' : 'hoje'; }
+  ls.set('mmr-periodos-padrao', o);
+  for (const [p, k] of Object.entries(PER_PAG)) if (ui[k] !== 'custom') ui[k] = perPadrao(p);
+  ui.dp = perPadrao('inicio'); };
+const perResumo = () => { const vs = PER_TELAS.map(([p]) => perPadrao(p)); return vs.every(v => v === vs[0]) ? PERIODOS[vs[0]] : 'Por tela'; };
 /* categorias de despesa: padrão + as criadas/editadas em Configurações (coleção "categorias") */
 const CAT_PADRAO = [['combustivel', 'Transporte', '#f76b15', 'truck'], ['alimentacao', 'Alimentação', '#f5b5d6', 'food'], ['embalagem', 'Embalagens', '#0090ff', 'box'], ['manutencao', 'Manutenção', '#6e56cf', 'wrench'], ['pessoal', 'Ajudante / diárias', '#30a46c', 'user'], ['outros', 'Outros', '#8d8d8d', 'dots']];
 const CAT_CORES = ['#e5484d', '#f76b15', '#ffb224', '#30a46c', '#12a594', '#0090ff', '#6e56cf', '#d6409f', '#a18072', '#8d8d8d',
@@ -3848,7 +3860,7 @@ const telaSessao = { get(k) { try { return sessionStorage.getItem('mmr-tela-' + 
 try { localStorage.removeItem('mmr-tela-g'); localStorage.removeItem('mmr-tela-c'); } catch {}
 const ui = {
   g: telaSessao.get('g'), authMode: (() => { try { return sessionStorage.getItem('mmr-convite-pendente') ? 'convite' : 'google'; } catch { return 'google'; } })(),
-  vt: 'todas', vf: 'todas', vp: perPadrao(), vDe: '', vAte: '', cp: perPadrao(), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', kq: '', vq: '', eq: '', eg: 'cidade', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao(), eDe: '', eAte: '', kp: perPadrao(), kDe: '', kAte: '', rp: perPadrao(), rDe: '', rAte: '', sheet: null,
+  vt: 'todas', vf: 'todas', vp: perPadrao('vendas'), vDe: '', vAte: '', cp: perPadrao('caixa'), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', kq: '', vq: '', eq: '', eg: 'cidade', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao('entregas'), eDe: '', eAte: '', kp: perPadrao('compras'), kDe: '', kAte: '', rp: perPadrao('relatorios'), rDe: '', rAte: '', sheet: null,
 };
 const W = () => canWrite ? '' : 'disabled';
 
@@ -4848,14 +4860,14 @@ function periodoNaTroca() {
   const atual = 'g:' + ui.g;
   if (pagAnterior && pagAnterior !== atual) {
     const pad = FILTROS_PAG[pagAnterior.slice(2)];
-    if (pad) { Object.assign(ui, pad); const pk = PER_PAG[pagAnterior.slice(2)]; if (pk) ui[pk] = perPadrao(); }
+    if (pad) { Object.assign(ui, pad); const pk = PER_PAG[pagAnterior.slice(2)]; if (pk) ui[pk] = perPadrao(pagAnterior.slice(2)); }
     ui.hist = null; ui.emo = false; ui.emoCat = undefined; /* histórico de cliente e painel de emojis voltam fechados */
   }
   pagAnterior = atual;
 }
 function render() {
   periodoNaTroca();
-  if (ui.g !== 'inicio') { ui.hd = 0; ui.dv = 'pag'; ui.dp = 'hoje'; } /* ao sair do Início, volta para Vendas de hoje */
+  if (ui.g !== 'inicio') { ui.hd = 0; ui.dv = 'pag'; ui.dp = perPadrao('inicio'); } /* ao sair do Início, volta para Vendas de hoje */
   if (backend === 'pending' || (backend === 'db' && !window.__authReady)) {
     $main.innerHTML = '<div class="empty" style="padding-top:120px">Carregando…</div>';
     document.getElementById('nav-root').innerHTML = '';
@@ -5059,7 +5071,7 @@ function gPendencias() {
 const IV_ACAO = { Responder: 'Responder', Receber: 'Receber', Pagar: 'Pagar', Entregar: 'Ver', Estoque: 'Repor', Caixa: 'Ver' };
 const IV_CORES = ['var(--iv1)', 'var(--iv2)', 'var(--iv3)', 'var(--iv4)', 'var(--iv5)'];
 function ivDivisao() {
-  const per = ui.dp || 'hoje', vis = ui.dv || 'pag';
+  const per = ui.dp || perPadrao('inicio'), vis = ui.dv || 'pag';
   const vs = vendasValidas().filter(v => inPeriod(v.ts, per));
   const m = {};
   const add = (k, x) => { m[k] = (m[k] || 0) + x; };
@@ -5397,7 +5409,7 @@ function gConfig() {
     ${cfgRow('palette', 'Aparência', lookLabel(), 'sheet', 'ajustes')}
     ${cfgRow('home', 'Tela inicial', INICIO_BLOCOS.filter(b => inicioOn(b[0])).length + ' de ' + INICIO_BLOCOS.length + ' blocos', 'sheet', 'inicio-cfg')}
     ${cfgRow('dots', 'Menu inferior', menuNaBarra().length + ' na barra', 'sheet', 'menu-cfg')}
-    ${cfgRow('calendar', 'Período padrão', PERIODOS[perPadrao()], 'sheet', 'per-cfg')}
+    ${cfgRow('calendar', 'Período padrão', perResumo(), 'sheet', 'per-cfg')}
     ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
     ${cfgRow('pin', 'Rotas', rotaCfg().partida ? 'partida: ' + rotaCfg().partida : 'ponto de partida', 'sheet', 'rota-cfg')}
     ${cfgRow('list', 'Planilha modelo', 'baixar para cadastrar em lote', 'baixar-modelo', 'x')}
@@ -6248,7 +6260,7 @@ const AJ_G = [
     ['Como instalar o app no celular?', '<ol><li>Abra o endereço do app no navegador.</li><li>No Android: três pontinhos do Chrome → <b>Adicionar à tela inicial</b> (ou <b>Instalar app</b>).</li><li>No iPhone: botão <b>Compartilhar</b> do Safari → <b>Adicionar à Tela de Início</b>.</li></ol>O ícone do morango aparece na tela do celular e abre em tela cheia.'],
     ['Como andar pelas telas?', '<b>Barra de baixo</b>: os atalhos principais. <b>Botão +</b> no meio: lança algo novo (muda conforme a tela). <b>Mais (⋮)</b>: o que não está na barra e as <b>Configurações</b>. Para voltar, use o botão voltar do Android ou deslize o dedo para a esquerda (para a direita avança). Toque em qualquer cartão com <b>Editar</b> para alterar.', [['Escolher os botões da barra', 'sheet', 'menu-cfg']]],
     ['O que faz o botão +?', 'No Início ele abre <b>Lançar</b>: Venda, Compra, Despesa, Transmissão, Cliente e Fornecedor. Em Vendas abre a venda avulsa; em Compras, a compra na roça; em Estoque, novo produto; em Notícias, nova notícia; em Clientes e Fornecedores, novo cadastro; no Caixa, despesa, venda, compra, estorno, A receber e Relatório; no Chat, novo chat ou nova venda para o cliente da conversa.'],
-    ['Como funciona o Período?', 'Vendas, Entregas, Compras, Caixa e Relatórios têm o campo <b>Período</b> no topo: Hoje, 7 dias, 30 dias, Este mês, Tudo ou <b>Escolher período</b> (data inicial e final no calendário). Cada tela abre no <b>Período padrão</b> (de início, 7 dias) e volta para ele quando você sai dela. Para mudar, vá em <b>Configurações → Período padrão</b>.', [['Abrir Período padrão', 'sheet', 'per-cfg']]],
+    ['Como funciona o Período?', 'Vendas, Entregas, Compras, Caixa e Relatórios têm o campo <b>Período</b> no topo: Hoje, 7 dias, 30 dias, Este mês, Tudo ou <b>Escolher período</b> (data inicial e final no calendário). Cada tela abre no seu <b>Período padrão</b> (de início, 7 dias; no cartão Divisão das vendas do Início, Hoje) e volta para ele quando você sai dela. Em <b>Configurações → Período padrão</b> você escolhe um período para cada tela (Início, Vendas, Entregas, Compras, Caixa e Relatórios) ou o mesmo para todas.', [['Abrir Período padrão', 'sheet', 'per-cfg']]],
     ['O que mostra a tela Início?', 'De cima para baixo:<ul><li><b>Vendas de hoje</b>: total do dia, comparação com o mesmo dia da semana passada, o anel de <b>% recebido</b> (recebido, falta receber e lucro bruto) e as barras dos últimos 7 dias.</li><li><b>Precisa de você</b>: os assuntos mais urgentes, cada um com um botão (Separar, Responder, Receber, Pagar…).</li><li><b>Divisão das vendas</b>: por Pagamento, Produto ou App × Avulsa, em Hoje, 7 dias ou Mês.</li><li><b>Vendas × gastos</b>: quanto entrou, quanto saiu (compras e despesas) e se sobrou ou faltou.</li><li><b>Rota de hoje</b>: entregas feitas e a próxima parada.</li><li><b>Clientes sumidos</b> e as <b>Movimentações</b> do dia.</li></ul>', [['Abrir o Início', 'go', 'inicio']]],
     ['Como escolho o que aparece no Início?', 'Em <b>Configurações → Tela inicial</b> você liga ou desliga cada bloco: Vendas de hoje, Precisa de você, Divisão das vendas, Vendas × gastos, Rota de hoje, Clientes sumidos e Movimentações. <b>Mostrar tudo</b> traz todos de volta. Vale só para este aparelho.', [['Abrir Tela inicial', 'sheet', 'inicio-cfg']]],
     ['Como vejo as vendas de outro dia?', 'No cartão <b>Vendas de hoje</b>, toque numa das barras dos últimos 7 dias. O cartão, o <b>Vendas × gastos</b> e as <b>Movimentações</b> passam a mostrar aquele dia. Toque na mesma barra de novo (ou saia do Início) para voltar para hoje.', [['Abrir o Início', 'go', 'inicio']]],
@@ -6718,7 +6730,15 @@ function sheetHTML() {
   if (s.type === 'voz-cfg') return vozCfgSheet(wrap);
   if (s.type === 'rota-cfg') return rotaCfgSheet(wrap);
   if (s.type === 'cat-cfg') return catCfgSheet(wrap);
-  if (s.type === 'per-cfg') { const atual = perPadrao(); return wrap('Período padrão', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período que aparece ao abrir Vendas, Entregas, Compras, Caixa e Relatórios. Você ainda pode trocar na própria tela; ao sair, ela volta para este. Vale para este aparelho.</p><div class="bs-list">${Object.entries(PERIODOS).map(([v, l]) => `<button class="bs-row" data-act="per-padrao" data-v="${v}" aria-pressed="${atual === v}"><span class="grow">${l}</span>${atual === v ? ic('check') : ''}</button>`).join('')}</div>`); }
+  if (s.type === 'per-cfg') {
+    const todas = perResumo() === 'Por tela' ? '' : PER_TELAS.map(([p]) => perPadrao(p))[0];
+    return wrap('Período padrão', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período com que cada tela abre. Você ainda pode trocar na própria tela; ao sair, ela volta para este. Vale para este aparelho.</p><div class="bs-list">
+      <button class="bs-row" data-act="per-cfg-pg" data-v="todas"><span class="grow">Todas as telas<small>Usar o mesmo período em todas</small></span><span class="muted">${todas ? PERIODOS[todas] : 'Por tela'}</span>${ic('right')}</button>
+      ${PER_TELAS.map(([p, l]) => `<button class="bs-row" data-act="per-cfg-pg" data-v="${p}"><span class="grow">${l}</span><span class="muted">${perOpcoes(p)[perPadrao(p)]}</span>${ic('right')}</button>`).join('')}</div>`); }
+  if (s.type === 'per-cfg-pg') {
+    const pg = ui.perPg || 'todas', nome = pg === 'todas' ? 'Todas as telas' : (PER_TELAS.find(x => x[0] === pg) || [, pg])[1];
+    const atual = pg === 'todas' ? (perResumo() === 'Por tela' ? '' : perPadrao('vendas')) : perPadrao(pg);
+    return wrap('Período padrão', `<button class="bs-row" data-act="sheet" data-v="per-cfg">${ic('left')}<span class="grow"><b>${esc(nome)}</b>${pg === 'todas' ? '<small>No Início, 30 dias e Tudo viram Este mês</small>' : ''}</span></button><div class="bs-list">${Object.entries(pg === 'inicio' ? PER_INICIO : PERIODOS).map(([v, l]) => `<button class="bs-row" data-act="per-padrao" data-v="${v}" aria-pressed="${atual === v}"><span class="grow">${l}</span>${atual === v ? ic('check') : ''}</button>`).join('')}</div>`); }
   if (s.type === 'wa-ajustes') { const atual = ls.get('mmr-wa-numero', ''); return wrap('WhatsApp do relatório', `<p class="muted" style="margin:0 0 10px;font-size:14px">Número que abre no WhatsApp ao enviar o relatório. Escreva com DDD, por exemplo (11) 91234-5678. O código do país 55 é colocado sozinho. Deixe em branco para escolher o contato na hora.</p><div class="f full"><label for="wa-num">Número</label><input type="tel" id="wa-num" value="${esc(atual)}" placeholder="(00) 00000-0000" inputmode="tel"></div><div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="wa-salvar">Salvar número</button>${atual ? '<button class="lt-btn lt-block" style="background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.8" data-act="wa-apagar">Apagar número</button>' : ''}</div>`); }
 
   if (s.type === 'notif-ajustes') { const nn = notifNaoLidas(); const all = notificacoes(true);
@@ -8595,7 +8615,7 @@ function iaPreparaAcao(o, l) {
   } else if (l.acao === 'periodo_padrao') {
     if (!PERIODOS[l.periodo]) o.problemas.push('período não reconhecido');
     o.resumo = 'Período padrão: ' + (PERIODOS[l.periodo] || '?');
-    o.exec = async () => { ls.set('mmr-periodo-padrao', l.periodo); for (const k of Object.values(PER_PAG)) if (ui[k] !== 'custom') ui[k] = l.periodo; render(); };
+    o.exec = async () => { perPadraoSet('todas', l.periodo); render(); };
   } else if (l.acao === 'whatsapp_numero') {
     const d = String(l.telefone || '').replace(/\D/g, ''); if (d.length < 10) o.problemas.push('número incompleto (use DDD e número)');
     const num = d.length <= 11 ? '55' + d : d; o.resumo = 'WhatsApp do relatório: ' + num;
@@ -9762,7 +9782,9 @@ document.addEventListener('click', async e => {
     case 'voz-toggle': { const on = !vozLigado(); ls.set('mmr-voz', on); if (on) { VOZ.negado = false; VOZ.estado = 'espera'; if (!iaTemChave()) toast('Coloque a chave da IA em Lançar com IA.'); vozIniciaRec(); } else { vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.msg = ''; } vozPill(); render(); break; }
     case 'ia-chave-remover': ls.set('mmr-ia-chave', ''); toast('Chave principal removida.'); render(); break;
     case 'ia-chave-res-remover': ls.set('mmr-ia-chave-reserva', ''); toast('Chave reserva removida.'); render(); break;
-    case 'per-padrao': { const pv = PERIODOS[v] ? v : '7d'; ls.set('mmr-periodo-padrao', pv); for (const k of Object.values(PER_PAG)) if (ui[k] !== 'custom') ui[k] = pv; ui.sheet = null; render(); toast('Período padrão: ' + PERIODOS[pv] + '.'); break; }
+    case 'per-cfg-pg': ui.perPg = v; ui.sheet = { type: 'per-cfg-pg' }; render(); break;
+    case 'per-padrao': { const pg = ui.perPg || 'todas', pv = PERIODOS[v] ? v : '7d'; perPadraoSet(pg, pv); ui.sheet = { type: 'per-cfg' }; render();
+      toast((pg === 'todas' ? 'Todas as telas' : (PER_TELAS.find(x => x[0] === pg) || [, pg])[1]) + ': ' + PERIODOS[pv] + '.'); break; }
     case 'wa-apagar': ls.set('mmr-wa-numero', ''); ui.sheet = null; render(); toast('Número apagado.'); break;
     case 'side-mais': ui.sideMais = !ui.sideMais; render(); break;
     case 'close-sheet': { const eraRota = ui.sheet && ui.sheet.type === 'rota-cfg'; ui.sheet = null; render(); if (eraRota) rtVolta(); break; }
@@ -9803,7 +9825,7 @@ document.addEventListener('click', async e => {
       } });
       break;
     }
-    case 'vlimpar': ui.vf = 'todas'; ui.vp = perPadrao(); render(); break;
+    case 'vlimpar': ui.vf = 'todas'; ui.vp = perPadrao('vendas'); render(); break;
     case 'set-theme': look.modo = v; ls.set('mmr-look', look); applyTheme(); render(); break;
     case 'look': look[t.dataset.k] = v; if (look.visual === 'aurora') look.modo = 'claro'; ls.set('mmr-look', look); applyTheme(); render(); break;
     case 'menu-tgl': { let l = menuNaBarra(); l = l.includes(v) ? l.filter(k => k !== v) : [...l, v]; if (l.length) { ls.set('mmr-menu', l); menuCfgAtualiza(); } else render(); break; }
