@@ -4590,7 +4590,17 @@ function modalConfigPin() {
   });
 }
 
+let cobrSel = null; /* chaves dos devedores marcados; null = todos */
+function devedoresSel() { const d = devedoresLista(); return cobrSel ? d.filter(x => cobrSel.has(String(x.key))) : d; }
+function cobrAtualiza() {
+  document.querySelectorAll('[data-act="cbr-tog"]').forEach(b => { const on = cobrSel.has(b.dataset.id); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  const n = devedoresSel().length, all = devedoresLista().length, bt = document.getElementById('cbr-go'), tt = document.getElementById('cbr-n'), bo = document.querySelector('[data-act="cbr-todos"]');
+  if (tt) tt.textContent = n + (n === 1 ? ' selecionado' : ' selecionados');
+  if (bt) { bt.disabled = !n; bt.lastChild.textContent = ` Iniciar cobrança em sequência (${n})`; }
+  if (bo) bo.textContent = n === all && all ? 'Desmarcar todos' : 'Todos';
+}
 function modalFilaCobranca() {
+  cobrSel = new Set(devedoresLista().map(d => String(d.key)));
   const devs = devedoresLista();
   const totalFalta = devs.reduce((s, d) => s + d.totalFalta, 0);
   const totalPed = devs.reduce((s, d) => s + d.vendas.length, 0);
@@ -4602,23 +4612,24 @@ function modalFilaCobranca() {
         <div><small class="muted">Total em aberto</small><b class="num" style="color:var(--red-ink)">${money(totalFalta)}</b></div>
         <div style="text-align:right"><small class="muted">Clientes com débito</small><b class="num">${devs.length} (${totalPed} ${totalPed === 1 ? 'pedido' : 'pedidos'})</b></div>
       </div>
+      ${devs.length ? `<div class="tm-cnt"><b id="cbr-n">0 selecionados</b><button type="button" class="lt-chip" data-act="cbr-todos">Todos</button></div>` : ''}
     </div>
     <div class="tm-scroll">
-      <div class="card list">${devs.map((d, idx) => {
+      <div class="card list">${devs.map(d => {
         const jaCobrado = d.ultimaCobranca ? relTime(d.ultimaCobranca) : '';
-        return `<div class="li tc-li"><span class="av">${esc((d.cliente?.nome || 'A')[0])}</span>
+        return `<div class="li tc-li" role="button" tabindex="0" data-act="cbr-tog" data-id="${esc(String(d.key))}" aria-pressed="true"><span class="av">${esc((d.cliente?.nome || 'A')[0])}</span>
           <span style="min-width:0"><b>${esc(d.cliente?.nome || 'Cliente avulso')}</b>
             <small>${esc(d.cliente?.telefone || 'Sem telefone')} · ${d.vendas.length} ${d.vendas.length === 1 ? 'pedido' : 'pedidos'}${jaCobrado ? ` · ✓ cobrado ${jaCobrado}` : ''}</small></span>
-          <span class="cx-v"><b class="num">${money(d.totalFalta)}</b><button type="button" class="cbr-badge-btn" data-act="cbr-ind-abrir" data-idx="${idx}">${ic('chat')} Cobrar</button></span>
+          <span style="display:flex;align-items:center;gap:10px"><b class="num">${money(d.totalFalta)}</b><span class="tm-ck" aria-hidden="true"></span></span>
         </div>`;
       }).join('') || '<div class="empty">Nenhum cliente com pagamento pendente no momento!</div>'}</div>
     </div>
-    ${devs.length ? `<div class="tm-foot"><button type="button" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="cbr-iniciar-seq">${ic('chat')}<span> Iniciar cobrança em sequência</span></button></div>` : ''}
-  `, 'c');
+    ${devs.length ? `<div class="tm-foot"><button type="button" id="cbr-go" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="cbr-iniciar-seq">${ic('chat')}<span> Iniciar cobrança em sequência (${devs.length})</span></button></div>` : ''}
+  `, 'c', () => cobrAtualiza());
 }
 
 function modalCobrancaSequencial(idx = 0) {
-  const devs = devedoresLista();
+  const devs = devedoresSel();
   if (!devs.length) {
     modalFilaCobranca();
     return;
@@ -9543,7 +9554,9 @@ document.addEventListener('click', async e => {
       render();
       break;
     }
-    case 'cbr-iniciar-seq': modalCobrancaSequencial(0); break;
+    case 'cbr-iniciar-seq': if (devedoresSel().length) modalCobrancaSequencial(0); else toast('Escolha pelo menos um cliente.'); break;
+    case 'cbr-tog': { const id = t.dataset.id; cobrSel.has(id) ? cobrSel.delete(id) : cobrSel.add(id); cobrAtualiza(); break; }
+    case 'cbr-todos': { const all = devedoresLista().map(d => String(d.key)); if (all.every(k => cobrSel.has(k))) cobrSel.clear(); else all.forEach(k => cobrSel.add(k)); cobrAtualiza(); break; }
     case 'cbr-ind-abrir': {
       const devs = devedoresLista();
       const d = devs[Number(t.dataset.idx)];
@@ -9557,7 +9570,7 @@ document.addEventListener('click', async e => {
     }
     case 'cbr-seq-abrir': {
       const idx = Number(v);
-      const devs = devedoresLista();
+      const devs = devedoresSel();
       if (devs[idx]) {
         const customTxt = document.getElementById('cbr-custom-txt')?.value;
         abrirWhatsAppCobranca(devs[idx], customTxt);
@@ -9607,7 +9620,7 @@ document.addEventListener('click', async e => {
     case 'transm-seq-pular': modalTransmissaoSeq(Number(v) + 1); break;
     case 'cbr-seq-pago': {
       const idxP = Number(v);
-      const devsP = devedoresLista();
+      const devsP = devedoresSel();
       if (devsP[idxP]) {
         for (const vd of devsP[idxP].vendas) {
           await safe(() => patch('vendas', vd.id, { pago: true, pagoTs: Date.now() }), 'Marcado como pago.');
