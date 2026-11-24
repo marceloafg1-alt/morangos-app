@@ -8612,7 +8612,7 @@ function iaAplicaEntrega(texto, ls_, lista) {
 function iaPrepara(l) {
   /* a IA às vezes devolve a ação sem marcar tipo=acao (ou com tipo errado): reconhece pela própria ação para não virar compra vazia */
   if (l.tipo !== 'acao' && l.tipo !== 'despesa') {
-    const inf = l.acao || (l.novo ? 'abrir_novo' : l.submenu ? 'abrir_config' : Array.isArray(l.campos) && l.campos.length ? 'preencher_tela' : l.operacao_selecao ? 'selecao_envio' : l.etapa ? 'envio_sequencia' : '');
+    const inf = l.acao || (l.operacao_rota ? 'rota' : l.novo ? 'abrir_novo' : l.submenu ? 'abrir_config' : Array.isArray(l.campos) && l.campos.length ? 'preencher_tela' : l.operacao_selecao ? 'selecao_envio' : l.etapa ? 'envio_sequencia' : '');
     if (inf) { l.tipo = 'acao'; l.acao = inf; }
   }
   const o = { tipo: l.tipo, pessoa: String(l.pessoa || '').trim(), obs: String(l.observacao || '').trim(), forma: ['pix', 'dinheiro', 'debito', 'credito', 'fiado'].includes(l.forma) ? l.forma : '', pago: !!l.pago, valorPago: n2(l.valor_pago), problemas: [], avisos: [] };
@@ -8730,6 +8730,51 @@ function iaPreparaAcao(o, l) {
       if (!b) throw new Error(et === 'iniciar' ? 'abra primeiro a nova transmissão ou a nova cobrança' : 'o envio em sequência não está aberto');
       if (b.disabled) throw new Error('marque pelo menos um cliente antes de iniciar');
       b.click();
+    };
+  } else if (l.acao === 'rota') {
+    const op = String(l.operacao_rota || ''), cid = nz((l.cidades || [])[0] || l.cidade || '');
+    const OPS = ['colocar', 'tirar', 'entregue', 'a_entregar', 'colocar_todos', 'tirar_todos', 'mover', 'abrir_painel', 'otimizar', 'abrir_maps', 'definir_partida'];
+    if (!OPS.includes(op)) o.problemas.push('diga o que fazer na rota (colocar, tirar, entregue, mover, otimizar...)');
+    if (['colocar', 'tirar', 'entregue', 'a_entregar', 'colocar_todos', 'tirar_todos', 'mover', 'otimizar', 'definir_partida'].includes(op) && !canWrite) o.problemas.push('modo leitura: não dá para mexer na rota');
+    const nm = nz(o.pessoa);
+    const filtroOp = { colocar: v => v.status !== 'em_rota' && v.status !== 'entregue', tirar: v => v.status === 'em_rota', entregue: v => v.status !== 'entregue', a_entregar: v => v.status !== 'separado', mover: v => v.status === 'em_rota' }[op];
+    let v = null;
+    if (filtroOp) {
+      const cs = S.vendas.filter(x => x.status !== 'cancelado' && nm && nz(x.cliente?.nome).includes(nm) && filtroOp(x)).sort((a, b) => b.ts - a.ts);
+      if (!nm) o.problemas.push('diga de qual cliente é a entrega'); else if (!cs.length) o.problemas.push('não achei entrega de "' + o.pessoa + '" que possa receber essa mudança');
+      else { v = cs[0]; if (cs.length > 1) o.avisos.push('há ' + cs.length + ' pedidos assim: usei o mais recente (' + fmtDT(v.ts) + ')'); }
+    }
+    const nome = v ? (v.cliente?.nome || 'cliente') : (o.pessoa || '?'), emCid = (x) => !cid || nz(cidadeEntrega(x)).includes(cid);
+    const sepL = () => S.vendas.filter(x => x.status === 'separado' && emCid(x)).sort((a, b) => a.ts - b.ts), rotL = () => rota().filter(emCid);
+    let ordNovo = null;
+    if (op === 'mover' && v) {
+      const r = rota(), i = r.findIndex(x => x.id === v.id), passos = Math.max(1, Math.round(n2(l.passos)) || 1), pos = Math.round(n2(l.posicao));
+      const j = pos > 0 ? Math.min(r.length, pos) - 1 : l.direcao === 'descer' ? Math.min(r.length - 1, i + passos) : l.direcao === 'subir' ? Math.max(0, i - passos) : -1;
+      if (j < 0) o.problemas.push('diga se é para subir, descer ou a posição'); else if (j === i) o.problemas.push('já está nessa posição da rota'); else { ordNovo = r.map(x => x.id); ordNovo.splice(j, 0, ordNovo.splice(i, 1)[0]); o.avisos.push('posição ' + (i + 1) + ' → ' + (j + 1) + ' de ' + r.length); }
+    }
+    o.resumo = { colocar: 'Colocar na rota a entrega de ' + nome, tirar: 'Tirar da rota a entrega de ' + nome + ' (volta a "a entregar")', entregue: 'Marcar como entregue a entrega de ' + nome, a_entregar: 'Marcar como a entregar (fora da rota) a entrega de ' + nome, colocar_todos: 'Colocar na rota todos os pedidos a entregar' + (cid ? ' de ' + l.cidades[0] : '') + ' (' + sepL().length + ')', tirar_todos: 'Tirar da rota todos os pedidos' + (cid ? ' de ' + l.cidades[0] : '') + ' (' + rotL().length + ')', mover: 'Mudar a ordem de ' + nome + ' na rota', abrir_painel: 'Abrir o mapa da rota', otimizar: 'Otimizar a rota: o app reordena as paradas para a melhor sequência (precisa de internet)', abrir_maps: 'Abrir a rota no Google Maps', definir_partida: 'Mudar o ponto de partida da rota para ' + (l.endereco || '?') }[op] || 'Rota';
+    if (op === 'colocar_todos' && !sepL().length) o.problemas.push('não há pedidos a entregar' + (cid ? ' nessa cidade' : ''));
+    if (op === 'tirar_todos' && !rotL().length) o.problemas.push('não há entregas na rota' + (cid ? ' nessa cidade' : ''));
+    if (op === 'definir_partida' && !String(l.endereco || '').trim()) o.problemas.push('diga o endereço ou CEP de partida');
+    o.seguro = op === 'abrir_painel';
+    const esperaMapa = async () => { rotaMapaAbrir(); for (let k = 0; k < 40 && !(RT.map && document.getElementById('rt-ov')); k++) await new Promise(r => setTimeout(r, 150)); };
+    o.exec = async () => {
+      if (op === 'colocar') return setStatus(v.id, 'em_rota');
+      if (op === 'tirar' || op === 'a_entregar') return safe(() => patch('vendas', v.id, { status: 'separado', ordemRota: null }), op === 'tirar' ? 'Pedido tirado da rota.' : 'Marcado como a entregar.');
+      if (op === 'entregue') return setStatus(v.id, 'entregue');
+      if (op === 'colocar_todos') { let n = nextOrdem(); return safe(async () => { for (const x of sepL()) await patch('vendas', x.id, { status: 'em_rota', ordemRota: n++ }); }, 'Pedidos colocados na rota.'); }
+      if (op === 'tirar_todos') return safe(async () => { for (const x of rotL()) await patch('vendas', x.id, { status: 'separado', ordemRota: null }); }, 'Pedidos tirados da rota.');
+      if (op === 'mover') { const r = rota(); return safe(async () => { for (let k = 0; k < ordNovo.length; k++) { const x = r.find(y => y.id === ordNovo[k]); if (x && x.ordemRota !== k + 1) await patch('vendas', x.id, { ordemRota: k + 1 }); } }, 'Ordem da rota atualizada.'); }
+      if (op === 'abrir_painel') { rotaMapaAbrir(); return; }
+      if (op === 'otimizar') { await esperaMapa(); if (!RT.map) throw new Error('o mapa não carregou; confira a internet'); await rtOtimizar(); return; }
+      if (op === 'abrir_maps') { await esperaMapa(); const b = document.querySelector('[data-rt="maps"]'); if (!b) throw new Error('não deu para abrir o Google Maps'); b.click(); return; }
+      if (op === 'definir_partida') {
+        const ant = rotaCfg(); let part = String(l.endereco).trim();
+        if (rtCepRe.test(part)) { const r = await rtPartidaCep(part); if (r.erro) throw new Error(r.erro); part = r.texto; }
+        const body = { ...ant, partida: part, pLat: null, pLon: null };
+        try { const g = await geocodar(part); if (g) { body.pLat = g.lat; body.pLon = g.lon; } else o.avisos.push('não achei o endereço no mapa'); } catch { /* ok */ }
+        ls.set('mmr-rota-calc', null); ls.set('mmr-rota-cfg', body); render(); toast('Ponto de partida atualizado.');
+      }
     };
   } else if (l.acao === 'periodo_padrao') {
     if (!PERIODOS[l.periodo]) o.problemas.push('período não reconhecido');
@@ -9188,6 +9233,7 @@ function vozDados() {
   L.push('A RECEBER (clientes que devem): total ' + money(soma(rec, vFalta)) + '. ' + (lista(agrupa(rec, v => v.cliente?.nome || 'Cliente avulso', vFalta), 25) || 'ninguém deve.'));
   L.push('A PAGAR em compras (fornecedores a quem devo): total ' + money(soma(ap, cFalta)) + '. ' + (lista(agrupa(ap, c => c.fornecedor || 'Roça', cFalta), 25) || 'nada.'));
   L.push('DESPESAS A PAGAR: total ' + money(soma(dp, d => restante('despesas', d))) + '. ' + (dp.sort((a, b) => a.ts - b.ts).slice(0, 30).map(d => `${d.descricao || 'Despesa'} ${money(restante('despesas', d))} (${fmtDT(d.ts)})`).join('; ') || 'nada.'));
+  L.push('ROTA DE HOJE (ordem de entrega): ' + (rota().map((v, i) => (i + 1) + '. ' + (v.cliente?.nome || 'cliente') + ' (' + (cidadeEntrega(v) || '?') + (v.pago ? ', pago' : ', a receber') + ')').join('; ') || 'vazia') + '. A ENTREGAR (separados, fora da rota): ' + (S.vendas.filter(v => v.status === "separado").slice(0, 30).map(v => (v.cliente?.nome || 'cliente') + ' (' + (cidadeEntrega(v) || '?') + ')').join('; ') || 'nenhum') + '.');
   L.push('ESTOQUE: ' + (S.produtos.filter(p => p.ativo !== false).slice(0, 40).map(p => `${p.nome} ${p.estoque || 0} ${p.unidade || 'un'}`).join('; ') || 'sem produtos') + '.');
   return L.join('\n');
 }
@@ -9245,10 +9291,14 @@ P.mic = '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.
 function vozFerramenta() {
   const f = JSON.parse(JSON.stringify(iaFerramenta));
   const it = f.input_schema.properties.lancamentos.items.properties;
-  it.acao.enum = [...it.acao.enum, 'envio_sequencia', 'abrir_novo', 'preencher_tela', 'selecao_envio', 'salvar_tela', 'excluir', 'desfazer_exclusao', 'abrir_filtro', 'enviar_mensagem', 'dar_baixa', 'pagamento_parcial', 'cancelar_venda', 'estornar'];
+  it.acao.enum = [...it.acao.enum, 'rota', 'envio_sequencia', 'abrir_novo', 'preencher_tela', 'selecao_envio', 'salvar_tela', 'excluir', 'desfazer_exclusao', 'abrir_filtro', 'enviar_mensagem', 'dar_baixa', 'pagamento_parcial', 'cancelar_venda', 'estornar'];
   it.novo = { type: 'string', enum: ['venda', 'compra', 'despesa', 'cliente', 'fornecedor', 'produto', 'noticia', 'transmissao', 'cobranca', 'lancar_ia', ''], description: 'Só para abrir_novo: qual janela de criação abrir.' };
   it.campos = { type: 'array', description: 'Só para preencher_tela: campos da janela ABERTA (ver TELA ABERTA AGORA) a preencher ou marcar.', items: { type: 'object', properties: { rotulo: { type: 'string', description: 'Nome do campo, botão ou opção como aparece na tela (ex.: Cliente, Telefone, Pago com, Já foi pago?, + Item). Em itens: Produto, Quantidade ou Preço.' }, valor: { type: 'string', description: 'O que colocar: texto, número, nome da opção; "sim"/"não" para liga e desliga. Vazio para só tocar num botão.' }, linha: { type: 'number', description: 'Para itens de venda/compra: o número do item (1, 2...). 0 se não se aplica.' } }, required: ['rotulo'] } };
   it.operacao_selecao = { type: 'string', enum: ['todos', 'nenhum', 'marcar', 'desmarcar', ''], description: 'Só para selecao_envio (janela de Transmissão ou Cobrança aberta): todos marca todos, nenhum limpa, marcar/desmarcar usa cidades e/ou nomes.' };
+  it.operacao_rota = { type: 'string', enum: ['colocar', 'tirar', 'entregue', 'a_entregar', 'colocar_todos', 'tirar_todos', 'mover', 'abrir_painel', 'otimizar', 'abrir_maps', 'definir_partida', ''], description: 'Só para acao rota. colocar = coloca na rota a entrega do cliente (pessoa); tirar = tira da rota (volta a "separado"/a entregar); entregue = marca como entregue; a_entregar = marca como a entregar (separado, fora da rota); colocar_todos / tirar_todos = todos os pedidos (use cidades[0] para só uma cidade); mover = muda a ordem na rota (pessoa + direcao subir/descer, passos, ou posicao); abrir_painel = abre o mapa da rota; otimizar = calcula a melhor ordem das paradas; abrir_maps = abre a rota no Google Maps; definir_partida = muda o ponto de partida (endereco ou CEP).' };
+  it.direcao = { type: 'string', enum: ['subir', 'descer', ''], description: 'Só para rota/mover: subir = vai para mais cedo na rota; descer = mais tarde.' };
+  it.passos = { type: 'number', description: 'Só para rota/mover: quantas posições (padrão 1).' };
+  it.posicao = { type: 'number', description: 'Só para rota/mover: a posição exata na rota (1 = primeira parada). 0 se não disse.' };
   it.etapa = { type: 'string', enum: ['iniciar', 'abrir_whatsapp', 'pular', ''], description: 'Só para envio_sequencia: iniciar = começa o envio em sequência dos marcados (botão Enviar em sequência / Iniciar cobrança); abrir_whatsapp = abre o WhatsApp do cliente da vez com a mensagem; pular = passa para o próximo.' };
   it.cidades = { type: 'array', items: { type: 'string' }, description: 'Só para selecao_envio: cidades.' };
   it.nomes = { type: 'array', items: { type: 'string' }, description: 'Só para selecao_envio: nomes de clientes.' };
@@ -9256,7 +9306,7 @@ function vozFerramenta() {
   it.valor_operacao = { type: 'number', description: 'Só para pagamento_parcial (quanto foi pago ou recebido agora) e estornar (valor a estornar; 0 = tudo).' };
   it.motivo = { type: 'string', description: 'Só para estornar e cancelar_venda: o motivo, se o dono disser.' };
   it.visao_caixa = { type: 'string', enum: ['movimentacoes', 'saldo', 'a_receber', 'contas_a_pagar', 'despesas_a_pagar', 'vendas', 'compras', 'despesas', 'estornos', ''], description: 'Só para acao abrir_filtro com tela caixa: a_receber = contas a receber (quem deve); contas_a_pagar = compras a pagar; despesas_a_pagar = despesas a pagar; vendas, compras, despesas = lista só daquele tipo.' };
-  it.acao.description += ' envio_sequencia: controla o envio em sequência da Transmissão ou Cobrança (use etapa); "iniciar a sequência" = iniciar. abrir_novo: abre direto a janela de criar (use novo): "nova venda", "nova compra", "nova despesa", "novo cadastro de cliente", "nova transmissão", "nova cobrança" etc. Sempre abre a janela de novo lançamento, nunca Configurações (Configurações só quando ele disser "configurações, ..." = abrir_config). preencher_tela: depois da janela aberta, preenche campos ou toca em botões/opções dela (use campos; os rótulos estão em TELA ABERTA AGORA); pode preencher vários campos de uma vez e o dono vai dizendo o resto aos poucos. salvar_tela: toca no botão de salvar da janela aberta, SÓ quando ele mandar salvar/lançar/confirmar. selecao_envio: na janela de Transmissão ou Cobrança, marca ou desmarca clientes (operacao_selecao, cidades, nomes); na Cobrança todos já vêm marcados. excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz. enviar_mensagem: manda uma mensagem no chat para um cliente (use pessoa e mensagem). dar_baixa: marca como paga uma venda, compra ou despesa em aberto (colecao + como achar). pagamento_parcial: registra um pagamento parcial de venda ou compra (colecao, valor_operacao). cancelar_venda: cancela uma venda (como achar). estornar: estorna valor de uma venda, compra ou despesa (colecao, valor_operacao, motivo). Para achar o lançamento use pessoa/descricao, valor (o total do lançamento), data ou mais_recente. abrir_filtro: abre a tela pedida (use tela) já com o período (use periodo) e, no caixa, a lista pedida (use visao_caixa), por exemplo "relatório só de contas a receber".';
+  it.acao.description += ' rota: qualquer operação de rota de entregas (use operacao_rota; pessoa = cliente da entrega). envio_sequencia: controla o envio em sequência da Transmissão ou Cobrança (use etapa); "iniciar a sequência" = iniciar. abrir_novo: abre direto a janela de criar (use novo): "nova venda", "nova compra", "nova despesa", "novo cadastro de cliente", "nova transmissão", "nova cobrança" etc. Sempre abre a janela de novo lançamento, nunca Configurações (Configurações só quando ele disser "configurações, ..." = abrir_config). preencher_tela: depois da janela aberta, preenche campos ou toca em botões/opções dela (use campos; os rótulos estão em TELA ABERTA AGORA); pode preencher vários campos de uma vez e o dono vai dizendo o resto aos poucos. salvar_tela: toca no botão de salvar da janela aberta, SÓ quando ele mandar salvar/lançar/confirmar. selecao_envio: na janela de Transmissão ou Cobrança, marca ou desmarca clientes (operacao_selecao, cidades, nomes); na Cobrança todos já vêm marcados. excluir: apaga UMA venda, compra ou despesa (use colecao e, para achar, pessoa ou descricao, valor, data; mais_recente=true se ele disser "a última"). desfazer_exclusao: traz de volta a última exclusão feita por voz. enviar_mensagem: manda uma mensagem no chat para um cliente (use pessoa e mensagem). dar_baixa: marca como paga uma venda, compra ou despesa em aberto (colecao + como achar). pagamento_parcial: registra um pagamento parcial de venda ou compra (colecao, valor_operacao). cancelar_venda: cancela uma venda (como achar). estornar: estorna valor de uma venda, compra ou despesa (colecao, valor_operacao, motivo). Para achar o lançamento use pessoa/descricao, valor (o total do lançamento), data ou mais_recente. abrir_filtro: abre a tela pedida (use tela) já com o período (use periodo) e, no caixa, a lista pedida (use visao_caixa), por exemplo "relatório só de contas a receber".';
   it.colecao = { type: 'string', enum: ['venda', 'compra', 'despesa', ''], description: 'Só para acao excluir.' };
   it.mais_recente = { type: 'boolean', description: 'Só para acao excluir: true se ele pediu a última/mais recente.' };
   f.name = 'atender'; f.description = 'Responde ao dono em voz e, se ele pediu, registra lançamentos ou ações no app.';
@@ -9282,6 +9332,7 @@ O que fazer:
 - Com uma janela aberta (veja TELA ABERTA AGORA), o dono dita o que quer em cada campo: use acao=preencher_tela com campos (rotulo exatamente como na tela, valor), podendo vários campos num só pedido. Para venda/compra, itens: rotulo Produto, Quantidade ou Preço com linha=1,2...; "+ Item" adiciona outro item. Só use salvar_tela quando ele mandar salvar, lançar ou confirmar; antes de salvar, se faltar algo, pergunte.
 - Editar dados de um cadastro (telefone, endereço, CEP, nome, e-mail, observação, Pix, banco...) NUNCA é venda nem compra: use acao=cliente_editar ou fornecedor_editar com pessoa = nome atual e SÓ o campo que mudou (para trocar o nome use novo_nome). Corrigir uma compra já lançada = compra_editar. Não use tipo venda, compra, despesa, cliente ou fornecedor para editar.
 - "Iniciar a sequência", "começar o envio", "pode enviar": use acao=envio_sequencia com etapa=iniciar (a janela de Transmissão ou Cobrança precisa estar aberta e com clientes marcados); "abre o WhatsApp do próximo" = abrir_whatsapp; "pula" = pular. Nunca crie venda para isso.
+- Rotas de entrega: use acao=rota com operacao_rota. "coloca o João na rota" = colocar; "tira da rota" = tirar; "marca como entregue" = entregue; "marca como a entregar" = a_entregar; "coloca todos na rota" / "tira todos" = colocar_todos / tirar_todos (cidades[0] para uma cidade só); "sobe o João uma posição", "coloca o João em primeiro" = mover (direcao, passos ou posicao); "abre o mapa da rota" = abrir_painel; "otimiza a rota" = otimizar; "abre no Maps" = abrir_maps; "muda a partida para ..." = definir_partida com endereco ou CEP. A rota atual e os pedidos a entregar estão nos DADOS DO APP.
 - Na janela de Transmissão ou Cobrança, use acao=selecao_envio: "todos", "ninguém", marcar ou desmarcar por cidade e/ou nomes. Na Cobrança todos já vêm marcados.
 - A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
@@ -9499,7 +9550,7 @@ async function vozComando(texto) {
       VOZ.estado = 'espera'; await vozDiz(perg); vozContinua(); return;
     }
     let fala = r.fala.trim(); if (ruins.length) fala = (fala ? fala + ' ' : '') + 'Não consegui fazer: ' + ruins.map(o => o.problemas.join(', ')).join('; ') + '.';
-    if (ok.length && !ok.every(o => o.tipo === 'acao' && (VOZ_SEGURAS.includes(o.acao) || (o.acao === 'envio_sequencia' && o.seguro)))) {
+    if (ok.length && !ok.every(o => o.tipo === 'acao' && (VOZ_SEGURAS.includes(o.acao) || ((o.acao === 'envio_sequencia' || o.acao === 'rota') && o.seguro)))) {
       VOZ.pend = ok; VOZ.estado = 'confirma'; VOZ.ocupado = false; VOZ.estrito = ok.some(o => VOZ_DESTRUTIVAS.includes(o.acao));
       const perg = (ruins.length ? 'Algo não deu certo. ' : '') + 'Vou fazer isto: ' + ok.map(vozResumo).join('. ') + '. ' + (VOZ.estrito ? 'Para confirmar, diga sim. Para desistir, diga não.' : 'Posso fazer? Diga sim ou não.'); vozLembra(texto, perg);
       await vozDiz(perg);
