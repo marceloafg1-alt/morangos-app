@@ -2183,8 +2183,9 @@ span.news-cta { padding-right: 13px; }
 .cat-cores label:has(input:focus-visible) { outline: 2px solid var(--ink, #222); outline-offset: 4px; }
 .nt-pref { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .nt-pref:last-child { border-bottom: 0; }
-.mn-row { cursor: default; }
-.mn-l { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.mn-row { cursor: default; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: transform .15s; }
+.mn-row.mn-drag { transition: none; }
+.mn-l { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
 .mn-alca { width: 28px; flex: none; display: grid; place-items: center; touch-action: none; cursor: grab; color: var(--muted, #888); }
 .mn-alca .i { transform: rotate(90deg); }
 .mn-fixo { cursor: default; }
@@ -6682,7 +6683,7 @@ function sheetHTML() {
     ${menuBtn('gear', 'Configurações', 'Notícias, aparência e mais', 'go', 'config')}</div>`); }
   if (s.type === 'menu-cfg') { const naBarra = menuNaBarra(); const cheio = naBarra.length >= MENU_MAX;
     return wrap('Menu inferior', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Escolha até ${MENU_MAX} botões para ficar sempre à mostra na barra. Os outros ficam no menu de 3 pontinhos (⋮). Vale para este aparelho.</p>
-    <div class="nt-prefs" id="mn-lista">${[...naBarra.map(k => MENU_ITENS.find(i => i.k === k)), ...MENU_ITENS.filter(i => !naBarra.includes(i.k))].map(i => { const on = naBarra.includes(i.k); const mv = on && i.k !== 'inicio'; return `<div class="nt-pref mn-row" data-k="${i.k}" ${mv ? 'data-mv="1"' : ''}>${mv ? `<span class="mn-alca" data-mdrag="1" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">${ic('dots')}</span>` : '<span class="mn-alca mn-fixo"></span>'}<label class="mn-l" for="mn-${i.k}"><span class="nt-ic">${ic(i.ic)}</span><span class="grow"><b>${i.l}</b><small>${i.k === 'inicio' ? 'Sempre o primeiro' : on ? 'Na barra · arraste para mudar a ordem' : 'No menu ⋮'}</small></span></label><input type="checkbox" class="lt-switch" id="mn-${i.k}" data-act="menu-tgl" data-v="${i.k}" ${on ? 'checked' : ''} ${!on && cheio ? 'disabled' : ''}></div>`; }).join('')}</div>
+    <div class="nt-prefs" id="mn-lista">${[...naBarra.map(k => MENU_ITENS.find(i => i.k === k)), ...MENU_ITENS.filter(i => !naBarra.includes(i.k))].map(i => { const on = naBarra.includes(i.k); const mv = on && i.k !== 'inicio'; return `<div class="nt-pref mn-row" data-k="${i.k}" ${mv ? 'data-mv="1"' : ''}>${mv ? `<span class="mn-alca" data-mdrag="1" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">${ic('dots')}</span>` : '<span class="mn-alca mn-fixo"></span>'}<div class="mn-l"><span class="nt-ic">${ic(i.ic)}</span><span class="grow"><b>${i.l}</b><small>${i.k === 'inicio' ? 'Sempre o primeiro' : on ? 'Na barra · arraste para mudar a ordem' : 'No menu ⋮'}</small></span></div><input type="checkbox" class="lt-switch" id="mn-${i.k}" data-act="menu-tgl" data-v="${i.k}" ${on ? 'checked' : ''} ${!on && cheio ? 'disabled' : ''}></div>`; }).join('')}</div>
     <small class="muted" style="display:block;margin:8px 0 12px">${naBarra.length} de ${MENU_MAX} na barra${cheio ? ' · desligue um botão para escolher outro' : ''}.</small>
     <button class="lt-btn lt-block" data-act="menu-reset">Voltar ao padrão</button>`); }
 
@@ -9858,11 +9859,22 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey
 document.addEventListener('pointerdown', e => { /* Configurações > Menu inferior: arrastar para mudar a ordem (Início fica fixo) */
   const h = e.target.closest?.('[data-mdrag]'); if (!h) return;
   const row = h.closest('.mn-row'), box = row && row.parentElement; if (!box) return;
-  e.preventDefault(); try { h.setPointerCapture(e.pointerId); } catch (x) {} row.classList.add('mn-drag');
-  const mover = ev => { for (const o of box.querySelectorAll('.mn-row[data-mv]')) { if (o === row) continue; const r = o.getBoundingClientRect(); if (ev.clientY > r.top && ev.clientY < r.bottom) { box.insertBefore(row, ev.clientY < r.top + r.height / 2 ? o : o.nextSibling); break; } } };
-  const fim = () => { h.removeEventListener('pointermove', mover); h.removeEventListener('pointerup', fim); h.removeEventListener('pointercancel', fim); row.classList.remove('mn-drag');
-    const ordem = ['inicio', ...[...box.querySelectorAll('.mn-row[data-mv]')].map(r => r.dataset.k)].filter(k => menuNaBarra().includes(k)); ls.set('mmr-menu', ordem); render(); };
-  h.addEventListener('pointermove', mover); h.addEventListener('pointerup', fim); h.addEventListener('pointercancel', fim);
+  e.preventDefault(); try { h.setPointerCapture(e.pointerId); } catch (x) {}
+  const rows = [...box.querySelectorAll('.mn-row[data-mv]')], i0 = rows.indexOf(row), rects = rows.map(r => r.getBoundingClientRect()), alt = rects[i0].height, y0 = e.clientY;
+  let alvo = i0; row.classList.add('mn-drag');
+  const cm = ev => ev.preventDefault();
+  const mover = ev => {
+    const lo = rects[0].top - rects[i0].top, hi = rects[rects.length - 1].top - rects[i0].top, dy = Math.max(lo, Math.min(hi, ev.clientY - y0));
+    row.style.transform = `translateY(${dy}px)`;
+    const c = rects[i0].top + alt / 2 + dy; alvo = rects.findIndex(r => c < r.bottom); if (alvo < 0) alvo = rects.length - 1;
+    rows.forEach((r, j) => { if (r !== row) r.style.transform = i0 < alvo && j > i0 && j <= alvo ? `translateY(${-alt}px)` : i0 > alvo && j < i0 && j >= alvo ? `translateY(${alt}px)` : ''; });
+  };
+  const fim = ev => { h.removeEventListener('pointermove', mover); h.removeEventListener('pointerup', fim); h.removeEventListener('pointercancel', fim); h.removeEventListener('contextmenu', cm);
+    rows.forEach(r => { r.style.transform = ''; }); row.classList.remove('mn-drag');
+    if (ev.type === 'pointercancel' || alvo === i0) return;
+    const ks = rows.map(r => r.dataset.k); ks.splice(i0, 1); ks.splice(alvo, 0, row.dataset.k);
+    ls.set('mmr-menu', ['inicio', ...ks].filter(k => menuNaBarra().includes(k))); render(); };
+  h.addEventListener('pointermove', mover); h.addEventListener('pointerup', fim); h.addEventListener('pointercancel', fim); h.addEventListener('contextmenu', cm);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($modal.innerHTML) closeModal(); else if (ui.sheet) { ui.sheet = null; render(); } } });
 
