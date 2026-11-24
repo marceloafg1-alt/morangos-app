@@ -6186,6 +6186,13 @@ async function relPersPDF(R) {
     else doc.text('Nada encontrado com esses filtros.', 40, 106);
     return doc.output('blob'); } catch { return null; }
 }
+/* resumo por WhatsApp pela IA: vai para Relatórios e abre o WhatsApp no número salvo (igual Exportar → Resumo no WhatsApp); se o celular bloquear a abertura, aparece o botão */
+function relZapIA(texto) {
+  if (ui.g !== 'relatorios') go('relatorios');
+  const w = window.open(relWaUrl(texto), '_blank');
+  if (!w) { _relZap = texto; ui.sheet = { type: 'relzap' }; render(); toast('Toque em Abrir WhatsApp para enviar o resumo.'); }
+}
+let _relZap = '';
 function relPdfLib() {
   if (_pdfLib) return _pdfLib;
   const carrega = src => new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = () => no(new Error('falhou')); document.head.appendChild(sc); });
@@ -6888,6 +6895,7 @@ function sheetHTML() {
   const fti = () => `<button class="fab-tile ia" data-act="ia-lancar" ${W()}><span>Lançar com IA</span></button>`;
   const ft = (icon, label, act, v = '', w = true) => `<button class="fab-tile" data-act="${act}" ${v ? `data-v="${v}"` : ''} ${w ? W() : ''}>${ic(icon)}<span>${label}</span></button>`;
   if (s.type === 'docexp') { const d = _docExp || {}; return wrap('Exportar arquivo', `<p class="muted" style="margin:0 0 12px;font-size:13.5px"><b>${esc(d.titulo || '')}</b></p><div class="rexp-btns"><button class="btn" data-act="doc-baixar">Baixar</button><button class="btn green" data-act="doc-compartilhar">Compartilhar</button></div><p class="muted" style="margin:12px 0 0;font-size:13px">Compartilhar abre a lista do celular: escolha o WhatsApp (ou outro app) e o contato.</p>`); }
+  if (s.type === 'relzap') return wrap('Resumo no WhatsApp', `<p class="muted" style="margin:0 0 12px;font-size:13.5px">O celular só abre o WhatsApp com um toque seu. O resumo vai para o número salvo em Configurações → WhatsApp do relatório.</p><pre style="white-space:pre-wrap;font:13px/1.4 inherit;background:var(--surface-2);border-radius:12px;padding:10px;max-height:220px;overflow:auto;margin:0 0 12px">${esc(_relZap)}</pre><button class="btn green" style="width:100%" data-act="relzap-abrir">Abrir WhatsApp</button>`);
   if (s.type === 'relwa') { const NM = { 'pdf-sh': 'PDF', 'xls-sh': 'Excel', 'csv-sh': 'CSV' }[s.k] || 'relatório'; return wrap('Compartilhar relatório', `<p class="muted" style="margin:0 0 12px;font-size:13.5px">Relatório em <b>${NM}</b> · Período: <b>${rPerLabel()}</b>. O celular exige um toque seu para abrir o compartilhar; depois escolha o WhatsApp e o contato.</p><button class="btn green" style="width:100%" data-act="rel-exp" data-v="${s.k}">Compartilhar ${NM}</button>`); }
   if (s.type === 'rexp') { const modo = s.modo || '';
     const eb = (ico, tt, sub, act, v) => `<button class="bs-row" data-act="${act}" data-v="${v}"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}</b><small>${sub}</small></span></button>`;
@@ -8961,7 +8969,7 @@ function iaPreparaAcao(o, l) {
         o.dito = op === 'resumir' ? R.falado : ''; o.seguro = true;
         o.exec = async () => {
           if (op === 'resumir') return;
-          if (zap) { window.open(relWaUrl(R.texto), '_blank'); return; }
+          if (zap) { relZapIA(R.texto); return; }
           const b = await relPersPDF(R); if (!b) { toast('Não consegui gerar o PDF agora.'); return; }
           docExportar(R.nome, b, R.titulo);
         };
@@ -8988,6 +8996,7 @@ function iaPreparaAcao(o, l) {
         if (!ok) { ui.sheet = { type: 'relwa', k: fmt }; render(); relWaPrepara(fmt.slice(0, -3)).catch(() => {}); toast('O celular só deixa compartilhar com um toque seu: toque em Compartilhar.'); }
         return;
       }
+      if (op === 'exportar' && fmt === 'whats') { relZapIA(relResumoTexto()); return; }
       if (op === 'exportar') { relExportar(fmt); return; }
       if (ui.g === 'relatorios') render(); else go('relatorios');
     };
@@ -10387,6 +10396,7 @@ document.addEventListener('click', async e => {
     case 'cx-grp': ui.cxo[v] = !ui.cxo[v]; render(); break;
     case 'rel-exportar': ui.sheet = { type: 'rexp' }; render(); relPdfLib().catch(() => {}); relWaPreparaTodos(); break;
     case 'rel-exp-modo': ui.sheet = { type: 'rexp', modo: v }; render(); break;
+    case 'relzap-abrir': ui.sheet = null; render(); window.open(relWaUrl(_relZap), '_blank'); break;
     case 'rel-exp': ui.sheet = null; render(); relExportar(v); break;
 
     case 'noop': break;
