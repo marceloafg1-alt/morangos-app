@@ -2716,6 +2716,14 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
 }
 .cbr-badge-btn:active { transform: scale(.95); opacity: .9; }
 .cbr-badge-btn svg { width: 16px; height: 16px; flex: none; stroke: currentColor; }
+.bs.tm-bs{overflow:hidden;display:flex;flex-direction:column}
+.bs.tm-bs form{display:flex;flex-direction:column;gap:0;flex:1;min-height:0}
+.tm-top{display:grid;gap:8px;flex:none;padding-top:2px}
+.tm-top .lt-chips{margin:0}
+.tm-cnt{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tm-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin-top:6px}
+.tm-scroll .sec-h{margin:8px 0 6px}
+.tm-foot{flex:none;padding:10px 0 calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);margin-top:6px}
 .lm-card{padding:12px 14px;margin-bottom:12px;display:grid;gap:10px}
 .lm-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .lm-top b{font-size:15px}
@@ -4748,21 +4756,15 @@ function transmAtualiza() {
   if (bto) { const all = transmCidades().flatMap(g => g.itens).filter(i => i.tel); bto.textContent = all.length && all.every(i => transmSel.has(i.id)) ? 'Desmarcar todos' : 'Todos'; }
 }
 function modalTransmissao() {
-  const gr = transmCidades();
+  const gr = transmCidades(), ms = transmModelos();
   openModal('Transmissão · WhatsApp', `
-    <div class="cbr-fila-head">
-      <div>
-        ${transmModelos().length ? `<small class="muted" style="display:block;margin-bottom:6px">Mensagens prontas (toque para usar):</small><div class="lt-chips" role="group" aria-label="Mensagens prontas" style="margin-bottom:10px">${transmModelos().map(m => `<button type="button" class="lt-chip" data-act="transm-modelo-usar" data-id="${esc(m.id)}">${esc(m.nome)}</button>`).join('')}</div>` : ''}
-        <label for="transm-msg" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px">Mensagem (use {nome} para o nome do cliente; pode alterar):</label>
-        <textarea id="transm-msg" class="cbr-preview no-autofocus" data-no-autofocus="1" rows="5">${esc(transmMsg())}</textarea>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-        <b id="transm-n">0 selecionados</b>
-        <button type="button" class="lt-chip" data-act="transm-todos">Todos</button>
-      </div>
+    <div class="tm-top">
+      ${ms.length ? `<div class="lt-chips" role="group" aria-label="Mensagens prontas">${ms.map(m => `<button type="button" class="lt-chip" data-act="transm-modelo-usar" data-id="${esc(m.id)}">${esc(m.nome)}</button>`).join('')}</div>` : ''}
+      <textarea id="transm-msg" class="cbr-preview no-autofocus" data-no-autofocus="1" rows="4" aria-label="Mensagem (use {nome} para o nome do cliente)">${esc(transmMsg())}</textarea>
+      <div class="tm-cnt"><b id="transm-n">0 selecionados</b><button type="button" class="lt-chip" data-act="transm-todos">Todos</button></div>
     </div>
-    <div style="max-height:42vh;overflow-y:auto">
-      ${gr.map((g, gi) => `<div class="sec-h" style="margin:10px 0 6px"><h2>${esc(g.nome)} · ${g.itens.length}</h2><button type="button" class="link" data-act="transm-cidade" data-ids="${g.itens.filter(i => i.tel).map(i => esc(i.id)).join(',')}">Marcar cidade</button></div>
+    <div class="tm-scroll">
+      ${gr.map(g => `<div class="sec-h"><h2>${esc(g.nome)} · ${g.itens.length}</h2><button type="button" class="link" data-act="transm-cidade" data-ids="${g.itens.filter(i => i.tel).map(i => esc(i.id)).join(',')}">Marcar cidade</button></div>
       <div class="card list">${g.itens.map(i => `<div class="li tc-li" role="button" tabindex="0" data-act="transm-tog" data-id="${esc(i.id)}" ${i.tel ? '' : 'aria-disabled="true"'} aria-pressed="false">
         <span class="av">${esc((i.cliente.nome || 'A')[0])}</span>
         <span style="min-width:0"><b>${esc(i.cliente.nome || 'Cliente')}</b>
@@ -4770,10 +4772,7 @@ function modalTransmissao() {
         <span class="tm-ck" aria-hidden="true"></span>
       </div>`).join('')}</div>`).join('') || '<div class="empty">Nenhum cliente cadastrado ainda.</div>'}
     </div>
-    <div style="margin-top:12px">
-      <button type="button" id="transm-go" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="transm-iniciar" disabled>${ic('chat')}<span> Enviar em sequência (0)</span></button>
-      <small class="muted" style="display:block;margin-top:6px">O WhatsApp abre uma conversa por vez, com a mensagem pronta. Você só toca em enviar.</small>
-    </div>`, undefined, () => { transmAtualiza(); });
+    <div class="tm-foot"><button type="button" id="transm-go" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="transm-iniciar" disabled>${ic('chat')}<span> Enviar em sequência (0)</span></button></div>`, undefined, () => { $modal.querySelector('.bs')?.classList.add('tm-bs'); transmAtualiza(); });
 }
 function modalTransmModelos() {
   const ms = transmModelos();
@@ -9514,12 +9513,12 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'cbr-seq-pular': modalCobrancaSequencial(Number(v) + 1); break;
-    case 'lemb-ligar': { lembSet(t.dataset.k, { on: !!t.checked }); toast(t.checked ? 'Lembrete ligado.' : 'Lembrete desligado.', 'ok'); render(); break; }
+    case 'lemb-ligar': { lembSet(t.dataset.k, { on: !!t.checked }); toast(t.checked ? 'Lembrete ligado.' : 'Lembrete desligado.', 'ok'); break; }
     case 'lemb-hora': {
       const k = t.dataset.k, [h, m] = lembCfg(k).hora.split(':').map(Number);
       let tot = ((h * 60 + m + Number(t.dataset.v)) % 1440 + 1440) % 1440;
       const hora = String(Math.floor(tot / 60)).padStart(2, '0') + ':' + String(tot % 60).padStart(2, '0');
-      lembSet(k, { hora }); const el = document.querySelector(`[data-lemb-h="${k}"]`); if (el) el.textContent = hora; render(); break;
+      lembSet(k, { hora }); const el = document.querySelector(`[data-lemb-h="${k}"]`); if (el) el.textContent = hora; break;
     }
     case 'lemb-dia': {
       const k = t.dataset.k, d = Number(t.dataset.d), c = lembCfg(k);
@@ -9527,7 +9526,7 @@ document.addEventListener('click', async e => {
       if (!dias.length) { toast('Deixe pelo menos um dia marcado.'); break; }
       lembSet(k, { dias }); t.classList.toggle('on', dias.includes(d)); t.setAttribute('aria-pressed', dias.includes(d));
       const n = document.querySelector(`[data-lemb-n="${k}"]`); if (n) n.textContent = lembResumo(lembCfg(k));
-      render(); break;
+      break;
     }
     case 'transm-modelos': if (ui.sheet) ui.sheet = null; modalTransmModelos(); break;
     case 'transm-modelo-editar': modalTransmModeloEdit(t.dataset.id || ''); break;
