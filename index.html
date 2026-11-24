@@ -3843,7 +3843,7 @@ const telaSessao = { get(k) { try { return sessionStorage.getItem('mmr-tela-' + 
 try { localStorage.removeItem('mmr-tela-g'); localStorage.removeItem('mmr-tela-c'); } catch {}
 const ui = {
   g: telaSessao.get('g'), authMode: (() => { try { return sessionStorage.getItem('mmr-convite-pendente') ? 'convite' : 'google'; } catch { return 'google'; } })(),
-  vt: 'todas', vf: 'todas', vp: perPadrao(), vDe: '', vAte: '', cp: perPadrao(), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', eq: '', eg: 'cidade', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao(), eDe: '', eAte: '', kp: perPadrao(), kDe: '', kAte: '', rp: perPadrao(), rDe: '', rAte: '', sheet: null,
+  vt: 'todas', vf: 'todas', vp: perPadrao(), vDe: '', vAte: '', cp: perPadrao(), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', vq: '', eq: '', eg: 'cidade', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao(), eDe: '', eAte: '', kp: perPadrao(), kDe: '', kAte: '', rp: perPadrao(), rDe: '', rAte: '', sheet: null,
 };
 const W = () => canWrite ? '' : 'disabled';
 
@@ -5470,10 +5470,11 @@ function vendasFiltradas() {
   return list;
 }
 function gVendas() {
-  const list = vendasFiltradas();
+  const qv = bnorm(ui.vq.trim());
+  const list = vendasFiltradas().filter(v => !qv || bnorm([v.cliente?.nome, v.cliente?.endereco, itemsText(v.itens), v.obs, FORMAS[v.forma] || v.forma, money(v.total)].filter(Boolean).join(' ')).includes(qv));
   const tot = list.filter(v => v.status !== 'cancelado').reduce((s, v) => s + v.total, 0);
   return pageHeaderFixo('Vendas', btnImportar, `<div class="vsel">${[['vt', 'Tipo de venda', VTIPOS[ui.vt]], ['vf', 'Pedido', VPED[ui.vf]], ['vp', 'Período', vPerLabel()]].map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`) +
-    `
+    buscaBox('vd', 'vq', ui.vq, 'Buscar cliente, produto ou valor') + `
     <p class="sub" style="margin:0">${list.length} ${list.length === 1 ? 'venda' : 'vendas'} · <b class="num">${money(tot)}</b></p>
     <div class="stack">${list.map(vendaItem).join('') || emptyBox('Nenhuma venda com esse filtro.', canWrite ? '<button class="btn primary" data-act="nova-venda">Lançar venda avulsa</button>' : '')}</div>`;
 }
