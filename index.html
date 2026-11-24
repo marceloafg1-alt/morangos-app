@@ -3791,6 +3791,8 @@ function notificacoes(todas) {
     add(`est:${p.id}:${esg ? 0 : 1}`, 'estoque', ult + 6e4, `${esg ? 'Esgotado' : 'Acabando'}: ${p.nome}`, esg ? 'Ele some da Loja até você repor.' : `Restam ${fmtNum(p.estoque)} ${p.unidade || 'un.'}. Hora de comprar na roça.`, 'go', 'compras');
   }
   for (const c of S.compras) if (!c.pago) add('compra:' + c.id, 'compra', c.ts, `Pagar ${c.fornecedor || 'compra na roça'}`, `${money(c.total)}${parcV(c) > 0 ? ' (falta ' + money(cFalta(c)) + ')' : ''} · compra de ${fmtDate(c.ts)}${c.obs ? ' · ' + c.obs : ''}`, 'go', 'compras');
+  { const t1 = lembVencido('transm'); if (t1) add('lemb:transm:' + lembHoje(), 'aviso', t1, 'Hora de enviar a transmissão', 'Toque para escolher a mensagem e os clientes.', 'transm-abrir');
+    const t2 = lembVencido('cobr'), dv = t2 ? devedoresLista() : []; if (t2 && dv.length) add('lemb:cobr:' + lembHoje(), 'aviso', t2, 'Hora de enviar as cobranças', `${dv.length} ${dv.length === 1 ? 'cliente' : 'clientes'} com pagamento em aberto.`, 'cobrancas-fila'); }
   for (const d of S.notificacoes) add('doc:' + d.id, NOTIF_TIPOS[d.tipo] ? d.tipo : 'aviso', d.ts || 0, d.titulo || 'Aviso', d.texto || '', d.act || '', d.v || '', d.aid || '', d.lida === true);
   return n.filter(x => todas || notifPrefs[x.tipo] !== false).map(x => ({ ...x, lida: x.lidaDoc || notifLidas.has(x.id) })).sort((a, b) => b.ts - a.ts);
 }
@@ -3801,6 +3803,8 @@ function notifIr(x) {
   else if (x.act === 'go-vendas-receber') { ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'tudo'; go('vendas'); }
   else if (x.act === 'go-vendas-receber-hoje') { ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'hoje'; go('vendas'); }
   else if (x.act === 'go-vendas-hoje') { ui.vt = 'todas'; ui.vf = 'todas'; ui.vp = 'hoje'; go('vendas'); }
+  else if (x.act === 'transm-abrir') { ui.sheet = null; transmSel = new Set(); modalTransmissao(); }
+  else if (x.act === 'cobrancas-fila') { ui.sheet = null; modalFilaCobranca(); }
   else if (x.act === 'go' && x.v) { ui.voltaCfg = false; go(x.v); }
   else render();
 }
@@ -4264,6 +4268,7 @@ function recordCobrancaEnvio(key) {
     log[String(key)] = Date.now();
     localStorage.setItem('mmr-cobranca-log', JSON.stringify(log));
   } catch (_) {}
+  lembMarca('cobr');
 }
 function devedoresLista() {
   const pendentes = S.vendas.filter(v => v.status !== 'cancelado' && !v.pago && vFalta(v) > 0);
@@ -4405,6 +4410,7 @@ function cobrancasCfgSheet(wrap) {
     <p class="muted" style="margin:0 0 14px;font-size:13.5px">
       Envie lembretes e cobranças personalizadas no WhatsApp com 1 toque, incluindo sua chave Pix e o resumo das compras pendentes.
     </p>
+    ${lembCardHtml('cobr')}
 
     <div class="cbr-cfg-card">
       <div class="cbr-cfg-top">
@@ -4646,6 +4652,43 @@ function modalCobrancaSequencial(idx = 0) {
   });
 }
 
+/* ---------------- Lembretes recorrentes (transmissão e cobrança) ---------------- */
+const LEMB_DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const lembHoje = () => new Date().toLocaleDateString('sv');
+function lembCfg(k) { const d = ls.get('mmr-lembretes', {}) || {}; return { on: false, dias: [1], hora: '09:00', ...(d[k] || {}) }; }
+function lembSet(k, patch) { const d = ls.get('mmr-lembretes', {}) || {}; d[k] = { ...lembCfg(k), ...patch }; ls.set('mmr-lembretes', d); }
+function lembMarca(k) { const d = ls.get('mmr-lembretes-feito', {}) || {}; d[k] = lembHoje(); ls.set('mmr-lembretes-feito', d); }
+/* horário de hoje em que o lembrete passou a valer, ou 0 se está desligado, não é dia dele, ainda não deu a hora ou já foi atendido hoje */
+function lembVencido(k) {
+  const c = lembCfg(k); if (!c.on) return 0;
+  const now = new Date(); if (!c.dias.includes(now.getDay())) return 0;
+  const [h, m] = String(c.hora || '09:00').split(':').map(Number);
+  const t = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0).getTime();
+  if (Date.now() < t) return 0;
+  if ((ls.get('mmr-lembretes-feito', {}) || {})[k] === lembHoje()) return 0;
+  return t;
+}
+function lembCardHtml(k) {
+  const c = lembCfg(k);
+  return `<div class="card" style="padding:14px;margin-bottom:12px" data-lemb="${k}">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div><b>Lembrete</b><small class="muted" style="display:block;font-size:12px">Avisa em Pendências e Notificações quando chegar o dia e a hora</small></div>
+      <input type="checkbox" class="lt-switch" data-act="lemb-ligar" data-k="${k}" aria-label="Ligar lembrete" ${c.on ? 'checked' : ''}>
+    </div>
+    <div style="margin-top:12px"><span class="lbl" style="font-size:12.5px;font-weight:700">Dias da semana</span>
+      <div class="lt-chips" role="group" aria-label="Dias do lembrete" style="margin-top:6px">${LEMB_DIAS.map((n, d) => `<button type="button" class="lt-chip ${c.dias.includes(d) ? 'on' : ''}" data-act="lemb-dia" data-k="${k}" data-d="${d}" aria-pressed="${c.dias.includes(d)}">${n}</button>`).join('')}</div>
+      <small class="muted" data-lemb-n="${k}" style="display:block;margin-top:6px">${lembResumo(c)}</small></div>
+    <div class="f" style="margin-top:12px"><label for="lemb-hora-${k}">Horário</label><input type="time" id="lemb-hora-${k}" data-lemb-hora="${k}" value="${esc(c.hora)}"></div>
+  </div>`;
+}
+const lembResumo = c => `${c.dias.length} ${c.dias.length === 1 ? 'vez' : 'vezes'} por semana, às ${c.hora}`;
+document.addEventListener('change', e => {
+  const k = e.target?.dataset?.lembHora; if (!k) return;
+  const v = e.target.value || '09:00'; lembSet(k, { hora: v });
+  const n = document.querySelector(`[data-lemb-n="${k}"]`); if (n) n.textContent = lembResumo(lembCfg(k));
+  render();
+});
+
 /* ---------------- Transmissão (promoções e lembretes no WhatsApp) ---------------- */
 const TRANSM_MSG_PADRAO = 'Olá, {nome}! Tudo bem? 🍓\nTem morango fresquinho da roça essa semana! Quer que eu separe uma caixa para você?';
 let transmSel = new Set();
@@ -4661,6 +4704,7 @@ function transmMsg() { return ls.get('mmr-transm-msg', '') || TRANSM_MSG_PADRAO;
 function transmLog() { try { return JSON.parse(localStorage.getItem('mmr-transm-log') || '{}'); } catch (_) { return {}; } }
 function transmRegistra(cid) {
   try { const l = transmLog(); l[cid] = Date.now(); localStorage.setItem('mmr-transm-log', JSON.stringify(l)); } catch (_) {}
+  lembMarca('transm');
 }
 const transmCidade = c => String(c.cidade || '').trim() || 'Sem cidade';
 /* clientes por cidade (a do cadastro), em ordem alfabética; "Sem cidade" por último */
@@ -4735,6 +4779,8 @@ function modalTransmModelos() {
   const ms = transmModelos();
   openModal('Mensagens de transmissão', `
     <p class="muted" style="margin:0 0 10px;font-size:13px">Deixe mensagens prontas. Ao enviar uma transmissão pelo botão + você escolhe uma delas e ainda pode alterar o texto. Use {nome} para o nome do cliente.</p>
+    ${lembCardHtml('transm')}
+    <div class="sec-h" style="margin:4px 0 8px"><h2>Mensagens prontas</h2></div>
     <div class="card list">${ms.map(m => `<div class="li tc-li" role="button" tabindex="0" data-act="transm-modelo-editar" data-id="${esc(m.id)}"><span class="av">${ic('chat')}</span><span style="min-width:0"><b>${esc(m.nome)}</b><small>${esc(String(m.texto).replace(/\s+/g, ' '))}</small></span>${ic('right', 'i chev')}</div>`).join('') || '<div class="empty">Nenhuma mensagem pronta ainda.</div>'}</div>
     <div class="form-acts" style="margin-top:12px"><button type="button" class="btn" data-act="close-modal">Fechar</button><button type="button" class="btn primary" data-act="transm-modelo-editar" data-id="">+ Nova mensagem</button></div>`);
 }
@@ -4977,6 +5023,8 @@ function pendencias() {
   if (esg.length) p.push(['Estoque', 'box', esg.length === 1 ? 'Produto esgotado' : 'Produtos esgotados', esg.map(x => x.nome).slice(0, 2).join(', '), esg.length, 'go', 'compras', 'red']);
   const acab = baixo.filter(x => (x.estoque || 0) > 0);
   if (acab.length) p.push(['Estoque', 'box', acab.length === 1 ? 'Produto acabando' : 'Produtos acabando', acab.map(x => `${x.nome} (${fmtNum(x.estoque)})`).slice(0, 2).join(', '), acab.length, 'go-estoque', '', 'warn']);
+  if (lembVencido('transm')) p.push(['Enviar', 'megaphone', 'Enviar transmissão', 'Lembrete das ' + lembCfg('transm').hora, 1, 'transm-abrir', '', 'warn']);
+  if (lembVencido('cobr')) { const dv = devedoresLista(); if (dv.length) p.push(['Receber', 'chat', 'Enviar cobranças', `${dv.length} ${dv.length === 1 ? 'cliente' : 'clientes'} · ${money(dv.reduce((x, d) => x + d.totalFalta, 0))}`, dv.length, 'cobrancas-fila', '', 'warn']); }
   if (saldoGeral() < 0) p.push(['Caixa', 'wallet', 'Caixa no negativo', 'Saldo ' + money(saldoGeral()), 1, 'go', 'caixa', 'red']);
   if (!newsNoAr().length) p.push(['Caixa', 'megaphone', 'Nenhuma notícia no banner', 'Os clientes não veem novidades', 1, 'nova-noticia', '', 'dark']);
   return p;
@@ -9466,6 +9514,15 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'cbr-seq-pular': modalCobrancaSequencial(Number(v) + 1); break;
+    case 'lemb-ligar': { lembSet(t.dataset.k, { on: !!t.checked }); toast(t.checked ? 'Lembrete ligado.' : 'Lembrete desligado.', 'ok'); render(); break; }
+    case 'lemb-dia': {
+      const k = t.dataset.k, d = Number(t.dataset.d), c = lembCfg(k);
+      const dias = c.dias.includes(d) ? c.dias.filter(x => x !== d) : [...c.dias, d].sort();
+      if (!dias.length) { toast('Deixe pelo menos um dia marcado.'); break; }
+      lembSet(k, { dias }); t.classList.toggle('on', dias.includes(d)); t.setAttribute('aria-pressed', dias.includes(d));
+      const n = document.querySelector(`[data-lemb-n="${k}"]`); if (n) n.textContent = lembResumo(lembCfg(k));
+      render(); break;
+    }
     case 'transm-modelos': if (ui.sheet) ui.sheet = null; modalTransmModelos(); break;
     case 'transm-modelo-editar': modalTransmModeloEdit(t.dataset.id || ''); break;
     case 'transm-modelo-salvar': {
