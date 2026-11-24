@@ -6825,7 +6825,7 @@ function openModal(title, inner, onSubmit, onOpen) {
   if (openModal.swap && document.getElementById('mform')) { /* troca o conteúdo no lugar, sem reabrir a tela (não pisca) */
     const old = document.getElementById('mform'), f = old.cloneNode(false); f.innerHTML = inner; old.replaceWith(f);
     f.addEventListener('submit', async e => { e.preventDefault(); const btn = f.querySelector('[type=submit]'); if (btn) btn.disabled = true; let ok = true; try { if (onSubmit) ok = await onSubmit(f); } finally { if (btn) btn.disabled = false; } if (ok !== false) closeModal(); });
-    onOpen && onOpen(f); const p1 = f.querySelector('input[type=text]'); if (p1) p1.focus({ preventScroll: true }); return;
+    onOpen && onOpen(f); const p1 = f.querySelector('#k-nome') || f.querySelector('input[type=text]'); if (p1) { p1.focus({ preventScroll: true }); try { const n = p1.value.length; p1.setSelectionRange(n, n); } catch (e) {} } return;
   }
   if (ui.sheet) ui.sheet = null; const _sr = document.getElementById('sheet-root'); if (_sr) _sr.innerHTML = '';
   $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" data-act="close-modal" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
@@ -9405,6 +9405,8 @@ document.addEventListener('input', async e => {
   set('rua', r.rua); set('bairro', r.bairro); set('cidade', r.cidade);
   (r.rua ? f.elements['numero'] : f.elements['rua']).focus();
 });
+/* alternar cliente/fornecedor não tira o foco do campo de nome: o teclado do celular continua aberto */
+document.addEventListener('mousedown', e => { if (e.target.closest && e.target.closest('.cad-tog')) e.preventDefault(); });
 document.addEventListener('click', async e => {
   const t = e.target.closest('[data-act]');
   if (!t) return;
