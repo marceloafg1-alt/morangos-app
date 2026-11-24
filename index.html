@@ -1832,6 +1832,8 @@ form .is-off { opacity: .55; }
 .bs-scrim { z-index: 70; background: rgb(20 12 12 / .5); animation: bsFade .14s ease-out; }
 .bs { width: min(560px, 100%); max-height: 90dvh; overflow: auto; overscroll-behavior: contain; background: var(--card); color: var(--ink); border-radius: 28px 28px 0 0;
   padding: 10px 22px calc(22px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 40px rgb(0 0 0 / .18); display: grid; gap: 14px; align-content: start; animation: bsUp .2s cubic-bezier(.2,.8,.2,1); }
+.rt-pulse{animation:rtPulse 1s ease-in-out 6;box-shadow:0 0 0 3px var(--accent,#d6336c)!important}
+@keyframes rtPulse{50%{transform:scale(1.08)}}
 .cfg-hero{display:flex;gap:12px;align-items:flex-start;margin:0 0 14px}
 .cfg-hero p{margin:0;font-size:13.5px;line-height:1.45;color:var(--muted)}
 .cfg-hero .ml-ic{flex:none}
@@ -8771,7 +8773,10 @@ function iaPreparaAcao(o, l) {
       if (op === 'mover') { const r = rota(); return safe(async () => { for (let k = 0; k < ordNovo.length; k++) { const x = r.find(y => y.id === ordNovo[k]); if (x && x.ordemRota !== k + 1) await patch('vendas', x.id, { ordemRota: k + 1 }); } }, 'Ordem da rota atualizada.'); }
       if (op === 'abrir_painel') { rotaMapaAbrir(); return; }
       if (op === 'otimizar') { await esperaMapa(); if (!RT.map) throw new Error('o mapa não carregou; confira a internet'); await rtOtimizar(); return; }
-      if (op === 'abrir_maps') { const url = rtMapsUrl(); if (!url) throw new Error('não há parada com endereço na rota'); location.assign(url); return; } /* abre o aplicativo do Google Maps, sem janela pop-up */
+      if (op === 'abrir_maps') { const url = rtMapsUrl(); if (!url) throw new Error('não há parada com endereço na rota'); /* mesmo caminho do botão "Google Maps" da Rota de hoje (abre o aplicativo); sem toque o Android pode bloquear: aí abre a Rota de hoje com o botão destacado para você tocar */
+        let w = null; try { w = window.open(url, '_blank'); } catch { /* ok */ }
+        if (!w) { rotaMapaAbrir(); for (let k = 0; k < 20 && !document.querySelector('[data-rt="maps"]'); k++) await new Promise(r => setTimeout(r, 100)); const bm = document.querySelector('[data-rt="maps"]'); if (bm) { bm.classList.add('rt-pulse'); try { bm.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch { /* ok */ } } throw new Error('o Android não deixa abrir sozinho. Abri a Rota de hoje: toque em Google Maps'); }
+        return; }
       if (op === 'definir_partida') {
         const ant = rotaCfg(); let part = String(l.endereco).trim();
         if (rtCepRe.test(part)) { const r = await rtPartidaCep(part); if (r.erro) throw new Error(r.erro); part = r.texto; }
