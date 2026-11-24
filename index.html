@@ -7710,6 +7710,8 @@ function rtFoco(id) { /* leva o mapa até a parada */
   if (!g || !RT.map) { toast('Esta parada ainda não tem local no mapa.'); return; }
   RT.map.setView(m ? m.getLatLng() : [g.lat, g.lon], Math.max(RT.map.getZoom(), 15)); m && m.openTooltip();
 }
+/* mesma rua + mesmo número + mesma cidade = mesmo endereço (43 e 44 são diferentes); sem número, só se o texto for igual */
+const rtGrupoK = txt => { const p = rtPartes(txt); return p.rua && p.num ? 'e|' + rtNorm(p.rua) + '|' + rtNorm(p.num) + '|' + rtNorm(p.cidade) : 't|' + geoK(txt); };
 function rtDesenha(fit) {
   if (!document.getElementById('rt-ov')) return;
   const ps = rtParadas(), etas = rtEtas(), cfg = rotaCfg(), temP = cfg.pLat != null; RT.mk = {};
@@ -7718,12 +7720,13 @@ function rtDesenha(fit) {
     if (RT.calc && RT.calc.assin === rtAssin(RT.ordem) && RT.calc.geom && RT.calc.geom.length) L.polyline(RT.calc.geom, { color: '#d11a3a', weight: 5, opacity: .8 }).addTo(RT.camada);
     /* paradas no mesmo endereço (mesmo ponto no mapa) viram UM pino só, com o número da primeira e um selo "+N"; mover o pino move todas */
     const grupos = new Map();
-    ps.forEach((v, i) => { const g = rtGeoDe(v); if (!g) return; const kk = g.lat.toFixed(4) + ',' + g.lon.toFixed(4); if (!grupos.has(kk)) grupos.set(kk, { g, itens: [] }); grupos.get(kk).itens.push({ v, i }); });
+    ps.forEach((v, i) => { const g = rtGeoDe(v); if (!g) return; const kk = rtGrupoK(v.cliente?.endereco); if (!grupos.has(kk)) grupos.set(kk, { g, itens: [] }); grupos.get(kk).itens.push({ v, i }); });
+    const naPos = {}; /* endereços diferentes que o mapa achou no mesmo ponto (só a rua): afasta um pouco os pinos para os dois aparecerem */
     grupos.forEach(({ g, itens }) => {
-      const pos = [g.lat, g.lon], n = itens.length, first = itens[0]; bounds.push(pos);
+      const pk = g.lat.toFixed(4) + ',' + g.lon.toFixed(4), q = naPos[pk] = (naPos[pk] || 0) + 1, d = q > 1 ? 0.0003 : 0, pos = [g.lat + d * Math.sin(q * 2.4), g.lon + d * Math.cos(q * 2.4)], n = itens.length, first = itens[0]; bounds.push(pos);
       const selo = n > 1 ? `<i style="position:absolute;top:-9px;right:-12px;background:#141416;color:#fff;font-size:10.5px;font-style:normal;line-height:1;border-radius:9px;padding:2px 5px;border:1.5px solid #fff">+${n - 1}</i>` : '';
       const tip = itens.map(({ v, i }) => (i + 1) + '. ' + esc(v.cliente?.nome || 'Cliente')).join('<br>');
-      const m = L.marker(pos, { draggable: true, zIndexOffset: 1000 - first.i, icon: L.divIcon({ className: 'rt-pin', html: `<span${g.apx ? ' class="rt-apx"' : ''} style="position:relative">${first.i + 1}${selo}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip(tip);
+      const m = L.marker(pos, { draggable: true, zIndexOffset: 100000 - first.i * 100, icon: L.divIcon({ className: 'rt-pin', html: `<span${g.apx ? ' class="rt-apx"' : ''} style="position:relative">${first.i + 1}${selo}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }) }).bindTooltip(tip);
       m.on('dragend', () => { const ll = m.getLatLng(); rtSetGeo(first.v, ll.lat, ll.lng); }); m.on('click', () => rtFoco(first.v.id)); m.addTo(RT.camada); itens.forEach(({ v }) => { RT.mk[v.id] = m; }); });
     if (fit && bounds.length) RT.map.fitBounds(bounds, { padding: [34, 34], maxZoom: 16 }); }
   const c = RT.calc && RT.calc.assin === rtAssin(RT.ordem) ? RT.calc : null;
