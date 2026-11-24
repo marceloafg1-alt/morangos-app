@@ -5,3 +5,4 @@
 - **Paridade da IA:** tudo que o assistente de voz faz, o Lançar com IA também faz, e vice-versa. Toda ação nova entra no esquema compartilhado (`iaFerramenta` / `iaAcoesExtras`) e nas regras compartilhadas (`IA_ACOES_TXT`), nunca só em uma das portas.
 - **Ajuda sempre atualizada:** toda função nova ou mudança de IA atualiza `AJ_G` (Configurações → Ajuda). O Chat de suporte lê `AJ_G`, então atualizar lá atualiza os dois.
 - Responder em português e dizer o que foi testado só em navegador de desktop com voz/IA simuladas.
+- **Exportar = Baixar ou Compartilhar:** todo documento exportado (relatórios, planilha modelo, anexos do chat etc.) oferece os dois botões. Use `docExportar(nome, blob, titulo)` para arquivos novos. O compartilhar abre a lista do celular (o dono escolhe o WhatsApp); só o "Resumo no WhatsApp" (texto) vai direto ao número salvo.
