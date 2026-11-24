@@ -6144,8 +6144,8 @@ let _docExp = null;
 function docExportar(nome, blob, titulo) { _docExp = { nome, blob, titulo: titulo || nome, file: new File([blob], nome, { type: blob.type || 'application/octet-stream' }) }; ui.sheet = { type: 'docexp' }; render(); }
 async function docCompartilhar() {
   const d = _docExp; if (!d) return;
-  if (navigator.canShare && navigator.canShare({ files: [d.file] })) { try { await navigator.share({ files: [d.file], title: d.titulo }); ui.sheet = null; render(); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
-  baixarBlob(d.nome, d.blob); toast('Este aparelho não abre o compartilhar. O arquivo foi baixado.');
+  if (navigator.canShare && navigator.canShare({ files: [d.file] })) { try { await navigator.share({ files: [d.file] }); ui.sheet = null; render(); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  baixarBlob(d.nome, d.blob); toast('O celular não deixou compartilhar este arquivo. Ele foi baixado.');
 }
 function baixarBlob(nome, blob) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
@@ -6153,7 +6153,7 @@ function baixarBlob(nome, blob) {
 async function relArquivo(k) {
   if (k === 'pdf') { const b = await relPDFBlob(); return b ? { nome: relNome('pdf'), blob: b } : null; }
   if (k === 'xls') return { nome: relNome('xls'), blob: new Blob([relXLS()], { type: 'application/vnd.ms-excel' }) };
-  if (k === 'csv') return { nome: relNome('csv'), blob: new Blob([relCSV()], { type: 'text/csv;charset=utf-8' }) };
+  if (k === 'csv') return { nome: relNome('csv'), blob: new Blob(['\ufeff' + relCSV()], { type: 'text/csv' }) };
   return null;
 }
 /* Todo envio para o WhatsApp usa o mesmo caminho: abre a conversa com o número salvo em Configurações → WhatsApp do relatório. */
@@ -6171,11 +6171,11 @@ async function relCompartilha(k) {
   const texto = '🍓 Morangos Made in Roça — relatório ' + rPerLabel();
   const pode = !!(navigator.canShare && navigator.canShare({ files: [ar.file] }));
   if (pode) {
-    try { await navigator.share({ files: [ar.file], title: 'Relatório', text: texto }); return; }
-    catch (e) { if (e && e.name === 'AbortError') return; if (e && e.name === 'NotAllowedError') { toast('Arquivo pronto. Toque de novo em Compartilhar.'); return; } }
+    try { await navigator.share({ files: [ar.file] }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
   }
   baixarBlob(ar.nome, ar.blob);
-  toast('Este aparelho não abre o compartilhar. O arquivo foi baixado.');
+  toast('O celular não deixou compartilhar este arquivo. Ele foi baixado: abra e compartilhe pelos Downloads.');
 }
 async function relExportar(k) {
   if (k.endsWith('-sh')) { relCompartilha(k.slice(0, -3)); return; }
