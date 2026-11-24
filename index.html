@@ -2183,6 +2183,12 @@ span.news-cta { padding-right: 13px; }
 .cat-cores label:has(input:focus-visible) { outline: 2px solid var(--ink, #222); outline-offset: 4px; }
 .nt-pref { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .nt-pref:last-child { border-bottom: 0; }
+.mn-row { cursor: default; }
+.mn-l { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.mn-alca { width: 28px; flex: none; display: grid; place-items: center; touch-action: none; cursor: grab; color: var(--muted, #888); }
+.mn-alca .i { transform: rotate(90deg); }
+.mn-fixo { cursor: default; }
+.mn-row.mn-drag { background: var(--card, #fff); box-shadow: 0 6px 18px rgba(0,0,0,.18); border-radius: 14px; position: relative; z-index: 2; }
 .nt-pref .grow { flex: 1; min-width: 0; }
 .nt-pref b { display: block; font-weight: 700; font-size: 15px; }
 .nt-pref small { color: var(--muted); font-size: 12.5px; }
@@ -6609,7 +6615,7 @@ function ajustaMenuCurto() {
   window.addEventListener('resize', agenda); new MutationObserver(agenda).observe(document.body, { childList: true, subtree: true }); agenda(); })();
 const WIDE = { get matches() { const f = visaoForcada(); return f ? f === 'web' : WIDE_MQ.matches && !/Android.*Mobile|iPhone|iPod/i.test(navigator.userAgent); } };
 WIDE_MQ.addEventListener?.('change', () => { try { render(); } catch (e) {} });
-const menuNaBarra = () => { const v = ls.get('mmr-menu', null); const ok = Array.isArray(v) ? v.filter(k => MENU_ITENS.some(i => i.k === k)) : MENU_PADRAO; return MENU_ITENS.filter(i => ok.includes(i.k)).slice(0, MENU_MAX).map(i => i.k); };
+const menuNaBarra = () => { const v = ls.get('mmr-menu', null); const ok = Array.isArray(v) ? v.filter(k => MENU_ITENS.some(i => i.k === k)) : MENU_PADRAO; const l = [...new Set(ok)].filter(k => MENU_ITENS.some(i => i.k === k)); if (l.includes('inicio')) { l.splice(l.indexOf('inicio'), 1); l.unshift('inicio'); } return l.slice(0, MENU_MAX); };
 function nav() {
   if (backend === 'db' && !window.__isAdmin) return '';
   const cur = ui.g;
@@ -6618,7 +6624,7 @@ function nav() {
   const novos = S.vendas.filter(v => v.status === 'recebido').length;
   const naBarra = menuNaBarra();
   const extras = { vendas: cnt(novos), entregas: cnt(rota().length), conversas: cnt(naoLidasG()) };
-  const menuBar = MENU_ITENS.filter(i => naBarra.includes(i.k)).map(i => t(i.k, i.ic, i.l, extras[i.k] || '', i.act));
+  const menuBar = naBarra.map(k => MENU_ITENS.find(i => i.k === k)).map(i => t(i.k, i.ic, i.l, extras[i.k] || '', i.act));
   const maisOn = (!naBarra.includes(cur) && MENU_ITENS.some(i => i.k === cur)) || ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].filter(k => !naBarra.includes(k === 'fornecedores' ? 'clientes' : k)).includes(cur);
   const fabOn = ui.sheet?.type === 'novo' || ui.sheet?.type === 'conv-mais';
   const convCli = !fabOn && ui.g === 'conversas' && ui.conv && ui.conv !== 'suporte' ? ui.conv : '';
@@ -6627,7 +6633,7 @@ function nav() {
   const fabLbl = fabOn ? 'Fechar' : convCli ? 'Nova venda ou novo chat' : ui.g === 'conversas' ? 'Novo chat' : ui.g === 'vendas' ? 'Nova venda avulsa' : fabPag ? fabPag[1] : 'Lançar';
   if (WIDE.matches) { /* tela grande: menu lateral à esquerda */
     const sideBtn = (i) => t(i.k, i.ic, i.l, extras[i.k] || '', i.act).replace('class="lt-tab ', 'class="lt-tab' + (naBarra.includes(i.k) ? '' : ' side-x') + ' ');
-    const side = MENU_ITENS.filter(i => naBarra.includes(i.k)).map(sideBtn);
+    const side = naBarra.map(k => MENU_ITENS.find(i => i.k === k)).map(sideBtn);
     const sideX = MENU_ITENS.filter(i => !naBarra.includes(i.k)).map(sideBtn);
     const SY = h => h.replace('class="lt-tab ', 'class="lt-tab side-y ');
     const SX = h => h.replace('class="lt-tab ', 'class="lt-tab side-x ');
@@ -6676,7 +6682,7 @@ function sheetHTML() {
     ${menuBtn('gear', 'Configurações', 'Notícias, aparência e mais', 'go', 'config')}</div>`); }
   if (s.type === 'menu-cfg') { const naBarra = menuNaBarra(); const cheio = naBarra.length >= MENU_MAX;
     return wrap('Menu inferior', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Escolha até ${MENU_MAX} botões para ficar sempre à mostra na barra. Os outros ficam no menu de 3 pontinhos (⋮). Vale para este aparelho.</p>
-    <div class="nt-prefs">${MENU_ITENS.map(i => { const on = naBarra.includes(i.k); return `<label class="nt-pref" for="mn-${i.k}"><span class="nt-ic">${ic(i.ic)}</span><span class="grow"><b>${i.l}</b><small>${on ? 'Na barra' : 'No menu ⋮'}</small></span><input type="checkbox" class="lt-switch" id="mn-${i.k}" data-act="menu-tgl" data-v="${i.k}" ${on ? 'checked' : ''} ${!on && cheio ? 'disabled' : ''}></label>`; }).join('')}</div>
+    <div class="nt-prefs" id="mn-lista">${[...naBarra.map(k => MENU_ITENS.find(i => i.k === k)), ...MENU_ITENS.filter(i => !naBarra.includes(i.k))].map(i => { const on = naBarra.includes(i.k); const mv = on && i.k !== 'inicio'; return `<div class="nt-pref mn-row" data-k="${i.k}" ${mv ? 'data-mv="1"' : ''}>${mv ? `<span class="mn-alca" data-mdrag="1" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">${ic('dots')}</span>` : '<span class="mn-alca mn-fixo"></span>'}<label class="mn-l" for="mn-${i.k}"><span class="nt-ic">${ic(i.ic)}</span><span class="grow"><b>${i.l}</b><small>${i.k === 'inicio' ? 'Sempre o primeiro' : on ? 'Na barra · arraste para mudar a ordem' : 'No menu ⋮'}</small></span></label><input type="checkbox" class="lt-switch" id="mn-${i.k}" data-act="menu-tgl" data-v="${i.k}" ${on ? 'checked' : ''} ${!on && cheio ? 'disabled' : ''}></div>`; }).join('')}</div>
     <small class="muted" style="display:block;margin:8px 0 12px">${naBarra.length} de ${MENU_MAX} na barra${cheio ? ' · desligue um botão para escolher outro' : ''}.</small>
     <button class="lt-btn lt-block" data-act="menu-reset">Voltar ao padrão</button>`); }
 
@@ -9849,6 +9855,15 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('focusin', e => { if (e.target.id === 'chat-txt' && ui.emo) { ui.emo = false; render(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.target.id === 'chat-txt') { e.preventDefault(); e.target.form?.requestSubmit(); } });
+document.addEventListener('pointerdown', e => { /* Configurações > Menu inferior: arrastar para mudar a ordem (Início fica fixo) */
+  const h = e.target.closest?.('[data-mdrag]'); if (!h) return;
+  const row = h.closest('.mn-row'), box = row && row.parentElement; if (!box) return;
+  e.preventDefault(); try { h.setPointerCapture(e.pointerId); } catch (x) {} row.classList.add('mn-drag');
+  const mover = ev => { for (const o of box.querySelectorAll('.mn-row[data-mv]')) { if (o === row) continue; const r = o.getBoundingClientRect(); if (ev.clientY > r.top && ev.clientY < r.bottom) { box.insertBefore(row, ev.clientY < r.top + r.height / 2 ? o : o.nextSibling); break; } } };
+  const fim = () => { h.removeEventListener('pointermove', mover); h.removeEventListener('pointerup', fim); h.removeEventListener('pointercancel', fim); row.classList.remove('mn-drag');
+    const ordem = ['inicio', ...[...box.querySelectorAll('.mn-row[data-mv]')].map(r => r.dataset.k)].filter(k => menuNaBarra().includes(k)); ls.set('mmr-menu', ordem); render(); };
+  h.addEventListener('pointermove', mover); h.addEventListener('pointerup', fim); h.addEventListener('pointercancel', fim);
+});
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($modal.innerHTML) closeModal(); else if (ui.sheet) { ui.sheet = null; render(); } } });
 
 
