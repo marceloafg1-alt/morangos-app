@@ -6148,26 +6148,25 @@ async function relArquivo(k) {
   if (k === 'csv') return { nome: relNome('csv'), blob: new Blob([relCSV()], { type: 'text/csv;charset=utf-8' }) };
   return null;
 }
-/* Enviar por WhatsApp: no celular abre a lista de compartilhamento com o arquivo (escolha o WhatsApp). Sem isso, baixa o arquivo e abre o WhatsApp para anexar. */
+/* Todo envio para o WhatsApp usa o mesmo caminho: abre a conversa com o número salvo em Configurações → WhatsApp do relatório. */
+function relWaUrl(texto) { return 'https://wa.me/' + ls.get('mmr-wa-numero', '') + '?text=' + encodeURIComponent(texto); }
+/* Enviar por WhatsApp (PDF/Excel/CSV): baixa o arquivo e abre a conversa do número salvo com o resumo; o arquivo é anexado por você (o WhatsApp não aceita anexo automático por link). */
 async function relEnviarWa(k) {
+  const w = window.open('', '_blank');
   toast('Preparando o arquivo…');
   let ar = null; try { ar = await relArquivo(k); } catch { ar = null; }
-  if (!ar) { toast('Não consegui gerar o arquivo agora. Tente baixar.'); return; }
-  const texto = '🍓 Morangos Made in Roça — relatório ' + rPerLabel();
-  try {
-    const file = new File([ar.blob], ar.nome, { type: ar.blob.type });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relatório', text: texto }); return; }
-  } catch (e) { if (e && e.name === 'AbortError') return; }
+  if (!ar) { if (w) w.close(); toast('Não consegui gerar o arquivo agora. Tente baixar.'); return; }
   baixarBlob(ar.nome, ar.blob);
-  window.open('https://wa.me/' + ls.get('mmr-wa-numero', '') + '?text=' + encodeURIComponent(texto), '_blank');
-  toast('Arquivo baixado. No WhatsApp, anexe o arquivo ' + ar.nome + '.');
+  const url = relWaUrl(relResumoTexto());
+  if (w) w.location.href = url; else window.open(url, '_blank');
+  toast('Arquivo baixado. No WhatsApp, toque em anexar e escolha ' + ar.nome + '.');
 }
 async function relExportar(k) {
   if (k.endsWith('-wa')) { relEnviarWa(k.slice(0, -3)); return; }
   if (k === 'pdf') { const b = await relPDFBlob(); if (b) { baixarBlob(relNome('pdf'), b); toast('PDF baixado.'); } else relPDF(); }
   else if (k === 'xls') { baixarArq(relNome('xls'), relXLS(), 'application/vnd.ms-excel'); toast('Planilha Excel baixada.'); }
   else if (k === 'csv') { baixarArq(relNome('csv'), relCSV(), 'text/csv;charset=utf-8'); toast('Arquivo CSV baixado.'); }
-  else if (k === 'whats') window.open('https://wa.me/' + ls.get('mmr-wa-numero', '') + '?text=' + encodeURIComponent(relResumoTexto()), '_blank');
+  else if (k === 'whats') window.open(relWaUrl(relResumoTexto()), '_blank');
 }
 let _relDias = null;
 addEventListener('resize', () => { if (ui.g === 'relatorios' && relDiasGrafico() !== _relDias) render(); });
@@ -6428,7 +6427,7 @@ const AJ_G = [
     ['O que é o Dinheiro em aberto?', 'Mostra a situação de hoje, sem olhar o período: <b>A receber</b> (todas as vendas sem pagar; toque para ir ao Caixa), <b>Compras a pagar</b> (todas as compras sem pagar), <b>Despesas a pagar</b> (todas as despesas marcadas como a pagar) e <b>Saldo do caixa</b> de todo o histórico. Tocar em A receber, Compras a pagar ou Despesas a pagar abre o Caixa com esse card aberto e o período <b>Tudo</b>.', [['Ver a receber', 'go-caixa-ver', 'receber'], ['Ver compras a pagar', 'go-caixa-ver', 'cpagar'], ['Ver despesas a pagar', 'go-caixa-ver', 'dpagar']]],
     ['Como ler os gráficos Vendas por dia e Dia da semana?', '<b>Vendas por dia</b> mostra cada um dos últimos 15 dias (30 na tela do computador) e o <b>Melhor dia</b>. <b>Dia da semana</b> soma as vendas do período por dia da semana e mostra qual vende mais, bom para escolher os dias de entrega e de compra na roça.', [['Abrir Relatórios', 'go', 'relatorios']]],
     ['O que mostram as listas em barras?', 'As até 6 maiores de cada uma, com valor e %:<ul><li><b>Por forma de pagamento</b>: quanto veio de Pix, dinheiro, cartão e fiado.</li><li><b>App × avulsa</b>: pedidos pelo app, pelo chat e vendas avulsas.</li><li><b>Produtos mais vendidos</b>: receita e quantidade de cada produto.</li><li><b>Despesas por categoria</b>: com a cor de cada categoria.</li><li><b>Melhores clientes</b>: quem mais comprou no período.</li></ul>', [['Abrir Relatórios', 'go', 'relatorios']]],
-    ['Como exportar em PDF, Excel ou CSV?', 'Toque em <b>Exportar</b>, no alto da tela de Relatórios,. <b>PDF</b> baixa o relatório completo. <b>Excel</b> traz abas de resumo, balanço, vendas, compras, despesas e produtos. <b>CSV</b> traz as movimentações do caixa. Cada formato tem dois botões: <b>Baixar</b> e <b>Enviar por WhatsApp</b> (no celular abre a lista de compartilhamento: escolha o WhatsApp e o contato). Tudo usa o período escolhido.', [['Abrir Exportar', 'go-rel-exportar']]],
+    ['Como exportar em PDF, Excel ou CSV?', 'Toque em <b>Exportar</b>, no alto da tela de Relatórios,. <b>PDF</b> baixa o relatório completo. <b>Excel</b> traz abas de resumo, balanço, vendas, compras, despesas e produtos. <b>CSV</b> traz as movimentações do caixa. Cada formato tem dois botões: <b>Baixar</b> e <b>Enviar por WhatsApp</b> (baixa o arquivo e abre o WhatsApp no número salvo em Configurações, para você anexar). Tudo usa o período escolhido.', [['Abrir Exportar', 'go-rel-exportar']]],
     ['Como mandar o resumo no WhatsApp?', 'Em Exportar, toque em <b>Resumo no WhatsApp</b>. Vai vendas, comprado, lucro bruto, despesas, resultado, a receber, a pagar e saldo do caixa. Para abrir direto num contato, salve o número em <b>Configurações → WhatsApp do relatório</b> (com DDD; o 55 é colocado sozinho).', [['Salvar o número do WhatsApp', 'sheet', 'wa-ajustes'], ['Abrir Exportar', 'go-rel-exportar']]],
     ['O lucro parece errado. Por quê?', 'O lucro usa o <b>custo</b> de cada produto no momento da venda. Mantenha o custo atualizado ao registrar compras (deixe marcado <b>Atualizar o custo dos produtos</b>) ou editando o produto.', [['Abrir Estoque', 'go-cfg', 'estoque']]],
   ]],
@@ -6795,7 +6794,7 @@ function sheetHTML() {
   if (s.type === 'relwa') { const NM = { 'pdf-wa': 'PDF', 'xls-wa': 'Excel', 'csv-wa': 'CSV' }[s.k] || 'relatório'; return wrap('Enviar por WhatsApp', `<p class="muted" style="margin:0 0 12px;font-size:13.5px">Relatório em <b>${NM}</b> · Período: <b>${rPerLabel()}</b>. O celular exige um toque seu para abrir o WhatsApp.</p><button class="btn green" style="width:100%" data-act="rel-exp" data-v="${s.k}">Enviar ${NM} por WhatsApp</button>`); }
   if (s.type === 'rexp') { const eb = (ico, tt, sub, k, rec) => `<button class="bs-row" data-act="rel-exp" data-v="${k}"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}${rec ? ' <span class="pill p-ok">recomendado</span>' : ''}</b><small>${sub}</small></span></button>`;
     const ei = (ico, tt, sub, k, rec) => `<div class="rexp-item"><div class="rexp-top"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}${rec ? ' <span class="pill p-ok">recomendado</span>' : ''}</b><small>${sub}</small></span></div><div class="rexp-btns"><button class="btn small" data-act="rel-exp" data-v="${k}">Baixar</button><button class="btn small green" data-act="rel-exp" data-v="${k}-wa">Enviar por WhatsApp</button></div></div>`;
-    return wrap('Exportar relatório', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período: <b>${rPerLabel()}</b></p><div class="bs-list">${ei('receipt', 'PDF', 'Relatório completo, pronto para ler ou imprimir.', 'pdf')}${ei('chart', 'Excel (.xls)', 'Planilha com abas: resumo, balanço, vendas, compras, despesas e produtos.', 'xls')}${ei('wallet', 'CSV (.csv)', 'Movimentações do caixa. Abre no Excel, Google Planilhas e no contador.', 'csv', true)}${eb('chat', 'Resumo no WhatsApp', 'Texto curto com os números principais.', 'whats')}</div><p class="muted" style="margin:12px 0 0;font-size:13px">Enviar por WhatsApp abre a lista de compartilhamento do celular: escolha o WhatsApp e o contato. Se o aparelho não permitir, o arquivo é baixado e o WhatsApp abre para você anexá-lo.</p>`); }
+    return wrap('Exportar relatório', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período: <b>${rPerLabel()}</b></p><div class="bs-list">${ei('receipt', 'PDF', 'Relatório completo, pronto para ler ou imprimir.', 'pdf')}${ei('chart', 'Excel (.xls)', 'Planilha com abas: resumo, balanço, vendas, compras, despesas e produtos.', 'xls')}${ei('wallet', 'CSV (.csv)', 'Movimentações do caixa. Abre no Excel, Google Planilhas e no contador.', 'csv', true)}${eb('chat', 'Resumo no WhatsApp', 'Texto curto com os números principais.', 'whats')}</div><p class="muted" style="margin:12px 0 0;font-size:13px">Todo envio por WhatsApp abre a conversa com o número salvo em Configurações → WhatsApp do relatório. Nos arquivos, o app baixa e abre o WhatsApp para você anexar.</p>`); }
   if (s.type === 'vsel') {
     if (s.k === 'rp') { const rowR = (val, label, sub = '', icon = '') => `<button class="bs-row" data-act="vpick" data-k="rp" data-v="${val}" aria-pressed="${ui.rp === val}"><span class="grow">${label}${sub ? `<small>${sub}</small>` : ''}</span>${ui.rp === val ? ic('check') : icon ? ic(icon) : ''}</button>`;
       return wrap('Período do relatório', `<div class="bs-list">${Object.entries(PERIODOS).map(([v, l]) => rowR(v, l)).join('')}${rowR('custom', 'Escolher período', ui.rp === 'custom' ? rPerLabel() : 'De uma data até outra', 'calendar')}</div>`); }
