@@ -9211,7 +9211,8 @@ function vozParaRec() { const r = VOZ.rec; VOZ.rec = null; if (r) { r.onend = nu
 const vozVel = () => { const v = Number(ls.get('mmr-voz-vel', 1.05)); return v >= 0.6 && v <= 1.6 ? v : 1.05; };
 function vozVozes() { let vs = []; try { vs = speechSynthesis.getVoices(); } catch { /* ok */ } const pt = vs.filter(x => /^pt/i.test(x.lang)); return pt.sort((a, b) => (/^pt[-_]BR/i.test(b.lang) - /^pt[-_]BR/i.test(a.lang)) || a.name.localeCompare(b.name)); }
 function vozFalaObj(txt) {
-  const u = new SpeechSynthesisUtterance(txt); u.lang = 'pt-BR'; u.rate = vozVel();
+  /* só na fala: "Ander" sai como "Ânder" (como a palavra under); o texto na tela continua Ander */
+  const u = new SpeechSynthesisUtterance(String(txt).replace(/\b(Ander|Andér)\b/g, 'Ânder')); u.lang = 'pt-BR'; u.rate = vozVel();
   const vs = vozVozes(), uri = ls.get('mmr-voz-voz', ''), v = vs.find(x => x.voiceURI === uri) || vs.find(x => /^pt[-_]BR/i.test(x.lang)); if (v) { u.voice = v; u.lang = v.lang; }
   return u;
 }
