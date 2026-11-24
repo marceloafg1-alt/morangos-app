@@ -6649,7 +6649,7 @@ function enhanceSelects(root) {
 })();
 
 /* ---------------- barra inferior e folhas ---------------- */
-const popOpen = () => !!ui.sheet || !!document.getElementById('modal-root').innerHTML || !!(typeof CAL !== 'undefined' && CAL.open) || !!document.getElementById('pick-root')?.innerHTML;
+const popOpen = () => !!document.getElementById('rt-ov') || !!ui.sheet || !!document.getElementById('modal-root').innerHTML || !!(typeof CAL !== 'undefined' && CAL.open) || !!document.getElementById('pick-root')?.innerHTML;
 /* Menu inferior da Gestão: o que aparece na barra e o que vai para o menu de 3 pontinhos */
 const MENU_ITENS = [
   { k: 'inicio', ic: 'home', l: 'Início', d: 'Resumo do dia', act: 'go' },
@@ -8756,7 +8756,7 @@ function iaPreparaAcao(o, l) {
     if (op === 'colocar_todos' && !sepL().length) o.problemas.push('não há pedidos a entregar' + (cid ? ' nessa cidade' : ''));
     if (op === 'tirar_todos' && !rotL().length) o.problemas.push('não há entregas na rota' + (cid ? ' nessa cidade' : ''));
     if (op === 'definir_partida' && !String(l.endereco || '').trim()) o.problemas.push('diga o endereço ou CEP de partida');
-    o.seguro = op === 'abrir_painel';
+    o.seguro = true; /* rota: o dono pediu que rode direto, sem perguntar */
     const esperaMapa = async () => { rotaMapaAbrir(); for (let k = 0; k < 40 && !(RT.map && document.getElementById('rt-ov')); k++) await new Promise(r => setTimeout(r, 150)); };
     o.exec = async () => {
       if (op === 'colocar') return setStatus(v.id, 'em_rota');
@@ -9295,7 +9295,7 @@ function vozFerramenta() {
   it.novo = { type: 'string', enum: ['venda', 'compra', 'despesa', 'cliente', 'fornecedor', 'produto', 'noticia', 'transmissao', 'cobranca', 'lancar_ia', ''], description: 'Só para abrir_novo: qual janela de criação abrir.' };
   it.campos = { type: 'array', description: 'Só para preencher_tela: campos da janela ABERTA (ver TELA ABERTA AGORA) a preencher ou marcar.', items: { type: 'object', properties: { rotulo: { type: 'string', description: 'Nome do campo, botão ou opção como aparece na tela (ex.: Cliente, Telefone, Pago com, Já foi pago?, + Item). Em itens: Produto, Quantidade ou Preço.' }, valor: { type: 'string', description: 'O que colocar: texto, número, nome da opção; "sim"/"não" para liga e desliga. Vazio para só tocar num botão.' }, linha: { type: 'number', description: 'Para itens de venda/compra: o número do item (1, 2...). 0 se não se aplica.' } }, required: ['rotulo'] } };
   it.operacao_selecao = { type: 'string', enum: ['todos', 'nenhum', 'marcar', 'desmarcar', ''], description: 'Só para selecao_envio (janela de Transmissão ou Cobrança aberta): todos marca todos, nenhum limpa, marcar/desmarcar usa cidades e/ou nomes.' };
-  it.operacao_rota = { type: 'string', enum: ['colocar', 'tirar', 'entregue', 'a_entregar', 'colocar_todos', 'tirar_todos', 'mover', 'abrir_painel', 'otimizar', 'abrir_maps', 'definir_partida', ''], description: 'Só para acao rota. colocar = coloca na rota a entrega do cliente (pessoa); tirar = tira da rota (volta a "separado"/a entregar); entregue = marca como entregue; a_entregar = marca como a entregar (separado, fora da rota); colocar_todos / tirar_todos = todos os pedidos (use cidades[0] para só uma cidade); mover = muda a ordem na rota (pessoa + direcao subir/descer, passos, ou posicao); abrir_painel = abre o mapa da rota; otimizar = calcula a melhor ordem das paradas; abrir_maps = abre a rota no Google Maps; definir_partida = muda o ponto de partida (endereco ou CEP).' };
+  it.operacao_rota = { type: 'string', enum: ['colocar', 'tirar', 'entregue', 'a_entregar', 'colocar_todos', 'tirar_todos', 'mover', 'abrir_painel', 'otimizar', 'abrir_maps', 'definir_partida', ''], description: 'Só para acao rota. colocar = coloca na rota a entrega do cliente (pessoa); tirar = tira da rota (volta a "separado"/a entregar); entregue = marca como entregue; a_entregar = marca como a entregar (separado, fora da rota); colocar_todos / tirar_todos = todos os pedidos (use cidades[0] para só uma cidade); mover = muda a ordem na rota (pessoa + direcao subir/descer, passos, ou posicao); abrir_painel = abre a tela "Rota de hoje" (mapa da rota; também "rotas de hoje", "mapa de entregas"); otimizar = calcula a melhor ordem das paradas; abrir_maps = abre a rota no Google Maps; definir_partida = muda o ponto de partida (endereco ou CEP).' };
   it.direcao = { type: 'string', enum: ['subir', 'descer', ''], description: 'Só para rota/mover: subir = vai para mais cedo na rota; descer = mais tarde.' };
   it.passos = { type: 'number', description: 'Só para rota/mover: quantas posições (padrão 1).' };
   it.posicao = { type: 'number', description: 'Só para rota/mover: a posição exata na rota (1 = primeira parada). 0 se não disse.' };
@@ -9332,7 +9332,7 @@ O que fazer:
 - Com uma janela aberta (veja TELA ABERTA AGORA), o dono dita o que quer em cada campo: use acao=preencher_tela com campos (rotulo exatamente como na tela, valor), podendo vários campos num só pedido. Para venda/compra, itens: rotulo Produto, Quantidade ou Preço com linha=1,2...; "+ Item" adiciona outro item. Só use salvar_tela quando ele mandar salvar, lançar ou confirmar; antes de salvar, se faltar algo, pergunte.
 - Editar dados de um cadastro (telefone, endereço, CEP, nome, e-mail, observação, Pix, banco...) NUNCA é venda nem compra: use acao=cliente_editar ou fornecedor_editar com pessoa = nome atual e SÓ o campo que mudou (para trocar o nome use novo_nome). Corrigir uma compra já lançada = compra_editar. Não use tipo venda, compra, despesa, cliente ou fornecedor para editar.
 - "Iniciar a sequência", "começar o envio", "pode enviar": use acao=envio_sequencia com etapa=iniciar (a janela de Transmissão ou Cobrança precisa estar aberta e com clientes marcados); "abre o WhatsApp do próximo" = abrir_whatsapp; "pula" = pular. Nunca crie venda para isso.
-- Rotas de entrega: use acao=rota com operacao_rota. "coloca o João na rota" = colocar; "tira da rota" = tirar; "marca como entregue" = entregue; "marca como a entregar" = a_entregar; "coloca todos na rota" / "tira todos" = colocar_todos / tirar_todos (cidades[0] para uma cidade só); "sobe o João uma posição", "coloca o João em primeiro" = mover (direcao, passos ou posicao); "abre o mapa da rota" = abrir_painel; "otimiza a rota" = otimizar; "abre no Maps" = abrir_maps; "muda a partida para ..." = definir_partida com endereco ou CEP. A rota atual e os pedidos a entregar estão nos DADOS DO APP.
+- Rotas de entrega: use acao=rota com operacao_rota. "coloca o João na rota" = colocar; "tira da rota" = tirar; "marca como entregue" = entregue; "marca como a entregar" = a_entregar; "coloca todos na rota" / "tira todos" = colocar_todos / tirar_todos (cidades[0] para uma cidade só); "sobe o João uma posição", "coloca o João em primeiro" = mover (direcao, passos ou posicao); "abre o mapa da rota", "abre rota de hoje", "abre rotas de hoje" = abrir_painel (nunca abrir_tela para isso); "otimiza a rota" = otimizar; "abre no Maps" = abrir_maps; "muda a partida para ..." = definir_partida com endereco ou CEP. A rota atual e os pedidos a entregar estão nos DADOS DO APP.
 - Na janela de Transmissão ou Cobrança, use acao=selecao_envio: "todos", "ninguém", marcar ou desmarcar por cidade e/ou nomes. Na Cobrança todos já vêm marcados.
 - A fala vem de reconhecimento de voz e pode ter erros: interprete com bom senso usando os nomes cadastrados.
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
@@ -10260,7 +10260,7 @@ function navApply(s, back) {
   window.scrollTo(0, y); requestAnimationFrame(() => window.scrollTo(0, y));
   navAnim(back);
 }
-function closeOverlays() { const had = popOpen(); if (CAL.open) calClose(); fecharPicker(); ui.sheet = null; $modal.innerHTML = ''; if (had) render(); return had; }
+function closeOverlays() { const had = popOpen(); if (document.getElementById('rt-ov')) rotaMapaFechar(); if (CAL.open) calClose(); fecharPicker(); ui.sheet = null; $modal.innerHTML = ''; if (had) render(); return had; }
 const canBack = () => NAV.pos > 0;
 const canFwd = () => NAV.pos < NAV.max;
 function navBack() {
@@ -10298,7 +10298,7 @@ const SW = { on: false, x: 0, y: 0, t: 0, lock: null, dx: 0 };
 const SW_MIN = 80;
 function swipeBlocked(el) {
   for (let n = el; n && n.nodeType === 1 && n !== document.body; n = n.parentElement) {
-    if (n.matches('input,textarea,select,[contenteditable="true"],.lt-composer,.no-swipe')) return true;
+    if (n.matches('input,textarea,select,[contenteditable="true"],.lt-composer,.no-swipe,.leaflet-container')) return true;
     const ox = getComputedStyle(n).overflowX;
     if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 2) return true; // cartões que já arrastam para o lado ("Agora", notícias, filtros)
   }
