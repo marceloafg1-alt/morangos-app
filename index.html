@@ -4591,7 +4591,8 @@ function modalFilaCobranca() {
   const totalFalta = devs.reduce((s, d) => s + d.totalFalta, 0);
   const totalPed = devs.reduce((s, d) => s + d.vendas.length, 0);
 
-  openModal('Fila de Cobrança · WhatsApp', `
+  openModal('Enviar no WhatsApp', `
+    ${tmTog('c')}
     <div class="cbr-fila-head">
       <div class="cbr-fila-stat">
         <div>
@@ -4782,10 +4783,12 @@ function transmAtualiza() {
   const bto = document.querySelector('[data-act="transm-todos"]');
   if (bto) { const all = transmCidades().flatMap(g => g.itens).filter(i => i.tel); bto.textContent = all.length && all.every(i => transmSel.has(i.id)) ? 'Desmarcar todos' : 'Todos'; }
 }
+const tmTog = (k, mb = 12) => `<div class="lt-chips cad-tog" role="group" aria-label="Tipo de envio" style="margin-bottom:${mb}px"><button type="button" class="lt-chip ${k === 't' ? 'on' : ''}" data-act="transm-aba" data-v="t" aria-pressed="${k === 't'}">Transmissão</button><button type="button" class="lt-chip ${k === 'c' ? 'on' : ''}" data-act="transm-aba" data-v="c" aria-pressed="${k === 'c'}">Cobrança</button></div>`;
 function modalTransmissao() {
   const gr = transmCidades(), ms = transmModelos();
-  openModal('Transmissão · WhatsApp', `
+  openModal('Enviar no WhatsApp', `
     <div class="tm-top">
+      ${tmTog('t', 0)}
       ${ms.length ? `<div class="lt-chips" role="group" aria-label="Mensagens prontas">${ms.map(m => `<button type="button" class="lt-chip" data-act="transm-modelo-usar" data-id="${esc(m.id)}">${esc(m.nome)}</button>`).join('')}</div>` : ''}
       <textarea id="transm-msg" class="cbr-preview no-autofocus" data-no-autofocus="1" rows="4" aria-label="Mensagem (use {nome} para o nome do cliente)">${esc(transmMsg())}</textarea>
       <div class="tm-cnt"><b id="transm-n">0 selecionados</b><button type="button" class="lt-chip" data-act="transm-todos">Todos</button></div>
@@ -4806,6 +4809,16 @@ function modalTransmModelos() {
   openModal('Mensagens de transmissão', `
     <p class="muted" style="margin:0 0 10px;font-size:13px">Deixe mensagens prontas. Ao enviar uma transmissão pelo botão + você escolhe uma delas e ainda pode alterar o texto. Use {nome} para o nome do cliente.</p>
     ${lembCardHtml('transm')}
+    <div class="cbr-cfg-card">
+      <div class="cbr-cfg-top">
+        <div class="cbr-cx-icon" aria-hidden="true">${ic('megaphone')}</div>
+        <div class="cbr-cx-info">
+          <div class="cbr-cx-title"><b>Enviar transmissão</b><span class="cbr-cx-badge">${S.clientes.filter(c => soDig(c.telefone || '')).length} clientes</span></div>
+          <p class="cbr-cfg-total">Escolha a mensagem e quem recebe</p>
+        </div>
+      </div>
+      <button type="button" class="cbr-cx-btn cbr-cfg-btn" data-act="transm-abrir">${ic('chat')}<span>Abrir transmissão</span>${ic('right')}</button>
+    </div>
     <div class="sec-h" style="margin:4px 0 8px"><h2>Mensagens prontas</h2></div>
     <div class="card list">${ms.map(m => `<div class="li tc-li" role="button" tabindex="0" data-act="transm-modelo-editar" data-id="${esc(m.id)}"><span class="av">${ic('chat')}</span><span style="min-width:0"><b>${esc(m.nome)}</b><small>${esc(String(m.texto).replace(/\s+/g, ' '))}</small></span>${ic('right', 'i chev')}</div>`).join('') || '<div class="empty">Nenhuma mensagem pronta ainda.</div>'}</div>
     <div class="form-acts" style="margin-top:12px"><button type="button" class="btn" data-act="close-modal">Fechar</button><button type="button" class="btn primary" data-act="transm-modelo-editar" data-id="">+ Nova mensagem</button></div>`);
@@ -9578,6 +9591,7 @@ document.addEventListener('click', async e => {
       const n = document.querySelector(`[data-lemb-n="${k}"]`); if (n) n.textContent = lembResumo(lembCfg(k));
       break;
     }
+    case 'transm-aba': transmSalvaMsg(); if (v === 'c') modalFilaCobranca(); else modalTransmissao(); break;
     case 'transm-modelos': if (ui.sheet) ui.sheet = null; modalTransmModelos(); break;
     case 'transm-modelo-editar': modalTransmModeloEdit(t.dataset.id || ''); break;
     case 'transm-modelo-salvar': {
