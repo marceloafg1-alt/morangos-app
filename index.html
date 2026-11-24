@@ -8610,6 +8610,11 @@ function iaAplicaEntrega(texto, ls_, lista) {
 }
 /* prepara cada lançamento: normaliza, casa cadastros e aponta problemas (problema => não dá para lançar) */
 function iaPrepara(l) {
+  /* a IA às vezes devolve a ação sem marcar tipo=acao (ou com tipo errado): reconhece pela própria ação para não virar compra vazia */
+  if (l.tipo !== 'acao' && l.tipo !== 'despesa') {
+    const inf = l.acao || (l.novo ? 'abrir_novo' : l.submenu ? 'abrir_config' : Array.isArray(l.campos) && l.campos.length ? 'preencher_tela' : l.operacao_selecao ? 'selecao_envio' : l.etapa ? 'envio_sequencia' : '');
+    if (inf) { l.tipo = 'acao'; l.acao = inf; }
+  }
   const o = { tipo: l.tipo, pessoa: String(l.pessoa || '').trim(), obs: String(l.observacao || '').trim(), forma: ['pix', 'dinheiro', 'debito', 'credito', 'fiado'].includes(l.forma) ? l.forma : '', pago: !!l.pago, valorPago: n2(l.valor_pago), problemas: [], avisos: [] };
   const d = /^\d{4}-\d{2}-\d{2}$/.test(l.data || '') ? l.data : todayInput(); o.data = d;
   if (o.tipo === 'despesa') {
