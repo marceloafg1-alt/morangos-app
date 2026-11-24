@@ -5499,8 +5499,8 @@ function gEntregas() {
     det: esc(itemsText(v.itens)) + (v.obs ? ' · ' + esc(v.obs) : ''),
     pills: `${i === 0 ? '<span class="pill p-red">Próxima</span>' : ''}${v.pago ? '<span class="pill p-ok">Pago</span>' : parcV(v) > 0 ? parcPill(v, vFalta(v), 'Parcial') : '<span class="pill p-no">Cobrar</span>'}${formaPill(v.forma)}`,
     acts: `<button class="btn small green" data-act="status" data-id="${v.id}" data-v="entregue" ${W()}>Entregue</button>
-      <button class="btn small" aria-label="Subir" data-act="mover" data-id="${v.id}" data-v="-1" ${W()} ${i === 0 ? 'disabled' : ''}>↑</button><button class="btn small" aria-label="Descer" data-act="mover" data-id="${v.id}" data-v="1" ${W()} ${i === r.length - 1 ? 'disabled' : ''}>↓</button>
-      <button class="btn small ghost" data-act="ver-rota-cliente" data-id="${v.id}">Ver progresso</button>` }); };
+      <button class="btn small ghost" data-act="ver-rota-cliente" data-id="${v.id}">Ver progresso</button>
+      <button class="btn small ghost" data-act="status" data-id="${v.id}" data-v="separado" ${W()}>Tirar da rota</button>` }); };
   const sepHtml = v => tcard({ act: 'editar-entrega', id: v.id, title: v.cliente?.nome || 'Cliente', val: money(v.total),
     meta: `${ic('pin', 'i')}<span>${esc(v.cliente?.endereco || 'Sem endereço')}</span>`,
     det: esc(itemsText(v.itens)) + (v.obs ? ' · ' + esc(v.obs) : ''),
@@ -5511,8 +5511,9 @@ function gEntregas() {
   return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
   buscaBox('en', 'eq', ui.eq, 'Buscar cliente, endereço ou cidade').replace('class="bs-search bq-busca"', 'class="bs-search bq-busca" style="margin:-14px 0 -6px"') +
   `<div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
+  ${!porCid && r.length > 1 ? `<div style="margin:-8px 0 -4px;text-align:right"><button class="link" data-act="rota-tirar" ${W()}>Tirar todos da rota</button></div>` : ''}
   <div class="cx-fseg" style="margin:0 0 -4px"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>
-  <div class="stack">${agrupa(rotaI, x => x.v, rotaHtml, false) || emptyBox(q && r.length ? nada : 'Nenhuma entrega na rota.')}</div>
+  <div class="stack">${agrupa(rotaI, x => x.v, rotaHtml, false, (c, it) => it.length > 1 ? `<button class="link" data-act="rota-tirar" data-cid="${esc(c)}" ${W()}>Tirar todos</button>` : '') || emptyBox(q && r.length ? nada : 'Nenhuma entrega na rota.')}</div>
   <div class="sec-h"><h2>Aguardando rota · ${q ? sepF.length + ' de ' + sep.length : sep.length}</h2>${!porCid && sep.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" ${W()}>Pôr todos</button>` : ''}</div>
   <div class="stack">${agrupa(sepF, v => v, sepHtml, true, (c, it) => it.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" data-cid="${esc(c)}" ${W()}>Pôr todos</button>` : '') || `<p class="sub" style="margin:0">${q && sep.length ? nada : 'Nada esperando.'}</p>`}</div>
   <div class="sec-h"><h2>Entregues · ${q ? doneF.length + ' de ' + done.length : done.length}</h2>${doneF.length ? `<span class="muted num">${money(doneTot)}</span>` : ''}</div>
@@ -9802,6 +9803,7 @@ document.addEventListener('click', async e => {
     case 'pago': await safe(() => patch('vendas', id, v === '1' ? { pago: true, pagoTs: Date.now() } : { pago: false, pagoTs: null, clienteInformouPix: false }), v === '1' ? 'Marcado como pago.' : 'Marcado como não pago.'); break;
     case 'status': await setStatus(id, v); break;
     case 'mover': await move(id, Number(v)); break;
+    case 'rota-tirar': { const cid = t.dataset.cid; const em = rota().filter(x => !cid || cidadeEntrega(x) === cid); if (!em.length) break; await safe(async () => { for (const x of em) await patch('vendas', x.id, { status: 'separado' }); }, em.length === 1 ? 'Pedido tirado da rota.' : 'Pedidos tirados da rota.'); break; }
     case 'rota-todos': { const cid = t.dataset.cid; const sep = S.vendas.filter(x => x.status === 'separado' && (!cid || cidadeEntrega(x) === cid)).sort((p, q) => p.ts - q.ts); let o = nextOrdem(); await safe(async () => { for (const x of sep) await patch('vendas', x.id, { status: 'em_rota', ordemRota: o++ }); }, 'Pedidos colocados na rota.'); break; }
     case 'cx-det': if ($modal.innerHTML) closeModal(); modalLanc(t.dataset.col, id, t.dataset.eid); break;
     case 'editar-despesa': if ($modal.innerHTML) closeModal(); modalEditarDespesa(id); break;
