@@ -9461,7 +9461,7 @@ function vozCfgSheet(wrap) {
     </div>
     <div class="cfg-h">Conversa</div>
     <div class="card cfg-card">
-      ${lin('Conversa contínua', `Depois de responder, continua ouvindo por ${vozContinuaEspera()} s e lembra do assunto. Diga “obrigado” ou “tchau” para encerrar.`, sw('voz-conv-sw', 'voz-conversa', conv, false))}
+      ${lin('Conversa contínua', `Depois de responder, continua ouvindo por <span id="voz-conv-n">${vozContinuaEspera()}</span> s e lembra do assunto. Diga “obrigado” ou “tchau” para encerrar.`, sw('voz-conv-sw', 'voz-conversa', conv, false))}
       <div class="f"><label for="voz-conv-esp">Esperar outra fala sua <b id="voz-conv-esp-v">${vozContinuaEspera()} s</b></label>
         <div class="cfg-step"><button type="button" class="lt-chip" data-act="voz-conv-step" data-v="-1" ${conv ? '' : 'disabled'}>−1 s</button><input type="range" id="voz-conv-esp" min="5" max="60" step="1" value="${vozContinuaEspera()}" ${conv ? '' : 'disabled'}><button type="button" class="lt-chip" data-act="voz-conv-step" data-v="1" ${conv ? '' : 'disabled'}>+1 s</button></div>
       </div>
@@ -9475,8 +9475,15 @@ function vozCfgSheet(wrap) {
     ${iaBlocoUsoResumo(true)}
     <nav class="card menu-list" style="margin-top:10px"><button type="button" class="ml" data-act="sheet" data-v="ia-relatorio"><span class="ml-ic">${ic('list')}</span><span class="ml-l">Relatório de chamadas da IA</span><span></span>${ic('right', 'i chev')}</button></nav>`);
 }
-document.addEventListener('change', e => { const t = e.target; if (!t) return; if (t.id === 'voz-sel') ls.set('mmr-voz-voz', t.value); else if (t.id === 'voz-vel') ls.set('mmr-voz-vel', Number(t.value)); else if (t.id === 'voz-esp') { ls.set('mmr-voz-espera', Number(t.value)); return; } else if (t.id === 'voz-conv-esp') { ls.set('mmr-voz-conversa-espera', Number(t.value)); render(); return; } else return; vozTeste(); });
+document.addEventListener('change', e => { const t = e.target; if (!t) return; if (t.id === 'voz-sel') ls.set('mmr-voz-voz', t.value); else if (t.id === 'voz-vel') ls.set('mmr-voz-vel', Number(t.value)); else if (t.id === 'voz-esp') { ls.set('mmr-voz-espera', Number(t.value)); return; } else if (t.id === 'voz-conv-esp') { vozConvSet(Number(t.value)); return; } else return; vozTeste(); });
 document.addEventListener('input', e => { if (e.target && e.target.id === 'voz-esp') { const o = document.getElementById('voz-esp-v'); if (o) o.textContent = Number(e.target.value).toFixed(1).replace('.', ',') + ' s'; } if (e.target && e.target.id === 'voz-vel') { const o = document.getElementById('voz-vel-v'); if (o) o.textContent = Number(e.target.value).toFixed(2).replace('.', ',') + '×'; } if (e.target && e.target.id === 'voz-conv-esp') { const o = document.getElementById('voz-conv-esp-v'); if (o) o.textContent = Number(e.target.value) + ' s'; } });
+/* muda o tempo da conversa contínua sem redesenhar a tela (a janela não pula) */
+function vozConvSet(n) {
+  const nv = Math.min(60, Math.max(5, Math.round(n))); ls.set('mmr-voz-conversa-espera', nv);
+  const sl = document.getElementById('voz-conv-esp'); if (sl) sl.value = nv;
+  const a = document.getElementById('voz-conv-esp-v'); if (a) a.textContent = nv + ' s';
+  const b = document.getElementById('voz-conv-n'); if (b) b.textContent = nv;
+}
 function vozTeste() { if (!('speechSynthesis' in window)) { toast('Este navegador não fala.'); return; } try { vozParaRec(); speechSynthesis.cancel(); const u = vozFalaObj('Oi! Eu sou o Ander. Assim é a minha voz.'); u.onend = u.onerror = () => setTimeout(vozIniciaRec, 250); speechSynthesis.speak(u); } catch { /* ok */ } }
 function vozInit() {
   try { localStorage.removeItem('mmr-voz-pos'); sessionStorage.removeItem('mmr-voz-pos'); } catch { /* ok */ }
@@ -9899,7 +9906,7 @@ document.addEventListener('click', async e => {
     case 'ia-log-limpar': ls.set('mmr-ia-log', []); toast('Histórico de chamadas limpo.'); render(); break;
     case 'voz-teste': vozTeste(); break;
     case 'voz-conversa': ls.set('mmr-voz-conversa', !vozConversa()); render(); break;
-    case 'voz-conv-step': { const nv = Math.min(60, Math.max(5, vozContinuaEspera() + Number(v))); ls.set('mmr-voz-conversa-espera', nv); render(); break; }
+    case 'voz-conv-step': vozConvSet(vozContinuaEspera() + Number(v)); break;
     case 'voz-conv-set': { const nv = Math.min(60, Math.max(5, Number(v))); ls.set('mmr-voz-conversa-espera', nv); render(); break; }
     case 'voz-toggle': { const on = !vozLigado(); ls.set('mmr-voz', on); if (on) { VOZ.negado = false; VOZ.estado = 'espera'; if (!iaTemChave()) toast('Coloque a chave da IA em Lançar com IA.'); vozIniciaRec(); } else { vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.msg = ''; } vozPill(); render(); break; }
     case 'ia-chave-remover': ls.set('mmr-ia-chave', ''); toast('Chave principal removida.'); render(); break;
