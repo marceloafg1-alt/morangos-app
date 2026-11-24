@@ -4591,7 +4591,7 @@ function modalFilaCobranca() {
   const totalFalta = devs.reduce((s, d) => s + d.totalFalta, 0);
   const totalPed = devs.reduce((s, d) => s + d.vendas.length, 0);
 
-  openModal('Enviar no WhatsApp', `
+  abrirEnvio(`
     ${tmTog('c')}
     <div class="cbr-fila-head">
       <div class="cbr-fila-stat">
@@ -4631,7 +4631,7 @@ function modalFilaCobranca() {
         </div>`;
       }).join('') || '<div class="empty">Nenhum cliente com pagamento pendente no momento!</div>'}
     </div>
-  `);
+  `, 'c');
 }
 
 function modalCobrancaSequencial(idx = 0) {
@@ -4784,9 +4784,17 @@ function transmAtualiza() {
   if (bto) { const all = transmCidades().flatMap(g => g.itens).filter(i => i.tel); bto.textContent = all.length && all.every(i => transmSel.has(i.id)) ? 'Desmarcar todos' : 'Todos'; }
 }
 const tmTog = (k, mb = 12) => `<div class="lt-chips cad-tog" role="group" aria-label="Tipo de envio" style="margin-bottom:${mb}px"><button type="button" class="lt-chip ${k === 't' ? 'on' : ''}" data-act="transm-aba" data-v="t" aria-pressed="${k === 't'}">Transmissão</button><button type="button" class="lt-chip ${k === 'c' ? 'on' : ''}" data-act="transm-aba" data-v="c" aria-pressed="${k === 'c'}">Cobrança</button></div>`;
+/* Troca só o conteúdo quando a janela "Enviar no WhatsApp" já está aberta (alternar Transmissão/Cobrança sem piscar) */
+function abrirEnvio(inner, k, onOpen) {
+  const bs = $modal.querySelector('.bs'), tt = $modal.querySelector('#mtitle');
+  if (bs && tt && tt.textContent === 'Enviar no WhatsApp') {
+    const f = bs.querySelector('#mform'); f.innerHTML = inner; bs.classList.toggle('tm-bs', k === 't'); bs.scrollTop = 0;
+    if (onOpen) onOpen();
+  } else openModal('Enviar no WhatsApp', inner, undefined, () => { $modal.querySelector('.bs')?.classList.toggle('tm-bs', k === 't'); if (onOpen) onOpen(); });
+}
 function modalTransmissao() {
   const gr = transmCidades(), ms = transmModelos();
-  openModal('Enviar no WhatsApp', `
+  abrirEnvio(`
     <div class="tm-top">
       ${tmTog('t', 0)}
       ${ms.length ? `<div class="lt-chips" role="group" aria-label="Mensagens prontas">${ms.map(m => `<button type="button" class="lt-chip" data-act="transm-modelo-usar" data-id="${esc(m.id)}">${esc(m.nome)}</button>`).join('')}</div>` : ''}
@@ -4802,7 +4810,7 @@ function modalTransmissao() {
         <span class="tm-ck" aria-hidden="true"></span>
       </div>`).join('')}</div>`).join('') || '<div class="empty">Nenhum cliente cadastrado ainda.</div>'}
     </div>
-    <div class="tm-foot"><button type="button" id="transm-go" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="transm-iniciar" disabled>${ic('chat')}<span> Enviar em sequência (0)</span></button></div>`, undefined, () => { $modal.querySelector('.bs')?.classList.add('tm-bs'); transmAtualiza(); });
+    <div class="tm-foot"><button type="button" id="transm-go" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="transm-iniciar" disabled>${ic('chat')}<span> Enviar em sequência (0)</span></button></div>`, 't', () => { transmAtualiza(); });
 }
 function modalTransmModelos() {
   const ms = transmModelos();
