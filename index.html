@@ -6644,6 +6644,14 @@ function nav() {
   }
   return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', '', '', 'sheet', maisOn).replace('aria-label=""', 'aria-label="Mais"')}</nav>`;
 }
+/* Configurações > Menu inferior: atualiza só a lista e a barra de baixo, sem redesenhar a tela (não pisca) */
+function menuCfgAtualiza() {
+  const nv = document.getElementById('nav-root'), bs = document.querySelector('#sheet-root .bs'), t = document.createElement('div');
+  if (!bs || ui.sheet?.type !== 'menu-cfg') { render(); return; }
+  t.innerHTML = sheetHTML(); const novo = t.querySelector('.bs');
+  if (!novo) { render(); return; }
+  bs.innerHTML = novo.innerHTML; if (nv) nv.innerHTML = nav();
+}
 function sheetHTML() {
   const s = ui.sheet;
   const wrap = (title, inner) => `<div class="sheet bs-scrim" data-act="close-sheet"><div class="bs${/^Período/.test(title) ? ' bs-per' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="bs-h"><h2>${title}</h2><button class="bs-x" data-act="close-sheet" aria-label="Fechar">${ic('x')}</button></div>${inner}</div></div>`;
@@ -9790,8 +9798,8 @@ document.addEventListener('click', async e => {
     case 'vlimpar': ui.vf = 'todas'; ui.vp = perPadrao(); render(); break;
     case 'set-theme': look.modo = v; ls.set('mmr-look', look); applyTheme(); render(); break;
     case 'look': look[t.dataset.k] = v; if (look.visual === 'aurora') look.modo = 'claro'; ls.set('mmr-look', look); applyTheme(); render(); break;
-    case 'menu-tgl': { let l = menuNaBarra(); l = l.includes(v) ? l.filter(k => k !== v) : [...l, v]; if (l.length) { ls.set('mmr-menu', l); render(); } break; }
-    case 'menu-reset': ls.set('mmr-menu', MENU_PADRAO); render(); break;
+    case 'menu-tgl': { let l = menuNaBarra(); l = l.includes(v) ? l.filter(k => k !== v) : [...l, v]; if (l.length) { ls.set('mmr-menu', l); menuCfgAtualiza(); } else render(); break; }
+    case 'menu-reset': ls.set('mmr-menu', MENU_PADRAO); menuCfgAtualiza(); break;
     case 'look-reset': look = Object.assign({}, LOOK_DEF); ls.set('mmr-look', look); applyTheme(); render(); break;
     case 'filter': ui[t.dataset.k] = v; if (t.dataset.k === 'cxv') ui.cxq = ''; render(); break;
     case 'cx-grp': ui.cxo[v] = !ui.cxo[v]; render(); break;
