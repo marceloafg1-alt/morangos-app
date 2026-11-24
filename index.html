@@ -6136,6 +6136,56 @@ function relPDF() {
 }
 /* PDF de verdade (arquivo), para baixar ou mandar pelo WhatsApp. A biblioteca só é carregada quando precisa. */
 let _pdfLib = null;
+/* Relatório sob medida pela IA: só o que o dono pediu (tipo, período e cidade). Sai em PDF (baixar/compartilhar), texto para WhatsApp ou falado. */
+const REL_TIPOS = { a_receber: 'Contas a receber', a_pagar: 'Contas a pagar (compras)', despesas_a_pagar: 'Despesas a pagar', vendas: 'Vendas', compras: 'Compras', despesas: 'Despesas' };
+function relPers(l) {
+  const iso = ts => { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const ok = x => /^\d{4}-\d{2}-\d{2}$/.test(x || '');
+  let de = ok(l.de) ? l.de : '', ate = ok(l.ate) ? l.ate : '';
+  const nd = Math.floor(Number(l.ultimos_dias));
+  if (nd > 0 && !de) { de = iso(Date.now() - (nd - 1) * 864e5); ate = ate || iso(Date.now()); }
+  const cid = norm(l.cidade || ''), pes = norm(l.pessoa || ''), tipo = REL_TIPOS[l.tipo_relatorio] ? l.tipo_relatorio : '';
+  const noPer = x => (!de || iso(x.ts) >= de) && (!ate || iso(x.ts) <= ate);
+  const cidFor = c => norm((S.fornecedores.find(f => norm(f.nome) === norm(c.fornecedor)) || {}).cidade || '');
+  let head, rows, total, nomeTot = 'Total';
+  const dt = x => new Date(x.ts).toLocaleDateString('pt-BR');
+  if (tipo === 'a_receber' || tipo === 'vendas') {
+    let arr = tipo === 'a_receber' ? aReceber() : vendasValidas();
+    arr = arr.filter(v => noPer(v) && (!cid || norm(cidadeEntrega(v)).includes(cid)) && (!pes || norm(v.cliente?.nome || '').includes(pes))).sort((a, b) => a.ts - b.ts);
+    const val = tipo === 'a_receber' ? vFalta : vLiq;
+    head = ['Data', 'Cliente', 'Cidade', 'Itens', tipo === 'a_receber' ? 'Falta receber' : 'Valor'];
+    rows = arr.map(v => [dt(v), v.cliente?.nome || 'Cliente avulso', cidadeEntrega(v), itemsText(v.itens), money(val(v))]);
+    total = n2(arr.reduce((t, v) => t + val(v), 0));
+  } else if (tipo === 'a_pagar' || tipo === 'compras') {
+    let arr = (tipo === 'a_pagar' ? aPagar() : S.compras).filter(c => noPer(c) && (!cid || cidFor(c).includes(cid)) && (!pes || norm(c.fornecedor || '').includes(pes))).sort((a, b) => a.ts - b.ts);
+    const val = tipo === 'a_pagar' ? cFalta : cAberto;
+    head = ['Data', 'Fornecedor', 'Itens', tipo === 'a_pagar' ? 'Falta pagar' : 'Valor'];
+    rows = arr.map(c => [dt(c), c.fornecedor || 'Roça', itemsText(c.itens), money(val(c))]);
+    total = n2(arr.reduce((t, c) => t + val(c), 0));
+  } else if (tipo === 'despesas_a_pagar' || tipo === 'despesas') {
+    let arr = (tipo === 'despesas' ? S.despesas : despAPagar()).filter(d => noPer(d) && (!pes || norm(d.descricao || '').includes(pes))).sort((a, b) => a.ts - b.ts);
+    const val = tipo === 'despesas' ? d => valOrig('despesas', d) : d => restante('despesas', d);
+    head = ['Data', 'Descrição', tipo === 'despesas' ? 'Valor' : 'Falta pagar'];
+    rows = arr.map(d => [dt(d), d.descricao || 'Despesa', money(val(d))]);
+    total = n2(arr.reduce((t, d) => t + val(d), 0));
+  } else return null;
+  const f = x => x.split('-').reverse().join('/');
+  const filtros = [cid && ('cidade ' + l.cidade), pes && ('"' + l.pessoa + '"'), de && ('de ' + f(de) + (ate && ate !== de ? ' a ' + f(ate) : ''))].filter(Boolean);
+  const titulo = REL_TIPOS[tipo] + (filtros.length ? ' · ' + filtros.join(' · ') : '');
+  const texto = '🍓 *Morangos Made in Roça*\n*' + titulo + '*\n' + (rows.length ? rows.map(r => '• ' + r.slice(1).join(' · ')).join('\n') : 'Nada encontrado.') + '\n\n*' + nomeTot + ': ' + money(total) + '* (' + rows.length + ' ' + (rows.length === 1 ? 'registro' : 'registros') + ')';
+  const falado = titulo + ': ' + rows.length + ' ' + (rows.length === 1 ? 'registro' : 'registros') + ', total ' + money(total) + '. ' + rows.map(r => r[1] + ' ' + r[r.length - 1]).join('; ');
+  return { tipo, titulo, head, rows, total, texto, falado, nome: 'relatorio-' + tipo.replace(/_/g, '-') + (cid ? '-' + cid.replace(/\W+/g, '-') : '') + '.pdf' };
+}
+async function relPersPDF(R) {
+  try { await relPdfLib(); const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const L = v => String(v ?? '').replace(/−/g, '-').replace(/[\u{1F300}-\u{1FAFF}]/gu, '').trim();
+    doc.setFontSize(18); doc.setTextColor(196, 20, 27); doc.text('Morangos Made in Roça', 40, 48);
+    doc.setFontSize(12); doc.setTextColor(30); doc.text(L(R.titulo), 40, 68);
+    doc.setFontSize(9); doc.setTextColor(90); doc.text(L('Gerado em ' + new Date().toLocaleString('pt-BR')), 40, 82);
+    if (R.rows.length) doc.autoTable({ startY: 94, head: [R.head.map(L)], body: R.rows.map(r => r.map(L)), foot: [[...R.head.slice(0, -1).map((_, i) => i === 0 ? 'Total' : ''), money(R.total)].map(L)], styles: { fontSize: 8.5, cellPadding: 3 }, headStyles: { fillColor: [196, 20, 27] }, footStyles: { fillColor: [240, 240, 240], textColor: 20 }, margin: { left: 40, right: 40 } });
+    else doc.text('Nada encontrado com esses filtros.', 40, 106);
+    return doc.output('blob'); } catch { return null; }
+}
 function relPdfLib() {
   if (_pdfLib) return _pdfLib;
   const carrega = src => new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = () => no(new Error('falhou')); document.head.appendChild(sc); });
@@ -6491,7 +6541,7 @@ const AJ_G = [
     ['Como a IA entende pagamento e entrega?', '<ul><li><b>Pago</b>: só se o texto disser que pagou. Sem dizer nada, o app pergunta.</li><li><b>Pagamento parcial</b>: “pagou metade”, “50%” ou “pagou R$ 50” ficam como pago em parte, e o resto fica <b>a receber</b>. A metade conta sobre a soma de todos os itens.</li><li><b>Fiado</b> ou <b>a prazo</b>: não pago.</li><li><b>Entrega</b>: se o texto der a entender que ainda não entregou (“entrego amanhã”, “pendente”, “a entregar”), fica como <b>entregar depois</b>. Só marca <b>já entregue</b> se o texto disser.</li><li>Cada venda tem a sua entrega: ela lê a frase de cada cliente separadamente.</li><li>Fala errada do microfone: “pics” e “pique” são entendidos como Pix.</li></ul>'],
     ['O que fazer quando a IA diz “Falta informar” ou “Não dá para lançar”?', '<ul><li><b>❓ Falta informar</b>: faltou algo (preço, data, forma de pagamento…). Escreva o que faltou no campo de cima e toque em <b>Ler com a IA</b> de novo, ou ligue o item para lançar assim mesmo.</li><li><b>⚠ Não dá para lançar</b>: por exemplo, o produto ou o cliente não existe. Cadastre primeiro (ou peça para a IA cadastrar) e leia de novo.</li><li><b>Trechos não entendidos</b> aparecem separados: nada é lançado com eles.</li></ul>A IA <b>não inventa</b> valor, quantidade, data ou nome. O que ela não achar fica em branco para você completar.'],
     ['Como cadastrar clientes, fornecedores e produtos com a IA?', '<ol><li>Abra <b>Lançar com IA</b> e escreva ou dite, por exemplo: <i>“Cadastrar cliente Ana, telefone 15 99999-0000, CEP 18000-000, número 120”</i> ou <i>“Cadastrar produto Morango bandeja 500 g a R$ 12, custo R$ 7”</i>.</li><li>Toque em <b>Ler com a IA</b>.</li><li>Confira o cartão (<b>Novo cliente</b>, <b>Novo fornecedor</b> ou <b>Ação no app</b>) e toque em <b>Lançar selecionados</b>.</li></ol>Para <b>produtos</b> dá para cadastrar, editar (nome, preço, custo, unidade, descrição, mostrar ou tirar da Loja), <b>ajustar o estoque</b> (perda, contagem ou entrada) e <b>excluir</b>.', [['Abrir Lançar com IA', 'ia-lancar'], ['Ver como cadastrar produto sem IA', 'go-cfg', 'estoque']]],
-    ['Que ações no app a IA faz por mim?', 'Escreva ou diga o que quer e a IA mostra a <b>Ação no app</b> para você confirmar:<ul><li>mudar o <b>preço</b> ou o <b>estoque</b> de um produto;</li><li>marcar uma venda como <b>paga</b> ou mudar a <b>entrega</b>;</li><li><b>trocar o tema</b> (Clássico, Aurora ou Bento, claro ou escuro);</li><li><b>abrir uma tela</b>, qualquer submenu de Configurações e a janela de nova venda, compra, despesa, transmissão ou cobrança;</li><li><b>Relatórios</b>: abrir num período (hoje, 7 dias, 30 dias, mês, tudo ou datas), <b>baixar em PDF, Excel ou CSV</b>, <b>compartilhar o arquivo</b> (a IA prepara e você escolhe o WhatsApp), além do <b>resumo direto no WhatsApp</b> e <b>resumir os números</b> (“relatório de 7 dias em PDF”, “compartilha o relatório do mês em Excel”);</li><li><b>editar cadastros</b> de cliente, fornecedor, produto e compra, e operar a <b>rota de entregas</b>;</li><li>mudar o <b>período padrão</b> e o <b>WhatsApp do relatório</b>.</li></ul><b>Lançar com IA e assistente de voz fazem exatamente as mesmas coisas</b>: o que um faz, o outro também. Pela voz as ações seguras rodam na hora; no Lançar com IA você confere e confirma.Ações que não podem ser feitas aparecem com <b>⚠ Não dá para fazer</b> e o motivo.', [['Abrir Lançar com IA', 'ia-lancar']]],
+    ['Que ações no app a IA faz por mim?', 'Escreva ou diga o que quer e a IA mostra a <b>Ação no app</b> para você confirmar:<ul><li>mudar o <b>preço</b> ou o <b>estoque</b> de um produto;</li><li>marcar uma venda como <b>paga</b> ou mudar a <b>entrega</b>;</li><li><b>trocar o tema</b> (Clássico, Aurora ou Bento, claro ou escuro);</li><li><b>abrir uma tela</b>, qualquer submenu de Configurações e a janela de nova venda, compra, despesa, transmissão ou cobrança;</li><li><b>Relatórios</b>: abrir num período (hoje, 7 dias, 30 dias, mês, tudo ou datas), <b>baixar em PDF, Excel ou CSV</b>, <b>compartilhar o arquivo</b> (a IA prepara e você escolhe o WhatsApp), além do <b>resumo direto no WhatsApp</b> e <b>resumir os números</b> (“relatório de 7 dias em PDF”, “compartilha o relatório do mês em Excel”);</li><li><b>relatório sob medida</b>, só do que você pedir: contas a receber ou a pagar, vendas, compras ou despesas, de uma <b>cidade</b>, dos últimos N dias ou de um dia, em <b>PDF</b> ou como <b>resumo de texto no WhatsApp</b> (“contas a receber de Piedade em PDF”);</li><li><b>editar cadastros</b> de cliente, fornecedor, produto e compra, e operar a <b>rota de entregas</b>;</li><li>mudar o <b>período padrão</b> e o <b>WhatsApp do relatório</b>.</li></ul><b>Lançar com IA e assistente de voz fazem exatamente as mesmas coisas</b>: o que um faz, o outro também. Pela voz as ações seguras rodam na hora; no Lançar com IA você confere e confirma.Ações que não podem ser feitas aparecem com <b>⚠ Não dá para fazer</b> e o motivo.', [['Abrir Lançar com IA', 'ia-lancar']]],
     ['Como ligar e usar o assistente de voz (“oi Ander”)?', '<ol><li>Em <b>Configurações → Assistente de voz</b>, toque em <b>Ligar assistente de voz</b> e permita o <b>microfone</b> quando o navegador pedir.</li><li>Diga <b>“oi Ander”</b> e, em seguida, o pedido. Ou toque no <b>botão do microfone</b> na tela para falar sem a palavra de ativação.</li><li>Quando ele repetir o que vai fazer, diga <b>“sim”</b> para confirmar ou <b>“não”</b> para cancelar.</li></ol>Ele faz tudo o que o Lançar com IA faz (vendas, compras, despesas, cadastros, produtos, relatórios, rotas, ações) e o Lançar com IA faz tudo o que ele faz. Além disso o assistente:<ul><li><b>Tira dúvidas</b> do app e <b>responde números</b>: quem me deve, para quem devo, saldo, lucro, vendas e estoque.</li><li><b>Opera os Relatórios</b>: abre num período, <b>baixa em PDF, Excel ou CSV</b>, <b>compartilha o arquivo</b> (você escolhe o WhatsApp) e <b>manda o resumo no WhatsApp</b> e <b>fala os números</b> (“me diz o relatório de hoje”, “exporta o relatório do mês em Excel”).</li><li><b>Abre listas filtradas</b> (por exemplo só contas a receber).</li><li><b>Manda mensagem</b> para um cliente no chat.</li><li><b>Dar baixa</b> em conta paga, <b>pagamento parcial</b>, <b>cancelar venda</b>, <b>estornar</b> e <b>excluir</b> venda, compra ou despesa (e <b>desfazer</b> a última exclusão).</li></ul>', [['Abrir Assistente de voz', 'sheet', 'voz-cfg']]],
     ['Como ajustar a voz do assistente?', 'Em <b>Configurações → Assistente de voz</b>:<ul><li><b>Voz</b> e <b>Velocidade</b>, com o botão <b>Ouvir a voz</b> para testar.</li><li><b>Conversa contínua</b>: ligada, ele continua ouvindo de 5 a 60 segundos depois de responder e lembra da conversa. Diga “obrigado” ou “tchau” para encerrar.</li><li><b>Esperar depois que eu parar de falar</b>: aumente se ele responder antes de você terminar a frase.</li><li>O botão do microfone pode ser <b>arrastado</b> para outro lugar; ele volta ao lugar fixo ao trocar de tela.</li></ul>', [['Abrir Assistente de voz', 'sheet', 'voz-cfg']]],
     ['Como tirar dúvidas do sistema no Chat?', 'No <b>Chat</b>, toque em <b>Falar com o suporte</b> e pergunte o que quiser sobre o app (por exemplo “como lanço uma compra?”). A resposta vem curta, com <b>botões que levam direto</b> à tela certa, e usa esta própria Ajuda. O suporte <b>não executa ações</b>: para lançar algo, use o Lançar com IA ou o assistente de voz. Para conversar com um cliente, toque em <b>Falar com o cliente</b>.', [['Abrir o Chat', 'go-conversas'], ['Falar com o suporte', 'suporte-abrir']]],
@@ -8478,6 +8528,9 @@ function iaAcoesExtras(f) {
   it.formato = { type: 'string', enum: ['pdf', 'excel', 'csv', 'whatsapp', 'pdf_compartilhar', 'excel_compartilhar', 'csv_compartilhar', ''], description: 'Só para relatorio/exportar: pdf, excel (.xls) ou csv = baixa o arquivo; whatsapp = manda o resumo em texto direto ao número salvo; pdf_compartilhar, excel_compartilhar ou csv_compartilhar = abre o compartilhar do celular com o arquivo (o dono escolhe o WhatsApp e o contato).' };
   it.de = { type: 'string', description: 'Só para relatorio com período personalizado: data inicial AAAA-MM-DD.' };
   it.ate = { type: 'string', description: 'Só para relatorio com período personalizado: data final AAAA-MM-DD.' };
+  it.tipo_relatorio = { type: 'string', enum: ['a_receber', 'a_pagar', 'despesas_a_pagar', 'vendas', 'compras', 'despesas', ''], description: 'Só para acao relatorio quando o dono pede um relatório SÓ de uma parte: a_receber (clientes que devem), a_pagar (compras a pagar a fornecedores), despesas_a_pagar, vendas, compras ou despesas. Combine com cidade, pessoa, ultimos_dias ou de/ate. Deixe vazio para o relatório geral.' };
+  it.cidade = { type: 'string', description: 'Só para relatorio por tipo: filtra pela cidade do cliente (ex.: Piedade, Sorocaba). Use o nome como está nos cadastros.' };
+  it.ultimos_dias = { type: 'number', description: 'Só para relatorio por tipo: últimos N dias contando hoje (ex.: 10). Para um dia só, use de e ate com a mesma data.' };
   it.etapa = { type: 'string', enum: ['iniciar', 'abrir_whatsapp', 'pular', ''], description: 'Só para envio_sequencia: iniciar = começa o envio em sequência dos marcados (botão Enviar em sequência / Iniciar cobrança); abrir_whatsapp = abre o WhatsApp do cliente da vez com a mensagem; pular = passa para o próximo.' };
   it.cidades = { type: 'array', items: { type: 'string' }, description: 'Só para selecao_envio: cidades.' };
   it.nomes = { type: 'array', items: { type: 'string' }, description: 'Só para selecao_envio: nomes de clientes.' };
@@ -8820,6 +8873,7 @@ const IA_ACOES_TXT = `AÇÕES NO APP (valem para texto, arquivo ou voz):
 - Rotas de entrega: use acao=rota com operacao_rota. "coloca o João na rota" = colocar; "tira da rota" = tirar; "marca como entregue" = entregue; "marca como a entregar" = a_entregar; "coloca todos na rota" / "tira todos" = colocar_todos / tirar_todos (cidades[0] para uma cidade só); "sobe o João uma posição", "coloca o João em primeiro" = mover (direcao, passos ou posicao); "abre o mapa da rota", "abre rota de hoje", "abre rotas de hoje" = abrir_painel (nunca abrir_tela para isso); "otimiza a rota" = otimizar; "abre no Maps", "abre no Google Maps", "abre o Google Maps" = abrir_maps (abre a rota no aplicativo, sem abrir o painel); "muda a partida para ..." = definir_partida com endereco ou CEP. A rota atual e os pedidos a entregar estão nos DADOS DO APP.
 - Na janela de Transmissão ou Cobrança, use acao=selecao_envio: "todos", "ninguém", marcar ou desmarcar por cidade e/ou nomes. Na Cobrança todos já vêm marcados.
 - Configurações: "abra configurações, assistente de voz" (ou qualquer item: aparência, notificações, categorias, rotas, período padrão...) = acao=abrir_config com submenu, num só pedido. Só "abra configurações" = abrir_tela config.
+- Relatório SÓ do que ele pedir ("contas a receber de Piedade em PDF", "resumo no WhatsApp das contas a pagar", "vendas dos últimos 10 dias", "vendas do dia 12"): acao=relatorio com tipo_relatorio (a_receber, a_pagar, despesas_a_pagar, vendas, compras, despesas), cidade, pessoa, ultimos_dias ou de/ate, operacao_relatorio exportar e formato pdf ou whatsapp (resumo em texto), ou resumir para falar. Qualquer cidade cadastrada vale.
 - Relatórios: "abre o relatório de 7 dias", "exporta o relatório em PDF/Excel/CSV", "compartilha o relatório em PDF" / "manda o relatório por WhatsApp" (formato pdf_compartilhar/excel_compartilhar/csv_compartilhar = abre o compartilhar do celular com o arquivo, o dono escolhe o WhatsApp; faça direto sem perguntar nada, sem formato dito use pdf_compartilhar, sem período o atual; whatsapp = só o resumo em texto, enviado direto ao número salvo — use whatsapp só quando ele pedir o resumo/texto) (período do pedido ou o atual), "me diz o relatório de hoje" = acao=relatorio com operacao_relatorio (abrir, exportar ou resumir), periodo ou de/ate e formato. Resumir diz os números do período.`;
 const IA_TELAS = { inicio: 'Início', vendas: 'Vendas', entregas: 'Entregas', caixa: 'Caixa', relatorios: 'Relatórios', conversas: 'Chat', estoque: 'Estoque', compras: 'Compras na roça', noticias: 'Notícias', clientes: 'Clientes', fornecedores: 'Fornecedores', config: 'Configurações', notificacoes: 'Notificações', ajuda: 'Ajuda' };
 const IA_STATUS = { recebido: 'pedido recebido', separado: 'separado', em_rota: 'na rota', entregue: 'entregue' };
@@ -8899,6 +8953,21 @@ function iaPreparaAcao(o, l) {
     };
   } else if (l.acao === 'relatorio') {
     const op = ['abrir', 'exportar', 'resumir'].includes(l.operacao_relatorio) ? l.operacao_relatorio : '';
+    if (l.tipo_relatorio && op !== 'abrir') {
+      const R = relPers(l), fm = String(l.formato || ''), zap = fm === 'whatsapp', pdf = /^pdf/.test(fm) || (!zap && op === 'exportar');
+      if (!R) o.problemas.push('não entendi qual relatório (a receber, a pagar, vendas, compras ou despesas)');
+      else {
+        o.resumo = op === 'resumir' ? R.falado : R.titulo + ': ' + R.rows.length + ' ' + (R.rows.length === 1 ? 'registro' : 'registros') + ', total ' + money(R.total) + (zap ? ' · resumo para o WhatsApp' : ' · PDF');
+        o.dito = op === 'resumir' ? R.falado : ''; o.seguro = true;
+        o.exec = async () => {
+          if (op === 'resumir') return;
+          if (zap) { window.open(relWaUrl(R.texto), '_blank'); return; }
+          const b = await relPersPDF(R); if (!b) { toast('Não consegui gerar o PDF agora.'); return; }
+          docExportar(R.nome, b, R.titulo);
+        };
+      }
+      return o;
+    }
     const isoOk = x => /^\d{4}-\d{2}-\d{2}$/.test(x || ''), cust = isoOk(l.de) && isoOk(l.ate), per = cust ? 'custom' : (PERIODOS[l.periodo] ? l.periodo : ui.rp || '30d');
     if (!op) o.problemas.push('diga se é para abrir, exportar ou resumir o relatório');
     if (cust && l.de > l.ate) o.problemas.push('a data inicial vem depois da final');
