@@ -9274,6 +9274,9 @@ function vozPosiciona() {
   vozAlturaEstavel();
   document.querySelectorAll('.bs, .fab-pop, .modal').forEach(el => { const r = el.getBoundingClientRect(); let dy = 0; try { dy = new DOMMatrix(getComputedStyle(el).transform).m42 || 0; } catch { /* ok */ } const top = r.top - dy, bot = r.bottom - dy; if (r.height > 40 && bot > innerHeight - 200 && top < topo) topo = top; });
   Object.assign(box.style, { left: '', top: '', right: '', flexDirection: '', alignItems: '', bottom: topo === Infinity ? '' : Math.min(Math.max(innerHeight - topo + 10, 0), innerHeight - 56) + 'px' });
+  /* balão no alto da tela: o texto falado (e os botões de sim/não) aparece ABAIXO do botão, para não sumir pelo topo */
+  const pl = box.querySelector('.voz-pill');
+  if (pl) { const rt = pl.getBoundingClientRect().top; if (rt < 190) Object.assign(box.style, { top: Math.max(rt, 4) + 'px', bottom: 'auto', flexDirection: 'column-reverse' }); }
 }
 /* arrastar o botão: toque e segure, depois arraste; a posição fica salva neste aparelho */
 function vozArrasta(pill) {
