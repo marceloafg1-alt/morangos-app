@@ -2716,6 +2716,16 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
 }
 .cbr-badge-btn:active { transform: scale(.95); opacity: .9; }
 .cbr-badge-btn svg { width: 16px; height: 16px; flex: none; stroke: currentColor; }
+.lm-card{padding:12px 14px;margin-bottom:12px;display:grid;gap:10px}
+.lm-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.lm-top b{font-size:15px}
+.lm-dias{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.lm-dia{height:36px;border-radius:12px;border:var(--bd);background:var(--card);color:var(--muted);font-weight:700;font-size:13px;padding:0}
+.lm-dia.on{background:var(--accent);border-color:var(--accent);color:var(--onA)}
+.lm-bot{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lm-hora{display:inline-flex;align-items:center;gap:2px;background:var(--surface-2);border-radius:999px;padding:3px}
+.lm-hora b{min-width:52px;text-align:center;font-size:15px}
+.lm-hora button{width:32px;height:32px;border-radius:50%;border:0;background:var(--card);color:var(--ink);font-size:18px;font-weight:700;line-height:1;padding:0;box-shadow:var(--sh1)}
 .tm-ck{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;display:inline-block}
 .li.on .tm-ck{box-shadow:inset 0 0 0 4px var(--card)}
 .li[aria-disabled="true"]{opacity:.5;pointer-events:none}
@@ -4653,7 +4663,7 @@ function modalCobrancaSequencial(idx = 0) {
 }
 
 /* ---------------- Lembretes recorrentes (transmissão e cobrança) ---------------- */
-const LEMB_DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const LEMB_DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'], LEMB_DIAS_L = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const lembHoje = () => new Date().toLocaleDateString('sv');
 function lembCfg(k) { const d = ls.get('mmr-lembretes', {}) || {}; return { on: false, dias: [1], hora: '09:00', ...(d[k] || {}) }; }
 function lembSet(k, patch) { const d = ls.get('mmr-lembretes', {}) || {}; d[k] = { ...lembCfg(k), ...patch }; ls.set('mmr-lembretes', d); }
@@ -4670,24 +4680,14 @@ function lembVencido(k) {
 }
 function lembCardHtml(k) {
   const c = lembCfg(k);
-  return `<div class="card" style="padding:14px;margin-bottom:12px" data-lemb="${k}">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-      <div><b>Lembrete</b><small class="muted" style="display:block;font-size:12px">Avisa em Pendências e Notificações quando chegar o dia e a hora</small></div>
-      <input type="checkbox" class="lt-switch" data-act="lemb-ligar" data-k="${k}" aria-label="Ligar lembrete" ${c.on ? 'checked' : ''}>
-    </div>
-    <div style="margin-top:12px"><span class="lbl" style="font-size:12.5px;font-weight:700">Dias da semana</span>
-      <div class="lt-chips" role="group" aria-label="Dias do lembrete" style="margin-top:6px">${LEMB_DIAS.map((n, d) => `<button type="button" class="lt-chip ${c.dias.includes(d) ? 'on' : ''}" data-act="lemb-dia" data-k="${k}" data-d="${d}" aria-pressed="${c.dias.includes(d)}">${n}</button>`).join('')}</div>
-      <small class="muted" data-lemb-n="${k}" style="display:block;margin-top:6px">${lembResumo(c)}</small></div>
-    <div class="f" style="margin-top:12px"><label for="lemb-hora-${k}">Horário</label><input type="time" id="lemb-hora-${k}" data-lemb-hora="${k}" value="${esc(c.hora)}"></div>
+  return `<div class="card lm-card" data-lemb="${k}">
+    <div class="lm-top"><b>Lembrete</b><input type="checkbox" class="lt-switch" data-act="lemb-ligar" data-k="${k}" aria-label="Ligar lembrete" ${c.on ? 'checked' : ''}></div>
+    <div class="lm-dias" role="group" aria-label="Dias da semana">${LEMB_DIAS.map((n, d) => `<button type="button" class="lm-dia ${c.dias.includes(d) ? 'on' : ''}" data-act="lemb-dia" data-k="${k}" data-d="${d}" aria-pressed="${c.dias.includes(d)}" aria-label="${LEMB_DIAS_L[d]}">${n}</button>`).join('')}</div>
+    <div class="lm-bot"><small class="muted" data-lemb-n="${k}">${lembResumo(c)}</small>
+      <div class="lm-hora" role="group" aria-label="Horário"><button type="button" data-act="lemb-hora" data-k="${k}" data-v="-30" aria-label="Menos 30 minutos">−</button><b class="num" data-lemb-h="${k}">${esc(c.hora)}</b><button type="button" data-act="lemb-hora" data-k="${k}" data-v="30" aria-label="Mais 30 minutos">+</button></div></div>
   </div>`;
 }
-const lembResumo = c => `${c.dias.length} ${c.dias.length === 1 ? 'vez' : 'vezes'} por semana, às ${c.hora}`;
-document.addEventListener('change', e => {
-  const k = e.target?.dataset?.lembHora; if (!k) return;
-  const v = e.target.value || '09:00'; lembSet(k, { hora: v });
-  const n = document.querySelector(`[data-lemb-n="${k}"]`); if (n) n.textContent = lembResumo(lembCfg(k));
-  render();
-});
+const lembResumo = c => `${c.dias.length}× por semana`;
 
 /* ---------------- Transmissão (promoções e lembretes no WhatsApp) ---------------- */
 const TRANSM_MSG_PADRAO = 'Olá, {nome}! Tudo bem? 🍓\nTem morango fresquinho da roça essa semana! Quer que eu separe uma caixa para você?';
@@ -9515,6 +9515,12 @@ document.addEventListener('click', async e => {
     }
     case 'cbr-seq-pular': modalCobrancaSequencial(Number(v) + 1); break;
     case 'lemb-ligar': { lembSet(t.dataset.k, { on: !!t.checked }); toast(t.checked ? 'Lembrete ligado.' : 'Lembrete desligado.', 'ok'); render(); break; }
+    case 'lemb-hora': {
+      const k = t.dataset.k, [h, m] = lembCfg(k).hora.split(':').map(Number);
+      let tot = ((h * 60 + m + Number(t.dataset.v)) % 1440 + 1440) % 1440;
+      const hora = String(Math.floor(tot / 60)).padStart(2, '0') + ':' + String(tot % 60).padStart(2, '0');
+      lembSet(k, { hora }); const el = document.querySelector(`[data-lemb-h="${k}"]`); if (el) el.textContent = hora; render(); break;
+    }
     case 'lemb-dia': {
       const k = t.dataset.k, d = Number(t.dataset.d), c = lembCfg(k);
       const dias = c.dias.includes(d) ? c.dias.filter(x => x !== d) : [...c.dias, d].sort();
