@@ -2731,7 +2731,11 @@ textarea.l1 { display: block; height: 48px !important; min-height: 48px !importa
 }
 .cbr-badge-btn:active { transform: scale(.95); opacity: .9; }
 .cbr-badge-btn svg { width: 16px; height: 16px; flex: none; stroke: currentColor; }
-.bs.tm-bs{overflow:hidden;display:flex;flex-direction:column}
+.bs.tm-bs{overflow:hidden;display:flex;flex-direction:column;height:90dvh}
+.tm-stat{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
+.tm-stat>div{display:grid;gap:2px}
+.tm-stat small{font-size:12.5px;line-height:1.2}
+.tm-stat b{font-size:18px;line-height:1.2}
 .bs.tm-bs form{display:flex;flex-direction:column;gap:0;flex:1;min-height:0}
 .tm-top{display:grid;gap:8px;flex:none;padding-top:2px}
 .tm-top .lt-chips{margin:0}
@@ -4592,45 +4596,24 @@ function modalFilaCobranca() {
   const totalPed = devs.reduce((s, d) => s + d.vendas.length, 0);
 
   abrirEnvio(`
-    ${tmTog('c')}
-    <div class="cbr-fila-head">
-      <div class="cbr-fila-stat">
-        <div>
-          <small class="muted" style="display:block">Total em aberto</small>
-          <b class="num" style="font-size:20px;color:var(--red-ink)">${money(totalFalta)}</b>
-        </div>
-        <div style="text-align:right">
-          <small class="muted" style="display:block">Clientes com débito</small>
-          <b class="num" style="font-size:20px">${devs.length} (${totalPed} pedidos)</b>
-        </div>
+    <div class="tm-top">
+      ${tmTog('c', 0)}
+      <div class="tm-stat">
+        <div><small class="muted">Total em aberto</small><b class="num" style="color:var(--red-ink)">${money(totalFalta)}</b></div>
+        <div style="text-align:right"><small class="muted">Clientes com débito</small><b class="num">${devs.length} (${totalPed} ${totalPed === 1 ? 'pedido' : 'pedidos'})</b></div>
       </div>
-      ${devs.length ? `
-        <button type="button" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="cbr-iniciar-seq">
-          ${ic('chat')} ▶ Iniciar cobrança em sequência
-        </button>
-      ` : ''}
     </div>
-
-    <div class="card list" style="max-height:55vh;overflow-y:auto">
-      ${devs.map((d, idx) => {
+    <div class="tm-scroll">
+      <div class="card list">${devs.map((d, idx) => {
         const jaCobrado = d.ultimaCobranca ? relTime(d.ultimaCobranca) : '';
-        const telFmt = d.cliente?.telefone || 'Sem telefone';
-        return `<div class="li" style="padding:12px 14px;align-items:center;gap:12px">
-          <span class="av">${esc((d.cliente?.nome || 'A')[0])}</span>
-          <div style="flex:1;min-width:0">
-            <b>${esc(d.cliente?.nome || 'Cliente avulso')}</b>
-            <small style="display:block;color:var(--muted)">${esc(telFmt)} · ${d.vendas.length} ${d.vendas.length === 1 ? 'pedido' : 'pedidos'}</small>
-            ${jaCobrado ? `<small style="display:block;color:#1B7F47;font-weight:600">✓ Cobrado ${jaCobrado}</small>` : ''}
-          </div>
-          <div style="text-align:right;flex:none">
-            <b class="num" style="display:block;font-size:15px">${money(d.totalFalta)}</b>
-            <button type="button" class="cbr-badge-btn" data-act="cbr-ind-abrir" data-idx="${idx}" style="margin-top:4px">
-              ${ic('chat')} Cobrar
-            </button>
-          </div>
+        return `<div class="li tc-li"><span class="av">${esc((d.cliente?.nome || 'A')[0])}</span>
+          <span style="min-width:0"><b>${esc(d.cliente?.nome || 'Cliente avulso')}</b>
+            <small>${esc(d.cliente?.telefone || 'Sem telefone')} · ${d.vendas.length} ${d.vendas.length === 1 ? 'pedido' : 'pedidos'}${jaCobrado ? ` · ✓ cobrado ${jaCobrado}` : ''}</small></span>
+          <span class="cx-v"><b class="num">${money(d.totalFalta)}</b><button type="button" class="cbr-badge-btn" data-act="cbr-ind-abrir" data-idx="${idx}">${ic('chat')} Cobrar</button></span>
         </div>`;
-      }).join('') || '<div class="empty">Nenhum cliente com pagamento pendente no momento!</div>'}
+      }).join('') || '<div class="empty">Nenhum cliente com pagamento pendente no momento!</div>'}</div>
     </div>
+    ${devs.length ? `<div class="tm-foot"><button type="button" class="btn block" style="background:#25D366;color:#fff;border:0;font-weight:800;gap:8px" data-act="cbr-iniciar-seq">${ic('chat')}<span> Iniciar cobrança em sequência</span></button></div>` : ''}
   `, 'c');
 }
 
@@ -4788,9 +4771,9 @@ const tmTog = (k, mb = 12) => `<div class="lt-chips cad-tog" role="group" aria-l
 function abrirEnvio(inner, k, onOpen) {
   const bs = $modal.querySelector('.bs'), tt = $modal.querySelector('#mtitle');
   if (bs && tt && tt.textContent === 'Enviar no WhatsApp') {
-    const f = bs.querySelector('#mform'); f.innerHTML = inner; bs.classList.toggle('tm-bs', k === 't'); bs.scrollTop = 0;
+    const f = bs.querySelector('#mform'); f.innerHTML = inner; bs.classList.add('tm-bs'); bs.scrollTop = 0;
     if (onOpen) onOpen();
-  } else openModal('Enviar no WhatsApp', inner, undefined, () => { $modal.querySelector('.bs')?.classList.toggle('tm-bs', k === 't'); if (onOpen) onOpen(); });
+  } else openModal('Enviar no WhatsApp', inner, undefined, () => { $modal.querySelector('.bs')?.classList.add('tm-bs'); if (onOpen) onOpen(); });
 }
 function modalTransmissao() {
   const gr = transmCidades(), ms = transmModelos();
