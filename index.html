@@ -9403,8 +9403,7 @@ function vozCfgSheet(wrap) {
     <div class="card cfg-card">
       ${lin('Conversa contínua', `Depois de responder, continua ouvindo por ${vozContinuaEspera()} s e lembra do assunto. Diga “obrigado” ou “tchau” para encerrar.`, sw('voz-conv-sw', 'voz-conversa', conv, false))}
       <div class="f"><label for="voz-conv-esp">Esperar outra fala sua <b id="voz-conv-esp-v">${vozContinuaEspera()} s</b></label>
-        <div class="cfg-step"><button type="button" class="lt-chip" data-act="voz-conv-step" data-v="-5" ${conv ? '' : 'disabled'}>−5 s</button><input type="range" id="voz-conv-esp" min="5" max="60" step="5" value="${vozContinuaEspera()}" ${conv ? '' : 'disabled'}><button type="button" class="lt-chip" data-act="voz-conv-step" data-v="5" ${conv ? '' : 'disabled'}>+5 s</button></div>
-        <div class="lt-chips">${[5, 10, 15, 20, 30, 45, 60].map(x => `<button type="button" class="lt-chip ${vozContinuaEspera() === x ? 'on' : ''}" data-act="voz-conv-set" data-v="${x}" ${conv ? '' : 'disabled'}>${x} s</button>`).join('')}</div>
+        <div class="cfg-step"><button type="button" class="lt-chip" data-act="voz-conv-step" data-v="-1" ${conv ? '' : 'disabled'}>−1 s</button><input type="range" id="voz-conv-esp" min="5" max="60" step="1" value="${vozContinuaEspera()}" ${conv ? '' : 'disabled'}><button type="button" class="lt-chip" data-act="voz-conv-step" data-v="1" ${conv ? '' : 'disabled'}>+1 s</button></div>
       </div>
     </div>
     <div class="cfg-h">Escuta</div>
