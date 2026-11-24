@@ -1863,6 +1863,8 @@ body.voz-on .fab-pop { max-height: min(calc(var(--voz-h0, 100dvh) - 84px - env(s
 .bs-row .grow { flex: 1; min-width: 0; }
 .bs-row small { display: block; color: var(--muted); font-size: 13px; }
 .bs-row svg.i { width: 22px; height: 22px; color: var(--accent); }
+/* Relatórios: período e Exportar no topo sem contorno */
+.vsel.rel-sel button, .pg-right .btn.rel-exp-btn { border-color: transparent !important; box-shadow: none !important; }
 .rexp-item { display: grid; gap: 10px; padding: 14px 2px; border-bottom: 1px solid var(--line); }
 .rexp-top { display: flex; align-items: center; gap: 12px; }
 .rexp-top .grow { flex: 1; min-width: 0; font-size: 16.5px; }
@@ -3918,6 +3920,8 @@ const P = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   right: '<path d="m9 6 6 6-6 6"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
+  share: '<path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v7h14v-7"/>',
+  dl: '<path d="M12 4v11M8 11l4 4 4-4"/><path d="M5 19h14"/>',
   left: '<path d="m15 6-6 6 6 6"/>',
   route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16"/>',
   list: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>',
@@ -6087,6 +6091,30 @@ function relXLS() {
     + sheet('Vendas', ['Data', 'Cliente', 'Origem', 'Pagamento', 'Situação', 'Itens', 'Valor (R$)'], d.vendas) + sheet('Compras', ['Data', 'Fornecedor', 'Itens', 'Situação', 'Valor (R$)'], d.compras)
     + sheet('Despesas', ['Data', 'Descrição', 'Tipo', 'Valor (R$)'], d.despesas) + sheet('Produtos', ['Produto', 'Quantidade', 'Receita (R$)'], d.produtos) + '</Workbook>';
 }
+/* Excel de verdade (.xlsx): o formato antigo (XML do Excel 2003 com extensão .xls) o celular não deixa compartilhar. Mesmos dados de relXLS. */
+function relXLSX() {
+  const d = relDados(), X = plXml;
+  const cel = (v, r, c, h) => { const ref = plCol(c) + r; return typeof v === 'number' && isFinite(v) ? `<c r="${ref}" s="${h ? 1 : 2}"><v>${v}</v></c>` : `<c r="${ref}"${h ? ' s="1"' : ''} t="inlineStr"><is><t>${X(v)}</t></is></c>`; };
+  const aba = (h, rows) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="${h.length}" width="22" customWidth="1"/></cols><sheetData><row r="1">${h.map((t, c) => cel(String(t), 1, c, true)).join('')}</row>${rows.map((r, i) => `<row r="${i + 2}">${r.map((v, c) => cel(v, i + 2, c)).join('')}</row>`).join('')}</sheetData></worksheet>`;
+  const abas = [
+    ['Resumo', ['Indicador (' + rPerLabel() + ')', 'Valor'], d.resumo],
+    ['Balanço compra x venda', ['Item', 'Valor (R$)'], d.balanco],
+    ['Vendas', ['Data', 'Cliente', 'Origem', 'Pagamento', 'Situação', 'Itens', 'Valor (R$)'], d.vendas],
+    ['Compras', ['Data', 'Fornecedor', 'Itens', 'Situação', 'Valor (R$)'], d.compras],
+    ['Despesas', ['Data', 'Descrição', 'Tipo', 'Valor (R$)'], d.despesas],
+    ['Produtos', ['Produto', 'Quantidade', 'Receita (R$)'], d.produtos]
+  ];
+  const H = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', N = 'http://schemas.openxmlformats.org/';
+  const arqs = [
+    ['[Content_Types].xml', H + `<Types xmlns="${N}package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${abas.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`],
+    ['_rels/.rels', H + `<Relationships xmlns="${N}package/2006/relationships"><Relationship Id="rId1" Type="${N}officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', H + `<workbook xmlns="${N}spreadsheetml/2006/main" xmlns:r="${N}officeDocument/2006/relationships"><sheets>${abas.map((a, i) => `<sheet name="${X(a[0])}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`],
+    ['xl/_rels/workbook.xml.rels', H + `<Relationships xmlns="${N}package/2006/relationships">${abas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="${N}officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${abas.length + 1}" Type="${N}officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml', H + `<styleSheet xmlns="${N}spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF6E4E4"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`],
+    ...abas.map((a, i) => ['xl/worksheets/sheet' + (i + 1) + '.xml', aba(a[1], a[2])])
+  ];
+  return new Blob([plZip(arqs)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
 function relPDF() {
   const d = relDados(), x = v => esc(v), m = v => money(v);
   const tab = (h, rows, fmt) => `<table><thead><tr>${h.map(c => `<th>${x(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td${typeof c === 'number' || (fmt && fmt(i)) ? ' class="r"' : ''}>${typeof c === 'number' && (!fmt || fmt(i)) ? (fmt ? m(c) : (Number.isInteger(c) && c < 1e4 && h[1] !== 'Valor' ? c : m(c))) : x(c)}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${h.length}" class="mu">Nada no período.</td></tr>`}</tbody></table>`;
@@ -6152,7 +6180,7 @@ function baixarBlob(nome, blob) {
 }
 async function relArquivo(k) {
   if (k === 'pdf') { const b = await relPDFBlob(); return b ? { nome: relNome('pdf'), blob: b } : null; }
-  if (k === 'xls') return { nome: relNome('xls'), blob: new Blob([relXLS()], { type: 'application/vnd.ms-excel' }) };
+  if (k === 'xls') return { nome: relNome('xlsx'), blob: relXLSX() };
   if (k === 'csv') return { nome: relNome('csv'), blob: new Blob(['\ufeff' + relCSV()], { type: 'text/csv' }) };
   return null;
 }
@@ -6180,7 +6208,7 @@ async function relCompartilha(k) {
 async function relExportar(k) {
   if (k.endsWith('-sh')) { relCompartilha(k.slice(0, -3)); return; }
   if (k === 'pdf') { const b = await relPDFBlob(); if (b) { baixarBlob(relNome('pdf'), b); toast('PDF baixado.'); } else relPDF(); }
-  else if (k === 'xls') { baixarArq(relNome('xls'), relXLS(), 'application/vnd.ms-excel'); toast('Planilha Excel baixada.'); }
+  else if (k === 'xls') { baixarBlob(relNome('xlsx'), relXLSX()); toast('Planilha Excel baixada.'); }
   else if (k === 'csv') { baixarArq(relNome('csv'), relCSV(), 'text/csv;charset=utf-8'); toast('Arquivo CSV baixado.'); }
   else if (k === 'whats') window.open(relWaUrl(relResumoTexto()), '_blank');
 }
@@ -6222,8 +6250,8 @@ function gRelatorios() {
   const novos = new Set(vs.map(v => v.clienteId || v.cliente?.nome).filter(Boolean)).size;
   const margem = t.vendas ? Math.round(t.lucroBruto / t.vendas * 100) : 0;
   const dif = n2(t.vendas - D.comprado), mx = Math.max(t.vendas, D.comprado, 1);
-  const sel = `<div class="vsel cx-per"><button data-act="vsel" data-v="rp" aria-label="Período: ${rPerLabel()}"><small>Período</small><span><b>${rPerLabel()}</b>${ic('down')}</span></button></div>`;
-  return pageHeaderFixo('Relatórios', `<button class="btn small" data-act="rel-exportar" aria-label="Exportar relatório">${ic('doc')}Exportar</button>`, sel) +
+  const sel = `<div class="vsel cx-per rel-sel"><button data-act="vsel" data-v="rp" aria-label="Período: ${rPerLabel()}"><small>Período</small><span><b>${rPerLabel()}</b>${ic('down')}</span></button></div>`;
+  return pageHeaderFixo('Relatórios', `<button class="btn small rel-exp-btn" data-act="rel-exportar" aria-label="Exportar relatório">${ic('doc')}Exportar</button>`, sel) +
   `<section class="hero" style="min-height:0"><div class="hero-top"><span>Resultado</span><span class="hero-badge">${rPerLabel()}</span></div>
     <div style="font-size:36px;font-weight:800;letter-spacing:-.02em" class="num">${money(t.resultado)}</div>
     <div class="hero-foot"><small>Vendas − custo dos morangos − despesas${ant && ant.resultado ? ` · ${t.resultado >= ant.resultado ? '▲' : '▼'} ${AL}: ${money(ant.resultado)}` : ''}</small></div></section>
@@ -6443,8 +6471,8 @@ const AJ_G = [
     ['O que é o Dinheiro em aberto?', 'Mostra a situação de hoje, sem olhar o período: <b>A receber</b> (todas as vendas sem pagar; toque para ir ao Caixa), <b>Compras a pagar</b> (todas as compras sem pagar), <b>Despesas a pagar</b> (todas as despesas marcadas como a pagar) e <b>Saldo do caixa</b> de todo o histórico. Tocar em A receber, Compras a pagar ou Despesas a pagar abre o Caixa com esse card aberto e o período <b>Tudo</b>.', [['Ver a receber', 'go-caixa-ver', 'receber'], ['Ver compras a pagar', 'go-caixa-ver', 'cpagar'], ['Ver despesas a pagar', 'go-caixa-ver', 'dpagar']]],
     ['Como ler os gráficos Vendas por dia e Dia da semana?', '<b>Vendas por dia</b> mostra cada um dos últimos 15 dias (30 na tela do computador) e o <b>Melhor dia</b>. <b>Dia da semana</b> soma as vendas do período por dia da semana e mostra qual vende mais, bom para escolher os dias de entrega e de compra na roça.', [['Abrir Relatórios', 'go', 'relatorios']]],
     ['O que mostram as listas em barras?', 'As até 6 maiores de cada uma, com valor e %:<ul><li><b>Por forma de pagamento</b>: quanto veio de Pix, dinheiro, cartão e fiado.</li><li><b>App × avulsa</b>: pedidos pelo app, pelo chat e vendas avulsas.</li><li><b>Produtos mais vendidos</b>: receita e quantidade de cada produto.</li><li><b>Despesas por categoria</b>: com a cor de cada categoria.</li><li><b>Melhores clientes</b>: quem mais comprou no período.</li></ul>', [['Abrir Relatórios', 'go', 'relatorios']]],
-    ['Como exportar em PDF, Excel ou CSV?', 'Toque em <b>Exportar</b>, no alto da tela de Relatórios,. <b>PDF</b> baixa o relatório completo. <b>Excel</b> traz abas de resumo, balanço, vendas, compras, despesas e produtos. <b>CSV</b> traz as movimentações do caixa. Cada formato tem dois botões: <b>Baixar</b> e <b>Compartilhar</b> (abre a lista do celular: escolha o WhatsApp e o contato). O <b>Resumo no WhatsApp</b> é só texto e vai direto ao número salvo em Configurações. Tudo usa o período escolhido.', [['Abrir Exportar', 'go-rel-exportar']]],
-    ['Como mandar o resumo no WhatsApp?', 'Em Exportar, toque em <b>Resumo no WhatsApp</b>. Vai vendas, comprado, lucro bruto, despesas, resultado, a receber, a pagar e saldo do caixa. Para abrir direto num contato, salve o número em <b>Configurações → WhatsApp do relatório</b> (com DDD; o 55 é colocado sozinho).', [['Salvar o número do WhatsApp', 'sheet', 'wa-ajustes'], ['Abrir Exportar', 'go-rel-exportar']]],
+    ['Como exportar em PDF, Excel ou CSV?', 'Toque em <b>Exportar</b>, no alto da tela de Relatórios. Escolha <b>Baixar</b> ou <b>Compartilhar</b>. <b>PDF</b> baixa o relatório completo. <b>Excel</b> traz abas de resumo, balanço, vendas, compras, despesas e produtos. <b>CSV</b> traz as movimentações do caixa. Em <b>Compartilhar</b>, PDF, Excel e CSV abrem a lista do celular (escolha o WhatsApp e o contato) e o <b>WhatsApp</b> é só o resumo em texto e vai direto ao número salvo em Configurações. Tudo usa o período escolhido.', [['Abrir Exportar', 'go-rel-exportar']]],
+    ['Como mandar o resumo no WhatsApp?', 'Em Exportar, toque em <b>Compartilhar</b> e depois em <b>WhatsApp</b>. Vai vendas, comprado, lucro bruto, despesas, resultado, a receber, a pagar e saldo do caixa. Para abrir direto num contato, salve o número em <b>Configurações → WhatsApp do relatório</b> (com DDD; o 55 é colocado sozinho).', [['Salvar o número do WhatsApp', 'sheet', 'wa-ajustes'], ['Abrir Exportar', 'go-rel-exportar']]],
     ['O lucro parece errado. Por quê?', 'O lucro usa o <b>custo</b> de cada produto no momento da venda. Mantenha o custo atualizado ao registrar compras (deixe marcado <b>Atualizar o custo dos produtos</b>) ou editando o produto.', [['Abrir Estoque', 'go-cfg', 'estoque']]],
   ]],
   ['Chat, clientes e fornecedores', [
@@ -6810,9 +6838,13 @@ function sheetHTML() {
   const ft = (icon, label, act, v = '', w = true) => `<button class="fab-tile" data-act="${act}" ${v ? `data-v="${v}"` : ''} ${w ? W() : ''}>${ic(icon)}<span>${label}</span></button>`;
   if (s.type === 'docexp') { const d = _docExp || {}; return wrap('Exportar arquivo', `<p class="muted" style="margin:0 0 12px;font-size:13.5px"><b>${esc(d.titulo || '')}</b></p><div class="rexp-btns"><button class="btn" data-act="doc-baixar">Baixar</button><button class="btn green" data-act="doc-compartilhar">Compartilhar</button></div><p class="muted" style="margin:12px 0 0;font-size:13px">Compartilhar abre a lista do celular: escolha o WhatsApp (ou outro app) e o contato.</p>`); }
   if (s.type === 'relwa') { const NM = { 'pdf-sh': 'PDF', 'xls-sh': 'Excel', 'csv-sh': 'CSV' }[s.k] || 'relatório'; return wrap('Compartilhar relatório', `<p class="muted" style="margin:0 0 12px;font-size:13.5px">Relatório em <b>${NM}</b> · Período: <b>${rPerLabel()}</b>. O celular exige um toque seu para abrir o compartilhar; depois escolha o WhatsApp e o contato.</p><button class="btn green" style="width:100%" data-act="rel-exp" data-v="${s.k}">Compartilhar ${NM}</button>`); }
-  if (s.type === 'rexp') { const eb = (ico, tt, sub, k, rec) => `<button class="bs-row" data-act="rel-exp" data-v="${k}"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}${rec ? ' <span class="pill p-ok">recomendado</span>' : ''}</b><small>${sub}</small></span></button>`;
-    const ei = (ico, tt, sub, k, rec) => `<div class="rexp-item"><div class="rexp-top"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}${rec ? ' <span class="pill p-ok">recomendado</span>' : ''}</b><small>${sub}</small></span></div><div class="rexp-btns"><button class="btn small" data-act="rel-exp" data-v="${k}">Baixar</button><button class="btn small green" data-act="rel-exp" data-v="${k}-sh">Compartilhar</button></div></div>`;
-    return wrap('Exportar relatório', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período: <b>${rPerLabel()}</b></p><div class="bs-list">${ei('receipt', 'PDF', 'Relatório completo, pronto para ler ou imprimir.', 'pdf')}${ei('chart', 'Excel (.xls)', 'Planilha com abas: resumo, balanço, vendas, compras, despesas e produtos.', 'xls')}${ei('wallet', 'CSV (.csv)', 'Movimentações do caixa. Abre no Excel, Google Planilhas e no contador.', 'csv', true)}${eb('chat', 'Resumo no WhatsApp', 'Texto curto com os números principais, enviado direto ao número salvo em Configurações.', 'whats')}</div><p class="muted" style="margin:12px 0 0;font-size:13px">Compartilhar abre a lista do celular: escolha o WhatsApp (ou outro app) e o contato. Só o resumo em texto vai direto para o número salvo em Configurações → WhatsApp do relatório.</p>`); }
+  if (s.type === 'rexp') { const modo = s.modo || '';
+    const eb = (ico, tt, sub, act, v) => `<button class="bs-row" data-act="${act}" data-v="${v}"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}</b><small>${sub}</small></span></button>`;
+    const per = `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período: <b>${rPerLabel()}</b></p>`;
+    const voltar = `<button class="link" style="margin:10px 0 0" data-act="rel-exp-modo" data-v="">← Voltar</button>`;
+    if (modo === 'baixar') return wrap('Baixar relatório', per + `<div class="bs-list">${eb('receipt', 'PDF', 'Relatório completo, pronto para ler ou imprimir.', 'rel-exp', 'pdf')}${eb('chart', 'Excel (.xlsx)', 'Planilha com abas: resumo, balanço, vendas, compras, despesas e produtos.', 'rel-exp', 'xls')}${eb('wallet', 'CSV (.csv)', 'Movimentações do caixa. Abre no Excel, Google Planilhas e no contador.', 'rel-exp', 'csv')}</div>` + voltar);
+    if (modo === 'compartilhar') return wrap('Compartilhar relatório', per + `<div class="bs-list">${eb('chat', 'WhatsApp', 'Envia o resumo direto para o número salvo em Configurações → WhatsApp do relatório.', 'rel-exp', 'whats')}${eb('receipt', 'PDF', 'Abre a lista do celular com o arquivo: escolha o app e o contato.', 'rel-exp', 'pdf-sh')}${eb('chart', 'Excel (.xlsx)', 'Abre a lista do celular com o arquivo.', 'rel-exp', 'xls-sh')}${eb('wallet', 'CSV (.csv)', 'Abre a lista do celular com o arquivo.', 'rel-exp', 'csv-sh')}</div>` + voltar);
+    return wrap('Exportar relatório', per + `<div class="bs-list">${eb('share', 'Compartilhar', 'Enviar o resumo pelo WhatsApp ou compartilhar o arquivo.', 'rel-exp-modo', 'compartilhar')}${eb('dl', 'Baixar', 'Salvar PDF, Excel ou CSV no aparelho.', 'rel-exp-modo', 'baixar')}</div>`); }
   if (s.type === 'vsel') {
     if (s.k === 'rp') { const rowR = (val, label, sub = '', icon = '') => `<button class="bs-row" data-act="vpick" data-k="rp" data-v="${val}" aria-pressed="${ui.rp === val}"><span class="grow">${label}${sub ? `<small>${sub}</small>` : ''}</span>${ui.rp === val ? ic('check') : icon ? ic(icon) : ''}</button>`;
       return wrap('Período do relatório', `<div class="bs-list">${Object.entries(PERIODOS).map(([v, l]) => rowR(v, l)).join('')}${rowR('custom', 'Escolher período', ui.rp === 'custom' ? rPerLabel() : 'De uma data até outra', 'calendar')}</div>`); }
@@ -10284,6 +10316,7 @@ document.addEventListener('click', async e => {
     case 'filter': ui[t.dataset.k] = v; if (t.dataset.k === 'cxv') ui.cxq = ''; render(); break;
     case 'cx-grp': ui.cxo[v] = !ui.cxo[v]; render(); break;
     case 'rel-exportar': ui.sheet = { type: 'rexp' }; render(); relPdfLib().catch(() => {}); relWaPreparaTodos(); break;
+    case 'rel-exp-modo': ui.sheet = { type: 'rexp', modo: v }; render(); break;
     case 'rel-exp': ui.sheet = null; render(); relExportar(v); break;
 
     case 'noop': break;
