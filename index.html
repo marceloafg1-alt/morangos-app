@@ -6620,7 +6620,7 @@ function enhanceSelects(root) {
 })();
 
 /* ---------------- barra inferior e folhas ---------------- */
-const popOpen = () => !!ui.sheet || !!document.getElementById('modal-root').innerHTML;
+const popOpen = () => !!ui.sheet || !!document.getElementById('modal-root').innerHTML || !!(typeof CAL !== 'undefined' && CAL.open) || !!document.getElementById('pick-root')?.innerHTML;
 /* Menu inferior da Gestão: o que aparece na barra e o que vai para o menu de 3 pontinhos */
 const MENU_ITENS = [
   { k: 'inicio', ic: 'home', l: 'Início', d: 'Resumo do dia', act: 'go' },
@@ -9978,7 +9978,7 @@ function navApply(s, back) {
   window.scrollTo(0, y); requestAnimationFrame(() => window.scrollTo(0, y));
   navAnim(back);
 }
-function closeOverlays() { const had = popOpen(); ui.sheet = null; $modal.innerHTML = ''; if (had) render(); return had; }
+function closeOverlays() { const had = popOpen(); if (CAL.open) calClose(); fecharPicker(); ui.sheet = null; $modal.innerHTML = ''; if (had) render(); return had; }
 const canBack = () => NAV.pos > 0;
 const canFwd = () => NAV.pos < NAV.max;
 function navBack() {
@@ -10015,7 +10015,6 @@ const $ind = document.createElement('div'); $ind.className = 'swipe-ind'; $ind.s
 const SW = { on: false, x: 0, y: 0, t: 0, lock: null, dx: 0 };
 const SW_MIN = 80;
 function swipeBlocked(el) {
-  if (popOpen()) return true;
   for (let n = el; n && n.nodeType === 1 && n !== document.body; n = n.parentElement) {
     if (n.matches('input,textarea,select,[contenteditable="true"],.lt-composer,.no-swipe')) return true;
     const ox = getComputedStyle(n).overflowX;
@@ -10024,7 +10023,7 @@ function swipeBlocked(el) {
   return false;
 }
 function swipeInd(dx) {
-  const back = dx < 0, allowed = back ? canBack() : canFwd();
+  const back = dx < 0, allowed = popOpen() || (back ? canBack() : canFwd());
   if (!allowed || SW.lock !== 'h') { $ind.style.opacity = '0'; return; }
   const d = Math.min(Math.abs(dx), 140), ready = Math.abs(dx) >= SW_MIN;
   $ind.className = 'swipe-ind ' + (back ? 'r' : 'l') + (ready ? ' ok' : '');
@@ -10049,6 +10048,7 @@ document.addEventListener('touchend', () => {
   const dx = SW.dx, fast = Math.abs(dx) > 45 && Math.abs(dx) / Math.max(1, Date.now() - SW.t) > 0.5, h = SW.lock === 'h';
   swipeEnd();
   if (!h || (Math.abs(dx) < SW_MIN && !fast)) return;
+  if (popOpen()) { closeOverlays(); return; } // janela/subcard aberto: deslizar fecha (voltar)
   if (dx < 0) { if (canBack()) navBack(); } else if (canFwd()) navFwd();
 }, { passive: true });
 document.addEventListener('touchcancel', swipeEnd, { passive: true });
