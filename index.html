@@ -8467,7 +8467,7 @@ async function iaChamarAnthropic(chave, texto, pdfs, imgs, voz) {
   try {
     r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': chave.trim(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: IA_MODELO, max_tokens: voz ? 2000 : 8000, system: voz ? voz.sistema : iaSistema(), tools: [voz ? voz.ferramenta : iaFerramenta], tool_choice: { type: 'tool', name: (voz ? voz.ferramenta : iaFerramenta).name }, messages: [...(voz && voz.hist ? voz.hist : []), { role: 'user', content }] }), signal: ac.signal });
+      body: JSON.stringify({ model: IA_MODELO, max_tokens: voz ? 4000 : 8000, system: voz ? voz.sistema : iaSistema(), tools: [voz ? voz.ferramenta : iaFerramenta], tool_choice: { type: 'tool', name: (voz ? voz.ferramenta : iaFerramenta).name }, messages: [...(voz && voz.hist ? voz.hist : []), { role: 'user', content }] }), signal: ac.signal });
   } catch (e) {
     clearTimeout(tm);
     const duracaoMs = Date.now() - t0, isTimeout = e && e.name === 'AbortError';
@@ -9239,9 +9239,9 @@ function vozDados() {
   const agrupa = (arr, nomeDe, valDe) => { const m = {}; for (const x of arr) { const n = nomeDe(x) || 'Sem nome'; (m[n] = m[n] || { v: 0, q: 0, ts: Infinity }); m[n].v += valDe(x); m[n].q++; m[n].ts = Math.min(m[n].ts, x.ts); } return Object.entries(m).sort((a, b) => b[1].v - a[1].v); };
   const lista = (g, max) => g.slice(0, max).map(([n, o]) => `${n} ${money(n2(o.v))} (${o.q} ${o.q === 1 ? 'lançamento' : 'lançamentos'}, o mais antigo de ${fmtDT(o.ts)})`).join('; ') + (g.length > max ? `; e mais ${g.length - max}` : '');
   const rec = aReceber(), ap = aPagar(), dp = despAPagar();
-  L.push('A RECEBER (clientes que devem): total ' + money(soma(rec, vFalta)) + '. ' + (lista(agrupa(rec, v => v.cliente?.nome || 'Cliente avulso', vFalta), 25) || 'ninguém deve.'));
-  L.push('A PAGAR em compras (fornecedores a quem devo): total ' + money(soma(ap, cFalta)) + '. ' + (lista(agrupa(ap, c => c.fornecedor || 'Roça', cFalta), 25) || 'nada.'));
-  L.push('DESPESAS A PAGAR: total ' + money(soma(dp, d => restante('despesas', d))) + '. ' + (dp.sort((a, b) => a.ts - b.ts).slice(0, 30).map(d => `${d.descricao || 'Despesa'} ${money(restante('despesas', d))} (${fmtDT(d.ts)})`).join('; ') || 'nada.'));
+  L.push('A RECEBER (clientes que devem): total ' + money(soma(rec, vFalta)) + '. ' + (lista(agrupa(rec, v => v.cliente?.nome || 'Cliente avulso', vFalta), 400) || 'ninguém deve.'));
+  L.push('A PAGAR em compras (fornecedores a quem devo): total ' + money(soma(ap, cFalta)) + '. ' + (lista(agrupa(ap, c => c.fornecedor || 'Roça', cFalta), 400) || 'nada.'));
+  L.push('DESPESAS A PAGAR: total ' + money(soma(dp, d => restante('despesas', d))) + '. ' + (dp.sort((a, b) => a.ts - b.ts).slice(0, 300).map(d => `${d.descricao || 'Despesa'} ${money(restante('despesas', d))} (${fmtDT(d.ts)})`).join('; ') || 'nada.'));
   L.push('ROTA DE HOJE (ordem de entrega): ' + (rota().map((v, i) => (i + 1) + '. ' + (v.cliente?.nome || 'cliente') + ' (' + (cidadeEntrega(v) || '?') + (v.pago ? ', pago' : ', a receber') + ')').join('; ') || 'vazia') + '. A ENTREGAR (separados, fora da rota): ' + (S.vendas.filter(v => v.status === "separado").slice(0, 30).map(v => (v.cliente?.nome || 'cliente') + ' (' + (cidadeEntrega(v) || '?') + ')').join('; ') || 'nenhum') + '.');
   L.push('ESTOQUE: ' + (S.produtos.filter(p => p.ativo !== false).slice(0, 40).map(p => `${p.nome} ${p.estoque || 0} ${p.unidade || 'un'}`).join('; ') || 'sem produtos') + '.');
   return L.join('\n');
@@ -9319,7 +9319,7 @@ function vozFerramenta() {
   it.colecao = { type: 'string', enum: ['venda', 'compra', 'despesa', ''], description: 'Só para acao excluir.' };
   it.mais_recente = { type: 'boolean', description: 'Só para acao excluir: true se ele pediu a última/mais recente.' };
   f.name = 'atender'; f.description = 'Responde ao dono em voz e, se ele pediu, registra lançamentos ou ações no app.';
-  f.input_schema.properties.fala = { type: 'string', description: 'O que será dito em voz alta: no máximo 3 frases curtas, sem listas nem símbolos.' };
+  f.input_schema.properties.fala = { type: 'string', description: 'O que será dito em voz alta: no máximo 3 frases curtas, sem símbolos. EXCEÇÃO: relatório de quem me deve, para quem devo e despesas a pagar: diga o valor total e depois TODOS os nomes com os valores, sem limite de tamanho, separados por ponto e vírgula, do maior para o menor (só os 5 maiores se ele pedir os principais).' };
   f.input_schema.required = ['fala', 'lancamentos'];
   return f;
 }
@@ -9333,7 +9333,8 @@ O que fazer:
 - Isto é uma conversa: use as falas anteriores para entender pedidos curtos como "e ontem?" ou "abre essa tela". Se o dono agradecer ou se despedir, responda só com uma despedida curta.
 - Se o dono responder a uma pergunta sua, use os "Dados já entendidos" do histórico, complete o lançamento e devolva o lançamento COMPLETO (não só o que ele acabou de dizer). Se ele mandar lançar assim mesmo, preencha só o que tiver.
 - Não invente o que o dono não disse: se não falou a data, deixe data vazia; se não falou da entrega, deixe entrega vazia; se não falou do pagamento, pago_informado=false; se não falou da forma, deixe forma vazia; se não falou a categoria da despesa, deixe categoria vazia; se não falou o preço de uma compra, deixe preco_unitario 0. O app pergunta o que faltar.
-- Perguntas sobre números (quem me deve, para quem devo, despesas a pagar, vendas, lucro, saldo, estoque): responda em "fala" usando SÓ os DADOS DO APP abaixo, com o total e os 5 maiores itens no máximo; se houver mais, diga que abriu a tela com a lista completa e use acao=abrir_filtro. Pedido de relatório ou lista (por exemplo "relatório só de contas a receber", "só de despesas", "vendas de ontem"): use acao=abrir_filtro com tela, periodo e visao_caixa, e diga em "fala" o total.
+- Quem me deve, para quem devo, despesas a pagar: SEMPRE diga primeiro o valor total. Se ele pedir só os principais, os maiores devedores ou os principais credores, diga o total e os 5 maiores. Em qualquer outro pedido (relatório, lista, "quem me deve", "para quem eu devo"), diga o total e depois a lista COMPLETA, TODOS os nomes com o valor de cada um, do maior para o menor, sem cortar nem resumir, não importa quantos sejam (use só os DADOS DO APP). Abra também a tela com acao=abrir_filtro.
+- Outras perguntas sobre números (vendas, lucro, saldo, estoque): responda em "fala" usando SÓ os DADOS DO APP, sempre com o total e os 5 maiores itens no máximo; se houver mais, diga que abriu a tela com a lista completa e use acao=abrir_filtro. Pedido de relatório ou lista de outro tipo (por exemplo "vendas de ontem"): use acao=abrir_filtro com tela, periodo e visao_caixa, e diga em "fala" o total.
 - Mensagem para cliente: use acao=enviar_mensagem com pessoa (nome do cliente) e mensagem pronta, educada e curta, em nome da loja, com o que o dono pediu (não invente preços, horários nem promessas). Ela é enviada direto.
 - Baixa e pagamentos: "marca como paga", "recebi" = dar_baixa; "recebi 50 da venda do João" ou "paguei 200 da compra" = pagamento_parcial com valor_operacao; "cancela a venda" = cancelar_venda; "estorna 30 reais" = estornar. Para achar o lançamento use pessoa, valor total, data ou mais_recente. Um por pedido.
 - Excluir: use acao=excluir para apagar UMA venda, compra ou despesa por pedido, com colecao e o que ele disser para achar (pessoa ou descricao, valor, data) ou mais_recente=true. Nunca exclua mais de um lançamento por pedido nem em lote: se ele pedir "apaga todas" ou "apaga tudo", diga em "fala" que só exclui um de cada vez e lancamentos vazio. Para trazer de volta a última exclusão use acao=desfazer_exclusao.
@@ -9445,14 +9446,15 @@ function vozFalaObj(txt) {
   return u;
 }
 function vozDiz(txt) {
-  vozMsg(txt, 12000);
+  vozMsg(txt, Math.max(12000, String(txt).length * 70));
   return new Promise(ok => {
     if (!('speechSynthesis' in window)) return ok();
     vozParaRec(); VOZ.falando = true; vozPill();
-    const u = vozFalaObj(txt);
+    /* texto longo vai em pedaços (o Chrome corta falas muito compridas) */
+    const partes = []; let at = ''; for (const f of String(txt).match(/[^.;!?]+[.;!?]*\s*/g) || [String(txt)]) { if ((at + f).length > 200 && at) { partes.push(at); at = f; } else at += f; } if (at.trim()) partes.push(at);
     let feito = false; const fim = () => { if (feito) return; feito = true; VOZ.falando = false; vozPill(); setTimeout(vozIniciaRec, 250); ok(); };
-    u.onend = fim; u.onerror = fim; setTimeout(fim, 40000);
-    try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch { fim(); }
+    setTimeout(fim, Math.max(40000, String(txt).length * 110));
+    try { speechSynthesis.cancel(); partes.forEach((p, k) => { const u = vozFalaObj(p); u.onerror = fim; if (k === partes.length - 1) u.onend = fim; speechSynthesis.speak(u); }); } catch { fim(); }
   });
 }
 function vozVolta() { VOZ.estado = 'espera'; VOZ.pend = null; vozPill(); }
