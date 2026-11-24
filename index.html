@@ -6761,6 +6761,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && CAL.open) 
 /* ---------------- modais da gestão ---------------- */
 const $modal = document.getElementById('modal-root');
 function openModal(title, inner, onSubmit, onOpen) {
+  if (ui.sheet) ui.sheet = null; const _sr = document.getElementById('sheet-root'); if (_sr) _sr.innerHTML = '';
   $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" data-act="close-modal" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
   document.getElementById('nav-root').innerHTML = nav();
   if (['Novo cliente', 'Novo fornecedor', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
