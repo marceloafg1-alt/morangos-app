@@ -8774,8 +8774,13 @@ function iaPreparaAcao(o, l) {
       if (op === 'abrir_painel') { rotaMapaAbrir(); return; }
       if (op === 'otimizar') { await esperaMapa(); if (!RT.map) throw new Error('o mapa não carregou; confira a internet'); await rtOtimizar(); return; }
       if (op === 'abrir_maps') { const url = rtMapsUrl(); if (!url) throw new Error('não há parada com endereço na rota'); /* mesmo caminho do botão "Google Maps" da Rota de hoje (abre o aplicativo); sem toque o Android pode bloquear: aí abre a Rota de hoje com o botão destacado para você tocar */
-        let w = null; try { w = window.open(url, '_blank'); } catch { /* ok */ }
-        if (!w) { rotaMapaAbrir(); for (let k = 0; k < 20 && !document.querySelector('[data-rt="maps"]'); k++) await new Promise(r => setTimeout(r, 100)); const bm = document.querySelector('[data-rt="maps"]'); if (bm) { bm.classList.add('rt-pulse'); try { bm.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch { /* ok */ } } throw new Error('o Android não deixa abrir sozinho. Abri a Rota de hoje: toque em Google Maps'); }
+        let abriu = false; const oc = () => { if (document.hidden) abriu = true; };
+        if (/Android/i.test(navigator.userAgent)) { /* tenta abrir o aplicativo do Maps direto (sem pop-up) */
+          document.addEventListener('visibilitychange', oc);
+          try { location.href = 'intent://' + url.replace(/^https:\/\//, '') + '#Intent;scheme=https;package=com.google.android.apps.maps;end'; } catch { /* ok */ }
+          await new Promise(r => setTimeout(r, 1600)); document.removeEventListener('visibilitychange', oc);
+        }
+        if (!abriu) { rotaMapaAbrir(); for (let k = 0; k < 20 && !document.querySelector('[data-rt="maps"]'); k++) await new Promise(r => setTimeout(r, 100)); const bm = document.querySelector('[data-rt="maps"]'); if (bm) { bm.classList.add('rt-pulse'); try { bm.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch { /* ok */ } } throw new Error('o Android não deixa abrir o Maps sem um toque seu. Abri a Rota de hoje: toque em Google Maps'); }
         return; }
       if (op === 'definir_partida') {
         const ant = rotaCfg(); let part = String(l.endereco).trim();
