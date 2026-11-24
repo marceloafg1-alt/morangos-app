@@ -1746,8 +1746,10 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .li .av.est { background: color-mix(in srgb, #D98A00 18%, transparent); color: #B87400; }
 .li.tc-li { cursor: pointer; }
 .cad-busca{margin:-18px 0 -14px;position:relative}
-.bq-busca{margin:-12px 0 -12px}
-.cx-fbar .bq-busca{margin:0}
+/* busca: 12px de ar em cima e embaixo (o cabeçalho fixo já tem 10px de folga e o espaço entre blocos é 20px) */
+.bq-busca{margin:-18px 0 -8px}
+.bq-busca.bq-sec{margin:0 0 -8px}
+.cx-fbar .bq-busca{margin:0 0 4px}
 .sec-h{align-items:center!important}
 .sec-h h2{line-height:1.2}
 .sec-h .link{align-self:center;line-height:1.2;margin-block:0}
@@ -5578,7 +5580,7 @@ function gCompras() {
 }
 const bnorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 /* campo de busca padrão do app (igual ao de Clientes e Fornecedores) */
-const buscaBox = (id, k, valor, ph) => `<label class="bs-search bq-busca">${icOwn('searchp')}<input type="search" id="bq-${id}" data-k="${k}" value="${esc(valor)}" placeholder="${ph}" aria-label="Buscar" autocomplete="off" enterkeyhint="search"></label>`;
+const buscaBox = (id, k, valor, ph, mod = '') => `<label class="bs-search bq-busca ${mod}">${icOwn('searchp')}<input type="search" id="bq-${id}" data-k="${k}" value="${esc(valor)}" placeholder="${ph}" aria-label="Buscar" autocomplete="off" enterkeyhint="search"></label>`;
 const cxBate = (m, q) => !q || bnorm([m.desc, m.det, FORMAS[m.forma] || m.forma, money(m.valor)].filter(Boolean).join(' ')).includes(q);
 const CTIPOS = { tudo: 'Tudo', vendas: 'Vendas', compras: 'Compras', despesas: 'Despesas', estornos: 'Estornos' };
 const CFORMAS = { todas: 'Todas', pix: 'Pix', dinheiro: 'Dinheiro', debito: 'Cartão de débito', credito: 'Cartão de crédito', cartao_entrega: 'Cartão na entrega', fiado: 'Fiado (a prazo)', sem: 'Não informada' };
@@ -5686,14 +5688,14 @@ function gCaixa() {
     const qm = bnorm(ui.cxq.trim());
     const lst = (ui.cxv === 'despesas' ? cashMoves(per).concat(despAgendadas(per)).sort((a, b) => b.ts - a.ts) : cashMoves(per)).filter(m => m.k === ui.cxv && (ui.cfp === 'todas' || (ui.cfp === 'sem' ? !m.forma : m.forma === ui.cfp)) && cxBate(m, qm));
     corpo = `<div class="sec-h"><h2>${CTIPOS[ui.cxv]} · ${lst.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
-    ${buscaBox('cx', 'cxq', ui.cxq, 'Buscar em ' + CTIPOS[ui.cxv].toLowerCase())}
+    ${buscaBox('cx', 'cxq', ui.cxq, 'Buscar em ' + CTIPOS[ui.cxv].toLowerCase(), 'bq-sec')}
     <div class="card list">${lst.map(moveLi).join('') || `<div class="empty">${qm ? 'Nada encontrado para essa busca.' : `Nenhum lançamento de ${CTIPOS[ui.cxv].toLowerCase()} neste período.`}</div>`}</div>`;
   } else {
     const fim = saldoFimDoDia();
     const mq = bnorm(ui.cxq.trim()), mvs = moves.filter(m => cxBate(m, mq));
     const dias = []; for (const m of mvs) { const k = dayKey(m.ts); let d = dias[dias.length - 1]; if (!d || d.k !== k) { d = { k, ts: m.ts, ms: [], e: 0, s: 0 }; dias.push(d); } d.ms.push(m); if (m.tipo === 'in') d.e += m.valor; else d.s += m.valor; }
     corpo = `<div class="sec-h"><h2>Movimentações por dia</h2>${filtrado ? `<button class="link" data-act="cx-limpar">Limpar filtros</button>` : `<span class="muted num">${mvs.length}</span>`}</div>
-    ${buscaBox('cx', 'cxq', ui.cxq, 'Buscar movimentação')}
+    ${buscaBox('cx', 'cxq', ui.cxq, 'Buscar movimentação', 'bq-sec')}
     ${dias.map(d => { const sd = n2(d.e - d.s), fa = fim[d.k] ?? 0; return `<div class="cx-dia"><div class="cx-dh"><b>${diaLabel(d.ts)}</b><span class="cx-dt">${d.e ? `<span class="in">+ ${money(d.e)}</span>` : ''}${d.s ? `<span class="out">− ${money(d.s)}</span>` : ''}</span></div>
       <div class="card list">${d.ms.map(moveLi).join('')}<div class="cx-df"><span>${mq ? 'Saldo da busca' : filtrado ? 'Saldo do filtro' : 'Saldo do dia'}<b class="${sd < 0 ? 'neg' : ''}">${sinal(sd)}</b></span><span>Em caixa no fim do dia<b class="${fa < 0 ? 'neg' : ''}">${money(fa)}</b></span></div></div></div>`; }).join('') || `<div class="card"><div class="empty">${mq ? 'Nada encontrado para essa busca.' : filtrado ? 'Nenhuma movimentação com esse filtro.' : 'Nenhuma movimentação neste período.'}</div></div>`}`;
   }
