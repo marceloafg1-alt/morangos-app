@@ -6189,8 +6189,7 @@ async function relPersPDF(R) {
 /* resumo por WhatsApp pela IA: vai para Relatórios e abre o WhatsApp no número salvo (igual Exportar → Resumo no WhatsApp); se o celular bloquear a abertura, aparece o botão */
 function relZapIA(texto) {
   if (ui.g !== 'relatorios') go('relatorios');
-  const w = window.open(relWaUrl(texto), '_blank');
-  if (!w) { _relZap = texto; ui.sheet = { type: 'relzap' }; render(); toast('Toque em Abrir WhatsApp para enviar o resumo.'); }
+  _relZap = texto; ui.sheet = { type: 'relzap' }; render();
 }
 let _relZap = '';
 function relPdfLib() {
@@ -6243,6 +6242,8 @@ async function relArquivo(k) {
   return null;
 }
 /* Todo envio para o WhatsApp usa o mesmo caminho: abre a conversa com o número salvo em Configurações → WhatsApp do relatório. */
+/* mesmo envio de Relatórios → Exportar → Resumo no WhatsApp (precisa de um toque do dono para o celular abrir direto) */
+const relWaAbre = texto => !!window.open(relWaUrl(texto), '_blank');
 function relWaUrl(texto) { return 'https://wa.me/' + ls.get('mmr-wa-numero', '') + '?text=' + encodeURIComponent(texto); }
 /* Compartilhar (PDF/Excel/CSV): abre a lista de compartilhamento do celular com o arquivo; a pessoa escolhe WhatsApp (ou outro app) e o contato. Sem isso, só baixa. */
 const _relWa = {};
@@ -6268,7 +6269,7 @@ async function relExportar(k) {
   if (k === 'pdf') { const b = await relPDFBlob(); if (b) { baixarBlob(relNome('pdf'), b); toast('PDF baixado.'); } else relPDF(); }
   else if (k === 'xls') { baixarBlob(relNome('xlsx'), relXLSX()); toast('Planilha Excel baixada.'); }
   else if (k === 'csv') { baixarArq(relNome('csv'), relCSV(), 'text/csv;charset=utf-8'); toast('Arquivo CSV baixado.'); }
-  else if (k === 'whats') window.open(relWaUrl(relResumoTexto()), '_blank');
+  else if (k === 'whats') relWaAbre(relResumoTexto());
 }
 let _relDias = null;
 addEventListener('resize', () => { if (ui.g === 'relatorios' && relDiasGrafico() !== _relDias) render(); });
@@ -6895,7 +6896,7 @@ function sheetHTML() {
   const fti = () => `<button class="fab-tile ia" data-act="ia-lancar" ${W()}><span>Lançar com IA</span></button>`;
   const ft = (icon, label, act, v = '', w = true) => `<button class="fab-tile" data-act="${act}" ${v ? `data-v="${v}"` : ''} ${w ? W() : ''}>${ic(icon)}<span>${label}</span></button>`;
   if (s.type === 'docexp') { const d = _docExp || {}; return wrap('Exportar arquivo', `<p class="muted" style="margin:0 0 12px;font-size:13.5px"><b>${esc(d.titulo || '')}</b></p><div class="rexp-btns"><button class="btn" data-act="doc-baixar">Baixar</button><button class="btn green" data-act="doc-compartilhar">Compartilhar</button></div><p class="muted" style="margin:12px 0 0;font-size:13px">Compartilhar abre a lista do celular: escolha o WhatsApp (ou outro app) e o contato.</p>`); }
-  if (s.type === 'relzap') return wrap('Resumo no WhatsApp', `<p class="muted" style="margin:0 0 12px;font-size:13.5px">O celular só abre o WhatsApp com um toque seu. O resumo vai para o número salvo em Configurações → WhatsApp do relatório.</p><pre style="white-space:pre-wrap;font:13px/1.4 inherit;background:var(--surface-2);border-radius:12px;padding:10px;max-height:220px;overflow:auto;margin:0 0 12px">${esc(_relZap)}</pre><button class="btn green" style="width:100%" data-act="relzap-abrir">Abrir WhatsApp</button>`);
+  if (s.type === 'relzap') return wrap('Resumo no WhatsApp', `<p class="muted" style="margin:0 0 12px;font-size:13.5px">Toque em Abrir WhatsApp: é o mesmo envio de Relatórios → Exportar → Resumo no WhatsApp. O resumo vai para o número salvo em Configurações → WhatsApp do relatório.</p><pre style="white-space:pre-wrap;font:13px/1.4 inherit;background:var(--surface-2);border-radius:12px;padding:10px;max-height:220px;overflow:auto;margin:0 0 12px">${esc(_relZap)}</pre><button class="btn green" style="width:100%" data-act="relzap-abrir">Abrir WhatsApp</button>`);
   if (s.type === 'relwa') { const NM = { 'pdf-sh': 'PDF', 'xls-sh': 'Excel', 'csv-sh': 'CSV' }[s.k] || 'relatório'; return wrap('Compartilhar relatório', `<p class="muted" style="margin:0 0 12px;font-size:13.5px">Relatório em <b>${NM}</b> · Período: <b>${rPerLabel()}</b>. O celular exige um toque seu para abrir o compartilhar; depois escolha o WhatsApp e o contato.</p><button class="btn green" style="width:100%" data-act="rel-exp" data-v="${s.k}">Compartilhar ${NM}</button>`); }
   if (s.type === 'rexp') { const modo = s.modo || '';
     const eb = (ico, tt, sub, act, v) => `<button class="bs-row" data-act="${act}" data-v="${v}"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}</b><small>${sub}</small></span></button>`;
@@ -10396,7 +10397,7 @@ document.addEventListener('click', async e => {
     case 'cx-grp': ui.cxo[v] = !ui.cxo[v]; render(); break;
     case 'rel-exportar': ui.sheet = { type: 'rexp' }; render(); relPdfLib().catch(() => {}); relWaPreparaTodos(); break;
     case 'rel-exp-modo': ui.sheet = { type: 'rexp', modo: v }; render(); break;
-    case 'relzap-abrir': ui.sheet = null; render(); window.open(relWaUrl(_relZap), '_blank'); break;
+    case 'relzap-abrir': ui.sheet = null; render(); relWaAbre(_relZap); break;
     case 'rel-exp': ui.sheet = null; render(); relExportar(v); break;
 
     case 'noop': break;
