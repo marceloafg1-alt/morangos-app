@@ -8770,7 +8770,7 @@ const IA_ACOES_TXT = `AÇÕES NO APP (valem para texto, arquivo ou voz):
 - Rotas de entrega: use acao=rota com operacao_rota. "coloca o João na rota" = colocar; "tira da rota" = tirar; "marca como entregue" = entregue; "marca como a entregar" = a_entregar; "coloca todos na rota" / "tira todos" = colocar_todos / tirar_todos (cidades[0] para uma cidade só); "sobe o João uma posição", "coloca o João em primeiro" = mover (direcao, passos ou posicao); "abre o mapa da rota", "abre rota de hoje", "abre rotas de hoje" = abrir_painel (nunca abrir_tela para isso); "otimiza a rota" = otimizar; "abre no Maps", "abre no Google Maps", "abre o Google Maps" = abrir_maps (abre a rota no aplicativo, sem abrir o painel); "muda a partida para ..." = definir_partida com endereco ou CEP. A rota atual e os pedidos a entregar estão nos DADOS DO APP.
 - Na janela de Transmissão ou Cobrança, use acao=selecao_envio: "todos", "ninguém", marcar ou desmarcar por cidade e/ou nomes. Na Cobrança todos já vêm marcados.
 - Configurações: "abra configurações, assistente de voz" (ou qualquer item: aparência, notificações, categorias, rotas, período padrão...) = acao=abrir_config com submenu, num só pedido. Só "abra configurações" = abrir_tela config.
-- Relatórios: "abre o relatório de 7 dias", "exporta o relatório em PDF/Excel/CSV", "manda o relatório em PDF por WhatsApp" (formato pdf_whatsapp/excel_whatsapp/csv_whatsapp = arquivo enviado por WhatsApp; whatsapp = só o resumo em texto) (período do pedido ou o atual), "me diz o relatório de hoje" = acao=relatorio com operacao_relatorio (abrir, exportar ou resumir), periodo ou de/ate e formato. Resumir diz os números do período.`;
+- Relatórios: "abre o relatório de 7 dias", "exporta o relatório em PDF/Excel/CSV", "manda o relatório em PDF por WhatsApp" (formato pdf_whatsapp/excel_whatsapp/csv_whatsapp = arquivo enviado por WhatsApp, faça direto sem perguntar nada (sem formato dito: pdf_whatsapp; sem período: o atual); whatsapp = só o resumo em texto) (período do pedido ou o atual), "me diz o relatório de hoje" = acao=relatorio com operacao_relatorio (abrir, exportar ou resumir), periodo ou de/ate e formato. Resumir diz os números do período.`;
 const IA_TELAS = { inicio: 'Início', vendas: 'Vendas', entregas: 'Entregas', caixa: 'Caixa', relatorios: 'Relatórios', conversas: 'Chat', estoque: 'Estoque', compras: 'Compras na roça', noticias: 'Notícias', clientes: 'Clientes', fornecedores: 'Fornecedores', config: 'Configurações', notificacoes: 'Notificações', ajuda: 'Ajuda' };
 const IA_STATUS = { recebido: 'pedido recebido', separado: 'separado', em_rota: 'na rota', entregue: 'entregue' };
 function iaPreparaAcao(o, l) {
@@ -8862,7 +8862,13 @@ function iaPreparaAcao(o, l) {
     o.seguro = true;
     o.exec = async () => {
       usa(); ui.voltaCfg = false;
-      if (op === 'exportar' && /-wa$/.test(fmt)) { ui.g !== 'relatorios' && go('relatorios'); ui.sheet = { type: 'relwa', k: fmt }; render(); toast('Relatório pronto. Toque em Enviar por WhatsApp.'); return; }
+      if (op === 'exportar' && /-wa$/.test(fmt)) {
+        ui.g !== 'relatorios' && go('relatorios');
+        let ok = false;
+        try { const ar = await relArquivo(fmt.slice(0, -3)); const file = new File([ar.blob], ar.nome, { type: ar.blob.type }); if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relatório', text: '🍓 Morangos Made in Roça — relatório ' + rPerLabel() }); ok = true; } } catch { ok = false; }
+        if (!ok) { ui.sheet = { type: 'relwa', k: fmt }; render(); toast('O celular só deixa enviar com um toque seu: toque em Enviar por WhatsApp.'); }
+        return;
+      }
       if (op === 'exportar') { relExportar(fmt); return; }
       if (ui.g === 'relatorios') render(); else go('relatorios');
     };
