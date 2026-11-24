@@ -1746,8 +1746,9 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cad-busca{margin:-18px 0 -14px;position:relative}
 .bq-busca{margin:0 0 10px}
 .en-cid > span{margin-left:auto}
-.en-cid{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:14px 2px 6px;font-size:13px;font-weight:700;color:var(--muted)}
+.en-cid{display:flex;flex-wrap:wrap;row-gap:4px;justify-content:space-between;align-items:baseline;gap:10px;margin:14px 2px 6px;font-size:13px;font-weight:700;color:var(--muted)}
 .en-cid b{color:var(--ink);font-size:14px}
+.en-cid .link{flex:none;white-space:nowrap;align-self:center}
 .cx-fbar { display: grid; gap: 8px; }
 .cx-fbar input[type=search] { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface, var(--card, #fff)); color: var(--fg); font: inherit; font-size: 14px; }
 .cx-fseg { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -5489,7 +5490,7 @@ function gEntregas() {
   const grupos = (arr, get) => { const m = new Map(); arr.forEach(x => { const c = cidadeEntrega(get(x)); if (!m.has(c)) m.set(c, []); m.get(c).push(x); }); return [...m.entries()]; };
   const cabCid = (c, n, tot, extra = '') => `<div class="en-cid"><b>${esc(c)}</b><span>${n} ${n === 1 ? 'entrega' : 'entregas'}${tot != null ? ' · ' + money(tot) : ''}</span>${extra}</div>`;
   const agrupa = (arr, get, render1, ordenar, cabExtra) => {
-    if (!porCid) return arr.map(render1).join('');
+    if (!porCid) { const tot = arr.reduce((s, x) => s + (get(x).total || 0), 0); return (cabExtra && arr.length ? cabCid('Todas', arr.length, tot, cabExtra('', arr)) : '') + arr.map(render1).join(''); }
     let g = grupos(arr, get); if (ordenar) g.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
     return g.map(([c, it]) => cabCid(c, it.length, it.reduce((s, x) => s + (get(x).total || 0), 0), cabExtra ? cabExtra(c, it) : '') + it.map(render1).join('')).join('');
   };
@@ -5511,10 +5512,9 @@ function gEntregas() {
   return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
   buscaBox('en', 'eq', ui.eq, 'Buscar cliente, endereço ou cidade').replace('class="bs-search bq-busca"', 'class="bs-search bq-busca" style="margin:-14px 0 -6px"') +
   `<div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
-  ${!porCid && r.length > 1 ? `<div style="margin:-8px 0 -4px;text-align:right"><button class="link" data-act="rota-tirar" ${W()}>Tirar todos da rota</button></div>` : ''}
   <div class="cx-fseg" style="margin:0 0 -4px"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>
   <div class="stack">${agrupa(rotaI, x => x.v, rotaHtml, false, (c, it) => it.length > 1 ? `<button class="link" data-act="rota-tirar" data-cid="${esc(c)}" ${W()}>Tirar todos</button>` : '') || emptyBox(q && r.length ? nada : 'Nenhuma entrega na rota.')}</div>
-  <div class="sec-h"><h2>Aguardando rota · ${q ? sepF.length + ' de ' + sep.length : sep.length}</h2>${!porCid && sep.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" ${W()}>Pôr todos</button>` : ''}</div>
+  <div class="sec-h"><h2>Aguardando rota · ${q ? sepF.length + ' de ' + sep.length : sep.length}</h2></div>
   <div class="stack">${agrupa(sepF, v => v, sepHtml, true, (c, it) => it.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" data-cid="${esc(c)}" ${W()}>Pôr todos</button>` : '') || `<p class="sub" style="margin:0">${q && sep.length ? nada : 'Nada esperando.'}</p>`}</div>
   <div class="sec-h"><h2>Entregues · ${q ? doneF.length + ' de ' + done.length : done.length}</h2>${doneF.length ? `<span class="muted num">${money(doneTot)}</span>` : ''}</div>
   ${doneF.length ? `<div class="card list">${agrupa(doneF, v => v, doneHtml, true)}</div>` : `<p class="sub" style="margin:0">${q && done.length ? nada : ui.ep === 'hoje' ? 'Nenhuma ainda.' : 'Nenhuma entrega neste período.'}</p>`}`;
