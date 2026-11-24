@@ -8287,13 +8287,19 @@ const iaFerramenta = {
     lancamentos: { type: 'array', items: { type: 'object', properties: {
       produto: { type: 'string', description: 'Só para acao de produto.' },
       tipo: { type: 'string', enum: ['venda', 'compra', 'despesa', 'cliente', 'fornecedor', 'acao'] },
-      acao: { type: 'string', enum: ['tema', 'abrir_tela', 'periodo_padrao', 'whatsapp_numero', 'produto_preco', 'produto_estoque', 'produto_criar', 'produto_editar', 'produto_ajuste', 'produto_excluir', 'venda_pago', 'venda_status'], description: 'Só para tipo acao. tema: muda a aparência (use visual, modo e/ou cor). abrir_tela: abre uma tela (use tela). periodo_padrao: use periodo. whatsapp_numero: número do relatório (use telefone). produto_preco: novo preço de venda (use produto e valor). produto_estoque: define o estoque atual (use produto e quantidade_nova). produto_criar: cadastra produto novo (produto = nome; descricao; o preço é opcional: se o usuário só disser nome e descrição, deixe valor 0; valor = preço de venda; custo_produto; unidade; descricao; quantidade_nova = estoque inicial). produto_editar: muda dados de um produto existente (produto = nome atual; só preencha o que mudou: novo_nome, valor = preço de venda, custo_produto, unidade, descricao, mostrar_no_app). produto_ajuste: perda, contagem ou entrada de estoque (produto, ajuste_tipo e quantidade_ajuste; perda tira, contagem define o número certo, entrada soma). produto_excluir: apaga um produto cadastrado (produto). venda_pago: marca como paga a venda em aberto de um cliente (use pessoa). venda_status: muda a entrega da venda mais recente do cliente (use pessoa e status).' },
+      acao: { type: 'string', enum: ['tema', 'abrir_tela', 'periodo_padrao', 'whatsapp_numero', 'produto_preco', 'produto_estoque', 'produto_criar', 'produto_editar', 'produto_ajuste', 'produto_excluir', 'venda_pago', 'venda_status', 'cliente_editar', 'fornecedor_editar', 'compra_editar', 'abrir_config'], description: 'Só para tipo acao. tema: muda a aparência (use visual, modo e/ou cor). abrir_tela: abre uma tela (use tela). periodo_padrao: use periodo. whatsapp_numero: número do relatório (use telefone). produto_preco: novo preço de venda (use produto e valor). produto_estoque: define o estoque atual (use produto e quantidade_nova). produto_criar: cadastra produto novo (produto = nome; descricao; o preço é opcional: se o usuário só disser nome e descrição, deixe valor 0; valor = preço de venda; custo_produto; unidade; descricao; quantidade_nova = estoque inicial). produto_editar: muda dados de um produto existente (produto = nome atual; só preencha o que mudou: novo_nome, valor = preço de venda, custo_produto, unidade, descricao, mostrar_no_app). produto_ajuste: perda, contagem ou entrada de estoque (produto, ajuste_tipo e quantidade_ajuste; perda tira, contagem define o número certo, entrada soma). produto_excluir: apaga um produto cadastrado (produto). venda_pago: marca como paga a venda em aberto de um cliente (use pessoa). venda_status: muda a entrega da venda mais recente do cliente (use pessoa e status). abrir_config: abre um submenu das Configurações direto (use submenu; para o período de uma tela específica use submenu periodo_padrao e tela). Vale para QUALQUER item de Configurações: "abra configurações, assistente de voz" = abrir_config com submenu assistente_voz. Se ele só disser "abra configurações", use abrir_tela com tela config. cliente_editar: muda dados de um cliente já cadastrado (pessoa = nome atual; preencha SÓ o que mudou: novo_nome, telefone, email, cep, endereco, numero, complemento, bairro, cidade, referencia, tipo_pessoa, observacao; para esvaziar um campo, coloque o nome dele em limpar_campos). fornecedor_editar: o mesmo para fornecedor (pessoa = nome atual; além dos campos do cliente: produtos_fornece, pix, banco, agencia, conta, tipo_conta, titular, doc_titular). compra_editar: corrige uma compra já lançada (pessoa = fornecedor da compra, data = dia da compra se houver mais de uma; novo_nome = trocar o fornecedor, nova_data, forma, pago + pago_informado, observacao, itens = LISTA COMPLETA nova de itens se mudou produtos, quantidades ou custos; o estoque é corrigido sozinho).' },
+      email: { type: 'string', description: 'Cadastro (criar ou editar): e-mail.' }, endereco: { type: 'string', description: 'Cadastro: rua.' }, bairro: { type: 'string', description: 'Cadastro: bairro ou comunidade.' }, cidade: { type: 'string', description: 'Cadastro: cidade/UF.' }, referencia: { type: 'string', description: 'Cadastro: ponto de referência.' },
+      tipo_pessoa: { type: 'string', enum: ['pessoa', 'comercio', 'produtor', 'empresa', ''], description: 'Cadastro: cliente = pessoa ou comercio; fornecedor = produtor (roça) ou empresa.' },
+      produtos_fornece: { type: 'string', description: 'Fornecedor: o que ele fornece.' }, pix: { type: 'string', description: 'Fornecedor: chave Pix.' }, banco: { type: 'string' }, agencia: { type: 'string' }, conta: { type: 'string' }, tipo_conta: { type: 'string', enum: ['corrente', 'poupanca', ''] }, titular: { type: 'string', description: 'Fornecedor: titular da conta.' }, doc_titular: { type: 'string', description: 'Fornecedor: CPF/CNPJ do titular.' },
+      submenu: { type: 'string', enum: ['usuarios', 'desbloqueio', 'noticias', 'categorias_despesa', 'cobrancas_whatsapp', 'lista_transmissao', 'notificacoes', 'aparencia', 'tela_inicial', 'menu_inferior', 'periodo_padrao', 'whatsapp_relatorio', 'rotas', 'lancar_ia', 'assistente_voz', 'relatorio_ia', 'ajuda', ''], description: 'Só para abrir_config: qual item de Configurações abrir.' },
+      nova_data: { type: 'string', description: 'Só para compra_editar: a nova data da compra, AAAA-MM-DD.' },
+      limpar_campos: { type: 'array', items: { type: 'string' }, description: 'Só para cliente_editar/fornecedor_editar: campos a esvaziar (ex.: ["email", "complemento"]).' },
       visual: { type: 'string', enum: ['classico', 'aurora', 'bento', ''] }, modo: { type: 'string', enum: ['sistema', 'claro', 'escuro', ''] }, cor: { type: 'string', description: 'Nome da cor do tema (ver lista no sistema).' },
       tela: { type: 'string', enum: ['inicio', 'vendas', 'entregas', 'caixa', 'relatorios', 'conversas', 'estoque', 'compras', 'noticias', 'clientes', 'fornecedores', 'config', 'notificacoes', 'ajuda', ''] },
       periodo: { type: 'string', enum: ['hoje', '7d', '30d', 'mes', 'tudo', ''] },
       status: { type: 'string', enum: ['recebido', 'separado', 'em_rota', 'entregue', ''] },
       quantidade_nova: { type: 'number', description: 'Só para produto_estoque: o estoque que o produto passa a ter. Em produto_criar: o estoque inicial.' },
-      novo_nome: { type: 'string', description: 'Só para produto_editar: o novo nome do produto.' },
+      novo_nome: { type: 'string', description: 'Só para as ações de editar: o novo nome (produto, cliente, fornecedor) ou o novo fornecedor da compra.' },
       custo_produto: { type: 'number', description: 'Só para produto_criar e produto_editar: custo por unidade em reais. 0 se não informado.' },
       unidade: { type: 'string', enum: ['caixa', 'bandeja', 'kg', 'unidade', ''], description: 'Só para produto_criar e produto_editar.' },
       mostrar_no_app: { type: 'string', enum: ['sim', 'nao', ''], description: 'Só para produto_editar: sim mostra o produto na Loja do cliente, nao tira da Loja. Vazio se não foi dito.' },
@@ -8604,7 +8610,7 @@ function iaPrepara(l) {
     return o;
   }
   if (o.tipo === 'cliente' || o.tipo === 'fornecedor') {
-    o.nome = o.pessoa; o.telefone = String(l.telefone || '').trim(); o.cep = String(l.cep || '').replace(/\D/g, ''); o.numero = String(l.numero || '').trim(); o.complemento = String(l.complemento || '').trim(); o.rua = ''; o.bairro = ''; o.cidade = '';
+    o.nome = o.pessoa; o.extra = { email: String(l.email || '').trim().toLowerCase(), referencia: String(l.referencia || '').trim(), tipo: o.tipo === 'cliente' ? (l.tipo_pessoa === 'comercio' ? 'comercio' : 'pessoa') : (l.tipo_pessoa === 'empresa' ? 'empresa' : 'produtor'), obs: o.obs || '', produtos: String(l.produtos_fornece || '').trim(), pix: String(l.pix || '').trim(), banco: String(l.banco || '').trim(), agencia: String(l.agencia || '').trim(), conta: String(l.conta || '').trim(), tipoConta: l.tipo_conta === 'poupanca' ? 'poupanca' : 'corrente', titular: String(l.titular || '').trim(), docTitular: String(l.doc_titular || '').trim(), rua: String(l.endereco || '').trim(), bairro: String(l.bairro || '').trim(), cidade: String(l.cidade || '').trim() }; o.telefone = String(l.telefone || '').trim(); o.cep = String(l.cep || '').replace(/\D/g, ''); o.numero = String(l.numero || '').trim(); o.complemento = String(l.complemento || '').trim(); o.rua = ''; o.bairro = ''; o.cidade = '';
     if (!o.nome) o.problemas.push('sem nome');
     const lista = o.tipo === 'cliente' ? S.clientes : S.fornecedores;
     if (o.nome && lista.some(x => norm(x.nome) === norm(o.nome))) o.problemas.push('já existe ' + (o.tipo === 'cliente' ? 'um cliente' : 'um fornecedor') + ' com esse nome');
@@ -8651,6 +8657,18 @@ function iaPreparaAcao(o, l) {
     if (!IA_TELAS[l.tela]) o.problemas.push('tela não reconhecida');
     o.resumo = 'Abrir a tela ' + (IA_TELAS[l.tela] || '?');
     o.exec = async () => { ui.voltaCfg = ['estoque', 'clientes', 'fornecedores', 'noticias', 'ajuda'].includes(l.tela); go(l.tela); };
+  } else if (l.acao === 'abrir_config') {
+    const SUB = { usuarios: ['Usuários e Equipe', 'usuarios-cfg'], desbloqueio: ['Desbloqueio do app', 'lock-cfg'], categorias_despesa: ['Categorias de despesa', 'cat-cfg'], cobrancas_whatsapp: ['Cobranças no WhatsApp', 'cobrancas-cfg'], notificacoes: ['Notificações', 'notif-ajustes'], aparencia: ['Aparência', 'ajustes'], tela_inicial: ['Tela inicial', 'inicio-cfg'], menu_inferior: ['Menu inferior', 'menu-cfg'], periodo_padrao: ['Período padrão', 'per-cfg'], whatsapp_relatorio: ['WhatsApp do relatório', 'wa-ajustes'], rotas: ['Rotas', 'rota-cfg'], lancar_ia: ['Lançar com IA', 'ia-cfg'], assistente_voz: ['Assistente de voz', 'voz-cfg'], relatorio_ia: ['Relatório de chamadas da IA', 'ia-relatorio'], noticias: ['Notícias', null, 'noticias'], ajuda: ['Ajuda', null, 'ajuda'], lista_transmissao: ['Lista de transmissão', null, null] };
+    const it = SUB[l.submenu]; if (!it) o.problemas.push('não entendi qual menu de Configurações abrir');
+    const pgT = l.submenu === 'periodo_padrao' && (PER_TELAS.find(([k]) => k === l.tela) || PER_TELAS.find(([k, nm]) => l.tela && norm(nm).includes(norm(l.tela))));
+    o.resumo = 'Abrir Configurações › ' + (it ? it[0] : '?') + (pgT ? ' › ' + pgT[1] : '');
+    o.exec = async () => {
+      if (it[2]) { ui.voltaCfg = true; go(it[2]); return; }
+      ui.voltaCfg = false; go('config');
+      if (!it[1]) { modalTransmModelos(); return; }
+      if (pgT) { ui.perPg = pgT[0]; ui.sheet = { type: 'per-cfg-pg' }; } else ui.sheet = { type: it[1] };
+      render();
+    };
   } else if (l.acao === 'periodo_padrao') {
     if (!PERIODOS[l.periodo]) o.problemas.push('período não reconhecido');
     o.resumo = 'Período padrão: ' + (PERIODOS[l.periodo] || '?');
@@ -8711,6 +8729,48 @@ function iaPreparaAcao(o, l) {
     const v = vendaDe(false); if (!v) o.problemas.push('não achei venda de "' + (o.pessoa || '?') + '"'); if (!IA_STATUS[l.status]) o.problemas.push('situação da entrega não reconhecida');
     o.resumo = v ? `Entrega da venda de ${v.cliente?.nome} (${money(v.total)}): ${IA_STATUS[l.status] || '?'}` : 'Mudar entrega de venda';
     o.exec = async () => { await setStatus(v.id, l.status); };
+  } else if (l.acao === 'cliente_editar' || l.acao === 'fornecedor_editar') {
+    const ehC = l.acao === 'cliente_editar', col = ehC ? 'clientes' : 'fornecedores', rot = ehC ? 'cliente' : 'fornecedor', nm = norm(o.pessoa);
+    const cs = nm ? S[col].filter(c => norm(c.nome) === nm || norm(c.nome).includes(nm) || nm.includes(norm(c.nome))) : [], ex = cs.filter(c => norm(c.nome) === nm), c = ex.length === 1 ? ex[0] : cs.length === 1 ? cs[0] : null;
+    if (!nm) o.problemas.push('diga qual ' + rot + ' editar'); else if (!cs.length) o.problemas.push('não achei ' + (ehC ? 'o cliente' : 'o fornecedor') + ' "' + o.pessoa + '"'); else if (!c) o.problemas.push('achei ' + cs.length + ' parecidos: ' + cs.slice(0, 4).map(x => x.nome).join(', ') + '. Diga o nome completo');
+    if (!canWrite) o.problemas.push('modo leitura: não dá para editar');
+    const mud = {}, txt = [], ROT = { telefone: 'telefone', email: 'e-mail', cep: 'CEP', endereco: 'rua', numero: 'número', complemento: 'complemento', bairro: 'bairro', cidade: 'cidade', referencia: 'referência', obs: 'observação', produtos: 'o que fornece', pix: 'Pix', banco: 'banco', agencia: 'agência', conta: 'conta', titular: 'titular', docTitular: 'CPF/CNPJ do titular', tipo: 'tipo', tipoConta: 'tipo de conta' };
+    const ent = { telefone: l.telefone, email: l.email && String(l.email).toLowerCase(), cep: l.cep && String(l.cep).replace(/\D/g, ''), endereco: l.endereco, numero: l.numero, complemento: ehC ? l.complemento : undefined, bairro: l.bairro, cidade: l.cidade, referencia: l.referencia, obs: l.observacao };
+    if (!ehC) Object.assign(ent, { produtos: l.produtos_fornece, pix: l.pix, banco: l.banco, agencia: l.agencia, conta: l.conta, titular: l.titular, docTitular: l.doc_titular, tipoConta: ['corrente', 'poupanca'].includes(l.tipo_conta) ? l.tipo_conta : '' });
+    ent.tipo = (ehC ? ['pessoa', 'comercio'] : ['produtor', 'empresa']).includes(l.tipo_pessoa) ? l.tipo_pessoa : '';
+    const val = (k, v) => k === 'cep' ? cepFmt(v) : v;
+    for (const k of Object.keys(ent)) { const v = ent[k]; if (v === undefined || v === null || String(v).trim() === '') continue; mud[k] = String(v).trim(); txt.push(ROT[k] + (c && c[k] ? ' ' + val(k, c[k]) + ' → ' : ' ') + val(k, mud[k])); }
+    if (mud.cep && mud.cep.length !== 8) { o.problemas.push('CEP incompleto (são 8 números)'); delete mud.cep; }
+    const nn = String(l.novo_nome || '').trim();
+    if (nn) { if (S[col].some(x => norm(x.nome) === norm(nn) && (!c || x.id !== c.id))) o.problemas.push('já existe ' + (ehC ? 'um cliente' : 'um fornecedor') + ' chamado "' + nn + '"'); else { mud.nome = nn; txt.push('nome → ' + nn); } }
+    for (const k0 of (Array.isArray(l.limpar_campos) ? l.limpar_campos : [])) { const k = { 'e-mail': 'email', email: 'email', telefone: 'telefone', celular: 'telefone', cep: 'cep', rua: 'endereco', endereco: 'endereco', numero: 'numero', complemento: 'complemento', bairro: 'bairro', cidade: 'cidade', referencia: 'referencia', observacao: 'obs', obs: 'obs', pix: 'pix', banco: 'banco', agencia: 'agencia', conta: 'conta', titular: 'titular', produtos: 'produtos', doc_titular: 'docTitular' }[norm(k0)]; if (k && !(k in mud) && (ehC ? !['pix', 'banco', 'agencia', 'conta', 'titular', 'produtos', 'docTitular'].includes(k) : true)) { mud[k] = ''; txt.push('limpar ' + ROT[k]); } }
+    if (!txt.length) o.problemas.push('não entendi o que mudar no cadastro');
+    o.resumo = 'Editar ' + rot + ' ' + (c ? c.nome : (o.pessoa || '?')) + ': ' + (txt.join('; ') || '?') + '.';
+    o.exec = async () => {
+      if (mud.cep && mud.cep.length === 8 && !(mud.endereco || mud.bairro || mud.cidade)) { const r = await buscaCEP(mud.cep); if (r && !r.naoExiste) { if (r.rua) mud.endereco = r.rua; if (r.bairro) mud.bairro = r.bairro; if (r.cidade) mud.cidade = r.cidade; } }
+      await patch(col, c.id, mud); if (ehC) await vincularVendas(c.id, { ...c, ...mud });
+    };
+  } else if (l.acao === 'compra_editar') {
+    if (!canWrite) o.problemas.push('modo leitura: não dá para editar');
+    let cands = vozAchaLanc('compras', { pessoa: o.pessoa, data: l.data, mais_recente: false });
+    if (!o.pessoa && !l.data) o.problemas.push('diga de qual fornecedor é a compra'); else if (!cands.length) o.problemas.push('não achei essa compra (diga o fornecedor e, se tiver mais de uma, a data)');
+    else if (cands.length > 1) o.avisos.push('há ' + cands.length + ' compras assim: usei a mais recente (' + fmtDT(cands[0].ts) + ')');
+    const x = cands[0] || null, mud = {}, txt = [];
+    const nf = String(l.novo_nome || '').trim();
+    if (nf) { mud.fornecedor = nf; const fc = S.fornecedores.find(f => norm(f.nome) === norm(nf)); mud.fornecedorId = fc ? fc.id : null; txt.push('fornecedor → ' + nf); }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(l.nova_data || '')) { mud.ts = tsFromDate(l.nova_data); txt.push('data → ' + l.nova_data.split('-').reverse().join('/')); }
+    if (['pix', 'dinheiro', 'fiado'].includes(l.forma)) { mud.forma = l.forma; txt.push('pagamento ' + l.forma); }
+    if (l.pago_informado) { if (l.pago) { mud.pago = true; mud.pagoTs = Date.now(); txt.push('marcar como paga'); } else { mud.pago = false; mud.valorPago = 0; mud.parcialTs = null; txt.push('marcar como a pagar'); } }
+    if (String(l.observacao || '').trim()) { mud.obs = String(l.observacao).trim(); txt.push('observação'); }
+    let delta = null;
+    if (Array.isArray(l.itens) && l.itens.length) {
+      const novos = [];
+      for (const i of l.itens) { const p = iaAchaProduto(i.produto), q = n2(i.quantidade); if (!p) { o.problemas.push('produto "' + (i.produto || '?') + '" não cadastrado'); continue; } if (!(q > 0)) { o.problemas.push('quantidade de ' + p.nome + ' não informada'); continue; } let u = n2(i.preco_unitario); if (!(u > 0) && n2(i.valor_item) > 0) u = n2(n2(i.valor_item) / q); if (!(u > 0)) u = n2((x && (x.itens || []).find(y => y.produtoId === p.id)?.custo) || p.custo); novos.push({ produtoId: p.id, nome: p.nome, qtd: q, custo: u }); }
+      if (novos.length) { mud.itens = novos; mud.total = n2(novos.reduce((t, i) => t + i.qtd * i.custo, 0)); txt.push('itens: ' + novos.map(i => fmtNum(i.qtd) + ' ' + i.nome + ' a ' + money(i.custo)).join(', ') + ' (total ' + (x ? money(x.total) + ' → ' : '') + money(mud.total) + ')'); if (x) delta = [...novos.map(i => ({ produtoId: i.produtoId, qtd: i.qtd })), ...(x.itens || []).map(i => ({ produtoId: i.produtoId, qtd: -i.qtd }))].filter(i => prodById(i.produtoId)); }
+    }
+    if (!txt.length) o.problemas.push('não entendi o que mudar na compra');
+    o.resumo = 'Editar a compra de ' + (x ? (x.fornecedor || 'roça') + ' (' + money(x.total) + ', ' + fmtDT(x.ts) + ')' : (o.pessoa || '?')) + ': ' + (txt.join('; ') || '?') + '.' + (delta ? ' O estoque é corrigido pela diferença.' : '');
+    o.exec = async () => { await patch('compras', x.id, mud); if (delta) await adjustStock(delta, 1); };
   } else if (l.acao === 'excluir') {
     const col = { venda: 'vendas', compra: 'compras', despesa: 'despesas' }[l.colecao];
     if (!col) o.problemas.push('não entendi se é venda, compra ou despesa');
@@ -8787,11 +8847,11 @@ async function iaCompletaCep(o) {
 }
 /* cadastros primeiro (para a venda ou a compra do mesmo texto já achar o cliente ou fornecedor novo), abrir tela por último */
 const IA_NOVOS = { clientes: {}, fornecedores: {} };
-function iaOrdena(l) { const r = o => o.tipo === 'cliente' || o.tipo === 'fornecedor' ? 0 : o.acao === 'abrir_tela' ? 2 : 1; l.sort((a, b) => r(a) - r(b)); return l; }
+function iaOrdena(l) { const r = o => o.tipo === 'cliente' || o.tipo === 'fornecedor' ? 0 : (o.acao === 'abrir_tela' || o.acao === 'abrir_config') ? 2 : 1; l.sort((a, b) => r(a) - r(b)); return l; }
 async function iaGravar(o) {
   if (o.tipo === 'acao') return o.exec();
-  if (o.tipo === 'cliente') { const body = { nome: o.nome, tipo: 'pessoa', telefone: o.telefone, cep: o.cep, endereco: o.rua, numero: o.numero, bairro: o.bairro, cidade: o.cidade, referencia: '', obs: '', email: '', complemento: o.complemento }; const nid = uid(); await put('clientes', nid, { ...body, ts: Date.now() }); IA_NOVOS.clientes[norm(o.nome)] = { id: nid, ...body, _t: Date.now() }; return vincularVendas(nid, body); }
-  if (o.tipo === 'fornecedor') { const fid = uid(); IA_NOVOS.fornecedores[norm(o.nome)] = { id: fid, nome: o.nome, _t: Date.now() }; return put('fornecedores', fid, { nome: o.nome, tipo: 'produtor', telefone: o.telefone, cep: o.cep, endereco: o.rua, numero: o.numero, bairro: o.bairro, cidade: o.cidade, referencia: '', produtos: '', pix: '', banco: '', agencia: '', conta: '', tipoConta: 'corrente', titular: '', docTitular: '', obs: '', ts: Date.now() }); }
+  if (o.tipo === 'cliente') { const x = o.extra || {}; const body = { nome: o.nome, tipo: x.tipo || 'pessoa', telefone: o.telefone, cep: o.cep, endereco: o.rua || x.rua || '', numero: o.numero, bairro: o.bairro || x.bairro || '', cidade: o.cidade || x.cidade || '', referencia: x.referencia || '', obs: x.obs || '', email: x.email || '', complemento: o.complemento }; const nid = uid(); await put('clientes', nid, { ...body, ts: Date.now() }); IA_NOVOS.clientes[norm(o.nome)] = { id: nid, ...body, _t: Date.now() }; return vincularVendas(nid, body); }
+  if (o.tipo === 'fornecedor') { const fid = uid(); IA_NOVOS.fornecedores[norm(o.nome)] = { id: fid, nome: o.nome, _t: Date.now() }; return put('fornecedores', fid, { nome: o.nome, tipo: (o.extra || {}).tipo || 'produtor', telefone: o.telefone, cep: o.cep, endereco: o.rua || (o.extra || {}).rua || '', numero: o.numero, bairro: o.bairro || (o.extra || {}).bairro || '', cidade: o.cidade || (o.extra || {}).cidade || '', referencia: (o.extra || {}).referencia || '', produtos: (o.extra || {}).produtos || '', pix: (o.extra || {}).pix || '', banco: (o.extra || {}).banco || '', agencia: (o.extra || {}).agencia || '', conta: (o.extra || {}).conta || '', tipoConta: (o.extra || {}).tipoConta || 'corrente', titular: (o.extra || {}).titular || '', docTitular: (o.extra || {}).docTitular || '', obs: (o.extra || {}).obs || '', ts: Date.now() }); }
   const ts = tsFromDate(o.data), forma = o.forma || (o.pago ? 'pix' : 'fiado');
   const vpIA = !o.pago && o.valorPago > 0 && o.valorPago < (o.total || 0) ? n2(o.valorPago) : 0;
   if (o.tipo === 'despesa') return put('despesas', uid(), { descricao: o.descricao, categoria: o.categoria, valor: o.valor, pago: o.pago, fixa: false, forma: o.pago ? (['pix', 'dinheiro', 'debito', 'credito'].includes(o.forma) ? o.forma : 'pix') : '', ts, recorrente: false });
@@ -9112,7 +9172,7 @@ async function vozFazEstorno(col, id, valorOp, motivo, cancelar) {
   if (voltaEst) await adjustStock(its.filter(i => prodById(i.produtoId)), col === 'compras' ? -1 : 1);
   if (cancela && x.status === 'em_rota') await rtSemParada(id);
 }
-const VOZ_SEGURAS = ['tema', 'abrir_tela', 'abrir_filtro', 'periodo_padrao', 'whatsapp_numero', 'enviar_mensagem'];
+const VOZ_SEGURAS = ['tema', 'abrir_tela', 'abrir_config', 'abrir_filtro', 'periodo_padrao', 'whatsapp_numero', 'enviar_mensagem'];
 const VOZ_DESTRUTIVAS = ['excluir', 'cancelar_venda', 'estornar', 'produto_excluir'];
 const vozNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const vozLigado = () => !!ls.get('mmr-voz', false);
