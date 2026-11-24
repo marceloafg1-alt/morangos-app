@@ -5428,31 +5428,33 @@ function gConfig() {
   return pageHeader('Configurações') + `
   <div class="sec-h"><h2>Conta e equipe</h2></div>
   <nav class="card menu-list cfg-list" aria-label="Conta e equipe">
-    ${cfgRow('user', 'Usuários e Equipe', authUserSummary(), 'sheet', 'usuarios-cfg')}
     ${cfgRow('lock', 'Desbloqueio do app', lockSummary(), 'sheet', 'lock-cfg')}
+    ${cfgRow('user', 'Usuários e Equipe', authUserSummary(), 'sheet', 'usuarios-cfg')}
   </nav>
   <div class="sec-h"><h2>Loja e cadastros</h2></div>
   <nav class="card menu-list cfg-list" aria-label="Loja e cadastros">
-    ${cfgRow('megaphone', 'Notícias', `${newsNoAr().length} no ar`, 'go-cfg', 'noticias')}
     ${cfgRow('receipt', 'Categorias de despesa', pl(catLista().length, 'categoria', 'categorias'), 'sheet', 'cat-cfg')}
     ${cfgRow('chat', 'Cobranças no WhatsApp', cobrancaSummary(), 'sheet', 'cobrancas-cfg')}
     ${cfgRow('megaphone', 'Lista de transmissão', pl0(transmModelos().length, 'mensagem pronta', 'mensagens prontas'), 'transm-modelos', 'x')}
+    ${cfgRow('megaphone', 'Notícias', `${newsNoAr().length} no ar`, 'go-cfg', 'noticias')}
   </nav>
   <div class="sec-h"><h2>App</h2></div>
   <nav class="card menu-list cfg-list" aria-label="App">
-    ${canInstallPWA() ? cfgRow('down', 'Instalar aplicativo', 'Adicionar à tela inicial', 'pwa-install', 'x') : ''}
-    ${cfgRow('bell', 'Notificações', nn ? `${nn} não ${nn === 1 ? 'lida' : 'lidas'}` : 'em dia', 'sheet', 'notif-ajustes')}
     ${cfgRow('palette', 'Aparência', lookLabel(), 'sheet', 'ajustes')}
-    ${cfgRow('home', 'Tela inicial', INICIO_BLOCOS.filter(b => inicioOn(b[0])).length + ' de ' + INICIO_BLOCOS.length + ' blocos', 'sheet', 'inicio-cfg')}
+    ${canInstallPWA() ? cfgRow('down', 'Instalar aplicativo', 'Adicionar à tela inicial', 'pwa-install', 'x') : ''}
     ${cfgRow('dots', 'Menu inferior', menuNaBarra().length + ' na barra', 'sheet', 'menu-cfg')}
+    ${cfgRow('bell', 'Notificações', nn ? `${nn} não ${nn === 1 ? 'lida' : 'lidas'}` : 'em dia', 'sheet', 'notif-ajustes')}
     ${cfgRow('calendar', 'Período padrão', perResumo(), 'sheet', 'per-cfg')}
-    ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
     ${cfgRow('pin', 'Rotas', rotaCfg().partida ? 'partida: ' + rotaCfg().partida : 'ponto de partida', 'sheet', 'rota-cfg')}
-    ${cfgRow('list', 'Planilha modelo', 'baixar para cadastrar em lote', 'baixar-modelo', 'x')}
-    ${cfgRow('bolt', 'Lançar com IA', iaGConfigVal(), 'sheet', 'ia-cfg')}
+    ${cfgRow('home', 'Tela inicial', INICIO_BLOCOS.filter(b => inicioOn(b[0])).length + ' de ' + INICIO_BLOCOS.length + ' blocos', 'sheet', 'inicio-cfg')}
+    ${cfgRow('chat', 'WhatsApp do relatório', ls.get('mmr-wa-numero', '') || 'não definido', 'sheet', 'wa-ajustes')}
+  </nav>
+  <div class="sec-h"><h2>IA</h2></div>
+  <nav class="card menu-list cfg-list" aria-label="IA">
     ${cfgRow('mic', 'Assistente de voz', vozLigado() ? 'ligado · oi Ander' : 'desligado', 'sheet', 'voz-cfg')}
+    ${cfgRow('bolt', 'Lançar com IA', iaGConfigVal(), 'sheet', 'ia-cfg')}
+    ${cfgRow('list', 'Planilha modelo', 'baixar para cadastrar em lote', 'baixar-modelo', 'x')}
     ${cfgRow('chart', 'Relatório da IA', iaRelConfigVal(), 'sheet', 'ia-relatorio')}
-    ${cfgRow('home', 'Ver como', visaoForcada() ? (visaoForcada() === 'web' ? 'Versão web' : 'Versão celular') + ' (fixa)' : 'Automático · ' + (WIDE.matches ? 'web' : 'celular'), 'visao', 'x')}
   </nav>
   <div class="sec-h"><h2>Suporte</h2></div>
   <nav class="card menu-list cfg-list" aria-label="Suporte">
@@ -6669,7 +6671,7 @@ const MENU_MAX = 6;
 /* Um link só: reconhece o aparelho. Tela larga (computador) = versão web com menu lateral; celular = versão com barra embaixo.
    O botão em Configurações (Ver como) força uma das duas neste aparelho. */
 const WIDE_MQ = window.matchMedia('(min-width:1000px)');
-const visaoForcada = () => { try { const v = localStorage.getItem('mmr-visao'); return v === 'web' || v === 'celular' ? v : ''; } catch (e) { return ''; } };
+const visaoForcada = () => { try { if (localStorage.getItem('mmr-visao')) localStorage.removeItem('mmr-visao'); } catch (e) {} return ''; }; /* sempre automático: a opção 'Ver como' foi removida */
 /* Menu lateral (web): se o menu completo não couber na altura, usa o botão Mais */
 function ajustaMenuCurto() {
   try {
