@@ -1863,6 +1863,13 @@ body.voz-on .fab-pop { max-height: min(calc(var(--voz-h0, 100dvh) - 84px - env(s
 .bs-row .grow { flex: 1; min-width: 0; }
 .bs-row small { display: block; color: var(--muted); font-size: 13px; }
 .bs-row svg.i { width: 22px; height: 22px; color: var(--accent); }
+.rexp-item { display: grid; gap: 10px; padding: 14px 2px; border-bottom: 1px solid var(--line); }
+.rexp-top { display: flex; align-items: center; gap: 12px; }
+.rexp-top .grow { flex: 1; min-width: 0; font-size: 16.5px; }
+.rexp-top small { display: block; color: var(--muted); font-size: 13px; }
+.rexp-top svg.i { width: 22px; height: 22px; color: var(--accent); }
+.rexp-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rexp-btns .btn { width: 100%; }
 .bs-row[aria-pressed="true"] { color: var(--accent); font-weight: 700; }
 .bs .menu { gap: 0; }
 .bs .menu button { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 12px 2px; }
@@ -6098,8 +6105,66 @@ function relPDF() {
   const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(f);
   f.srcdoc = html; f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { toast('Não consegui abrir a impressão neste aparelho.'); } setTimeout(() => f.remove(), 60000); };
 }
-function relExportar(k) {
-  if (k === 'pdf') relPDF();
+/* PDF de verdade (arquivo), para baixar ou mandar pelo WhatsApp. A biblioteca só é carregada quando precisa. */
+let _pdfLib = null;
+function relPdfLib() {
+  if (_pdfLib) return _pdfLib;
+  const carrega = src => new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = () => no(new Error('falhou')); document.head.appendChild(sc); });
+  _pdfLib = carrega('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js').then(() => carrega('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js')).catch(e => { _pdfLib = null; throw e; });
+  return _pdfLib;
+}
+async function relPDFBlob() {
+  try { await relPdfLib(); } catch { return null; }
+  try {
+    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'pt', format: 'a4' }), d = relDados();
+    const L = v => String(v ?? '').replace(/\u2212/g, '-').replace(/[\u{1F300}-\u{1FAFF}]/gu, '').trim();
+    let y = 48;
+    doc.setFontSize(18); doc.setTextColor(196, 20, 27); doc.text('Morangos Made in Roça', 40, y); y += 18;
+    doc.setFontSize(10); doc.setTextColor(90); doc.text(L('Relatório · ' + rPerLabel() + ' · gerado em ' + new Date().toLocaleString('pt-BR')), 40, y); y += 10;
+    const tabela = (titulo, head, rows) => {
+      doc.setFontSize(12); doc.setTextColor(30); y = Math.max(y, doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 22;
+      if (y > 780) { doc.addPage(); y = 48; }
+      doc.text(L(titulo), 40, y);
+      if (!rows.length) { doc.setFontSize(9); doc.setTextColor(120); doc.text('Sem registros no período.', 40, y + 14); y += 14; doc.lastAutoTable = { finalY: y }; return; }
+      doc.autoTable({ startY: y + 6, head: [head.map(L)], body: rows.map(r => r.map(L)), styles: { fontSize: 8.5, cellPadding: 3 }, headStyles: { fillColor: [196, 20, 27] }, margin: { left: 40, right: 40 } });
+      y = doc.lastAutoTable.finalY;
+    };
+    const kv = rows => rows.map(([k, v]) => [k, k === 'Pedidos' ? String(v) : money(v)]);
+    tabela('Resumo', ['Item', 'Valor'], kv(d.resumo));
+    tabela('Balanço entre compra e venda', ['Item', 'Valor'], kv(d.balanco));
+    tabela('Produtos vendidos', ['Produto', 'Quantidade', 'Receita'], d.produtos.map(r => [r[0], fmtNum(r[1]), money(r[2])]));
+    tabela('Vendas (' + d.vendas.length + ')', ['Data', 'Cliente', 'Origem', 'Pagamento', 'Situação', 'Itens', 'Valor'], d.vendas.map(r => [...r.slice(0, 6), money(r[6])]));
+    tabela('Compras na roça (' + d.compras.length + ')', ['Data', 'Fornecedor', 'Itens', 'Situação', 'Valor'], d.compras.map(r => [...r.slice(0, 4), money(r[4])]));
+    tabela('Despesas (' + d.despesas.length + ')', ['Data', 'Descrição', 'Tipo', 'Valor'], d.despesas.map(r => [...r.slice(0, 3), money(r[3])]));
+    return doc.output('blob');
+  } catch { return null; }
+}
+function baixarBlob(nome, blob) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+async function relArquivo(k) {
+  if (k === 'pdf') { const b = await relPDFBlob(); return b ? { nome: relNome('pdf'), blob: b } : null; }
+  if (k === 'xls') return { nome: relNome('xls'), blob: new Blob([relXLS()], { type: 'application/vnd.ms-excel' }) };
+  if (k === 'csv') return { nome: relNome('csv'), blob: new Blob([relCSV()], { type: 'text/csv;charset=utf-8' }) };
+  return null;
+}
+/* Enviar por WhatsApp: no celular abre a lista de compartilhamento com o arquivo (escolha o WhatsApp). Sem isso, baixa o arquivo e abre o WhatsApp para anexar. */
+async function relEnviarWa(k) {
+  toast('Preparando o arquivo…');
+  let ar = null; try { ar = await relArquivo(k); } catch { ar = null; }
+  if (!ar) { toast('Não consegui gerar o arquivo agora. Tente baixar.'); return; }
+  const texto = '🍓 Morangos Made in Roça — relatório ' + rPerLabel();
+  try {
+    const file = new File([ar.blob], ar.nome, { type: ar.blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relatório', text: texto }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  baixarBlob(ar.nome, ar.blob);
+  window.open('https://wa.me/' + ls.get('mmr-wa-numero', '') + '?text=' + encodeURIComponent(texto), '_blank');
+  toast('Arquivo baixado. No WhatsApp, anexe o arquivo ' + ar.nome + '.');
+}
+async function relExportar(k) {
+  if (k.endsWith('-wa')) { relEnviarWa(k.slice(0, -3)); return; }
+  if (k === 'pdf') { const b = await relPDFBlob(); if (b) { baixarBlob(relNome('pdf'), b); toast('PDF baixado.'); } else relPDF(); }
   else if (k === 'xls') { baixarArq(relNome('xls'), relXLS(), 'application/vnd.ms-excel'); toast('Planilha Excel baixada.'); }
   else if (k === 'csv') { baixarArq(relNome('csv'), relCSV(), 'text/csv;charset=utf-8'); toast('Arquivo CSV baixado.'); }
   else if (k === 'whats') window.open('https://wa.me/' + ls.get('mmr-wa-numero', '') + '?text=' + encodeURIComponent(relResumoTexto()), '_blank');
@@ -6143,11 +6208,10 @@ function gRelatorios() {
   const margem = t.vendas ? Math.round(t.lucroBruto / t.vendas * 100) : 0;
   const dif = n2(t.vendas - D.comprado), mx = Math.max(t.vendas, D.comprado, 1);
   const sel = `<div class="vsel cx-per"><button data-act="vsel" data-v="rp" aria-label="Período: ${rPerLabel()}"><small>Período</small><span><b>${rPerLabel()}</b>${ic('down')}</span></button></div>`;
-  return pageHeaderFixo('Relatórios', '', sel) +
+  return pageHeaderFixo('Relatórios', `<button class="btn small" data-act="rel-exportar" aria-label="Exportar relatório">${ic('doc')}Exportar</button>`, sel) +
   `<section class="hero" style="min-height:0"><div class="hero-top"><span>Resultado</span><span class="hero-badge">${rPerLabel()}</span></div>
     <div style="font-size:36px;font-weight:800;letter-spacing:-.02em" class="num">${money(t.resultado)}</div>
     <div class="hero-foot"><small>Vendas − custo dos morangos − despesas${ant && ant.resultado ? ` · ${t.resultado >= ant.resultado ? '▲' : '▼'} ${AL}: ${money(ant.resultado)}` : ''}</small></div></section>
-  <div class="acts"><button class="btn small" data-act="rel-exportar">Exportar (PDF, Excel, CSV)</button></div>
   <div class="kpis rel-kpis">
     <div class="kpi"><small>Vendas</small><b>${money(t.vendas)}</b><span class="s">${vs.length} ${vs.length === 1 ? 'pedido' : 'pedidos'}</span>${delta(t.vendas, ant?.vendas)}</div>
     <div class="kpi good"><small>Lucro bruto</small><b>${money(t.lucroBruto)}</b><span class="s">margem ${margem}%</span>${delta(t.lucroBruto, ant?.lucroBruto)}</div>
@@ -6364,7 +6428,7 @@ const AJ_G = [
     ['O que é o Dinheiro em aberto?', 'Mostra a situação de hoje, sem olhar o período: <b>A receber</b> (todas as vendas sem pagar; toque para ir ao Caixa), <b>Compras a pagar</b> (todas as compras sem pagar), <b>Despesas a pagar</b> (todas as despesas marcadas como a pagar) e <b>Saldo do caixa</b> de todo o histórico. Tocar em A receber, Compras a pagar ou Despesas a pagar abre o Caixa com esse card aberto e o período <b>Tudo</b>.', [['Ver a receber', 'go-caixa-ver', 'receber'], ['Ver compras a pagar', 'go-caixa-ver', 'cpagar'], ['Ver despesas a pagar', 'go-caixa-ver', 'dpagar']]],
     ['Como ler os gráficos Vendas por dia e Dia da semana?', '<b>Vendas por dia</b> mostra cada um dos últimos 15 dias (30 na tela do computador) e o <b>Melhor dia</b>. <b>Dia da semana</b> soma as vendas do período por dia da semana e mostra qual vende mais, bom para escolher os dias de entrega e de compra na roça.', [['Abrir Relatórios', 'go', 'relatorios']]],
     ['O que mostram as listas em barras?', 'As até 6 maiores de cada uma, com valor e %:<ul><li><b>Por forma de pagamento</b>: quanto veio de Pix, dinheiro, cartão e fiado.</li><li><b>App × avulsa</b>: pedidos pelo app, pelo chat e vendas avulsas.</li><li><b>Produtos mais vendidos</b>: receita e quantidade de cada produto.</li><li><b>Despesas por categoria</b>: com a cor de cada categoria.</li><li><b>Melhores clientes</b>: quem mais comprou no período.</li></ul>', [['Abrir Relatórios', 'go', 'relatorios']]],
-    ['Como exportar em PDF, Excel ou CSV?', 'Toque em <b>Exportar (PDF, Excel, CSV)</b>. <b>PDF</b> abre a impressão: escolha Salvar como PDF. <b>Excel</b> traz abas de resumo, balanço, vendas, compras, despesas e produtos. <b>CSV</b> traz as movimentações do caixa. Tudo usa o período escolhido.', [['Abrir Exportar', 'go-rel-exportar']]],
+    ['Como exportar em PDF, Excel ou CSV?', 'Toque em <b>Exportar</b>, no alto da tela de Relatórios,. <b>PDF</b> baixa o relatório completo. <b>Excel</b> traz abas de resumo, balanço, vendas, compras, despesas e produtos. <b>CSV</b> traz as movimentações do caixa. Cada formato tem dois botões: <b>Baixar</b> e <b>Enviar por WhatsApp</b> (no celular abre a lista de compartilhamento: escolha o WhatsApp e o contato). Tudo usa o período escolhido.', [['Abrir Exportar', 'go-rel-exportar']]],
     ['Como mandar o resumo no WhatsApp?', 'Em Exportar, toque em <b>Resumo no WhatsApp</b>. Vai vendas, comprado, lucro bruto, despesas, resultado, a receber, a pagar e saldo do caixa. Para abrir direto num contato, salve o número em <b>Configurações → WhatsApp do relatório</b> (com DDD; o 55 é colocado sozinho).', [['Salvar o número do WhatsApp', 'sheet', 'wa-ajustes'], ['Abrir Exportar', 'go-rel-exportar']]],
     ['O lucro parece errado. Por quê?', 'O lucro usa o <b>custo</b> de cada produto no momento da venda. Mantenha o custo atualizado ao registrar compras (deixe marcado <b>Atualizar o custo dos produtos</b>) ou editando o produto.', [['Abrir Estoque', 'go-cfg', 'estoque']]],
   ]],
@@ -6729,7 +6793,8 @@ function sheetHTML() {
   const fti = () => `<button class="fab-tile ia" data-act="ia-lancar" ${W()}><span>Lançar com IA</span></button>`;
   const ft = (icon, label, act, v = '', w = true) => `<button class="fab-tile" data-act="${act}" ${v ? `data-v="${v}"` : ''} ${w ? W() : ''}>${ic(icon)}<span>${label}</span></button>`;
   if (s.type === 'rexp') { const eb = (ico, tt, sub, k, rec) => `<button class="bs-row" data-act="rel-exp" data-v="${k}"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}${rec ? ' <span class="pill p-ok">recomendado</span>' : ''}</b><small>${sub}</small></span></button>`;
-    return wrap('Exportar relatório', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período: <b>${rPerLabel()}</b></p><div class="bs-list">${eb('receipt', 'PDF', 'Relatório pronto para imprimir ou enviar. Na tela que abrir, escolha “Salvar como PDF”.', 'pdf')}${eb('chart', 'Excel (.xls)', 'Planilha com abas: resumo, balanço, vendas, compras, despesas e produtos.', 'xls')}${eb('wallet', 'CSV (.csv)', 'Movimentações do caixa. Abre no Excel, Google Planilhas e no contador.', 'csv', true)}${eb('chat', 'Resumo no WhatsApp', 'Texto curto com os números principais.', 'whats')}</div>`); }
+    const ei = (ico, tt, sub, k, rec) => `<div class="rexp-item"><div class="rexp-top"><span class="nt-ic">${ic(ico)}</span><span class="grow"><b>${tt}${rec ? ' <span class="pill p-ok">recomendado</span>' : ''}</b><small>${sub}</small></span></div><div class="rexp-btns"><button class="btn small" data-act="rel-exp" data-v="${k}">Baixar</button><button class="btn small green" data-act="rel-exp" data-v="${k}-wa">Enviar por WhatsApp</button></div></div>`;
+    return wrap('Exportar relatório', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Período: <b>${rPerLabel()}</b></p><div class="bs-list">${ei('receipt', 'PDF', 'Relatório completo, pronto para ler ou imprimir.', 'pdf')}${ei('chart', 'Excel (.xls)', 'Planilha com abas: resumo, balanço, vendas, compras, despesas e produtos.', 'xls')}${ei('wallet', 'CSV (.csv)', 'Movimentações do caixa. Abre no Excel, Google Planilhas e no contador.', 'csv', true)}${eb('chat', 'Resumo no WhatsApp', 'Texto curto com os números principais.', 'whats')}</div><p class="muted" style="margin:12px 0 0;font-size:13px">Enviar por WhatsApp abre a lista de compartilhamento do celular: escolha o WhatsApp e o contato. Se o aparelho não permitir, o arquivo é baixado e o WhatsApp abre para você anexá-lo.</p>`); }
   if (s.type === 'vsel') {
     if (s.k === 'rp') { const rowR = (val, label, sub = '', icon = '') => `<button class="bs-row" data-act="vpick" data-k="rp" data-v="${val}" aria-pressed="${ui.rp === val}"><span class="grow">${label}${sub ? `<small>${sub}</small>` : ''}</span>${ui.rp === val ? ic('check') : icon ? ic(icon) : ''}</button>`;
       return wrap('Período do relatório', `<div class="bs-list">${Object.entries(PERIODOS).map(([v, l]) => rowR(v, l)).join('')}${rowR('custom', 'Escolher período', ui.rp === 'custom' ? rPerLabel() : 'De uma data até outra', 'calendar')}</div>`); }
@@ -10191,7 +10256,7 @@ document.addEventListener('click', async e => {
     case 'look-reset': look = Object.assign({}, LOOK_DEF); ls.set('mmr-look', look); applyTheme(); render(); break;
     case 'filter': ui[t.dataset.k] = v; if (t.dataset.k === 'cxv') ui.cxq = ''; render(); break;
     case 'cx-grp': ui.cxo[v] = !ui.cxo[v]; render(); break;
-    case 'rel-exportar': ui.sheet = { type: 'rexp' }; render(); break;
+    case 'rel-exportar': ui.sheet = { type: 'rexp' }; render(); relPdfLib().catch(() => {}); break;
     case 'rel-exp': ui.sheet = null; render(); relExportar(v); break;
 
     case 'noop': break;
