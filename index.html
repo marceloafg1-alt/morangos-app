@@ -1772,7 +1772,11 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cx-fbar { display: grid; gap: 8px; }
 .cx-fbar input[type=search] { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface, var(--card, #fff)); color: var(--fg); font: inherit; font-size: 14px; }
 .cx-fseg { display: flex; gap: 6px; flex-wrap: wrap; }
-.cx-ftot { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; color: var(--muted); }
+.cx-fseg.sec-seg { flex-wrap: nowrap; gap: 4px; flex: none; }
+.sec-seg .chip { height: 28px; padding: 0 10px; font-size: 12px; }
+.sec-h + .stack > .en-cid:first-child, .sec-h + .stack > .en-cid { margin: 2px 0 2px; min-height: 28px; }
+.en-cid { margin-top: 8px; margin-bottom: 2px; min-height: 28px; }
+.cx-ftot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .cx-ftot b { font-size: 19px; color: var(--fg); }
 .cx-grp .cx-gh { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; background: none; border: 0; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
 .cx-gn { display: grid; gap: 2px; min-width: 0; } .cx-gn small { color: var(--muted); font-size: 12px; } .cx-gv { white-space: nowrap; }
@@ -3950,7 +3954,7 @@ const telaSessao = { get(k) { try { return sessionStorage.getItem('mmr-tela-' + 
 try { localStorage.removeItem('mmr-tela-g'); localStorage.removeItem('mmr-tela-c'); } catch {}
 const ui = {
   g: telaSessao.get('g'), authMode: (() => { try { return sessionStorage.getItem('mmr-convite-pendente') ? 'convite' : 'google'; } catch { return 'google'; } })(),
-  vt: 'todas', vf: 'todas', vg: 'lista', vp: perPadrao('vendas'), vDe: '', vAte: '', cp: perPadrao('caixa'), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', kq: '', vq: '', eq: '', eg: 'cidade', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao('entregas'), eDe: '', eAte: '', kp: perPadrao('compras'), kDe: '', kAte: '', rp: perPadrao('relatorios'), rDe: '', rAte: '', sheet: null,
+  vt: 'todas', vf: 'todas', vg: 'lista', kg: 'lista', vp: perPadrao('vendas'), vDe: '', vAte: '', cp: perPadrao('caixa'), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', kq: '', vq: '', eq: '', eg: 'cidade', cadqc: '', cadqf: '', cxo: {}, ep: perPadrao('entregas'), eDe: '', eAte: '', kp: perPadrao('compras'), kDe: '', kAte: '', rp: perPadrao('relatorios'), rDe: '', rAte: '', sheet: null,
 };
 const W = () => canWrite ? '' : 'disabled';
 /* Ao sair de uma tela, ela volta ao começo: busca vazia, filtros e período como no padrão (vale no celular e na web) */
@@ -3959,7 +3963,7 @@ const PG_RESET = {
   vendas: () => Object.assign(ui, { vt: 'todas', vf: 'todas', vg: 'lista', vp: perPadrao('vendas'), vDe: '', vAte: '', vq: '' }),
   caixa: () => Object.assign(ui, { cp: perPadrao('caixa'), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', cxo: {} }),
   entregas: () => Object.assign(ui, { ep: perPadrao('entregas'), eDe: '', eAte: '', eq: '', eg: 'cidade' }),
-  compras: () => Object.assign(ui, { kp: perPadrao('compras'), kDe: '', kAte: '', kq: '' }),
+  compras: () => Object.assign(ui, { kg: 'lista', kp: perPadrao('compras'), kDe: '', kAte: '', kq: '' }),
   relatorios: () => Object.assign(ui, { rp: perPadrao('relatorios'), rDe: '', rAte: '' }),
   clientes: () => Object.assign(ui, { cadqc: '', hist: null }),
   fornecedores: () => Object.assign(ui, { cadqf: '' }),
@@ -5571,9 +5575,8 @@ function gVendas() {
     return [...m.entries()].sort((a, b) => a[0] === 'Sem cidade' ? 1 : b[0] === 'Sem cidade' ? -1 : a[0].localeCompare(b[0], 'pt-BR')).map(([c, it]) => { const t = it.filter(v => v.status !== 'cancelado').reduce((x, v) => x + v.total, 0); return `<div class="en-cid"><b>${esc(c)}</b><span>${it.length} ${it.length === 1 ? 'venda' : 'vendas'} · ${money(t)}</span></div>` + it.map(vendaItem).join(''); }).join(''); })();
   return pageHeaderFixo('Vendas', btnImportar, `<div class="vsel">${[['vt', 'Tipo de venda', VTIPOS[ui.vt]], ['vf', 'Pedido', VPED[ui.vf]], ['vp', 'Período', vPerLabel()]].map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`) +
     buscaBox('vd', 'vq', ui.vq, 'Buscar cliente, produto, cidade ou valor') + `
-    <div class="sec-h"><h2>Vendas · ${list.length}</h2><span class="muted num">${money(tot)}</span></div>
-    <div class="cx-fseg" style="margin:0 0 -4px"><button class="chip" data-act="filter" data-k="vg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="vg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>
-    <div class="stack">${(porCid ? agrupaCid : list.map(vendaItem).join('')) || emptyBox(qv ? 'Nada encontrado para essa busca.' : 'Nenhuma venda com esse filtro.', canWrite && !qv ? '<button class="btn primary" data-act="nova-venda">Lançar venda avulsa</button>' : '')}</div>`;
+    <div class="sec-h"><h2>Vendas · ${list.length}</h2><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="vg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="vg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div><span class="muted num">${money(tot)}</span></div>
+    <div class="stack">${(list.length ? (porCid ? agrupaCid : `<div class="en-cid"><b>Todas as cidades</b><span>${list.length} ${list.length === 1 ? 'venda' : 'vendas'} · ${money(tot)}</span></div>` + list.map(vendaItem).join('')) : '') || emptyBox(qv ? 'Nada encontrado para essa busca.' : 'Nenhuma venda com esse filtro.', canWrite && !qv ? '<button class="btn primary" data-act="nova-venda">Lançar venda avulsa</button>' : '')}</div>`;
 }
 /* cidade da entrega: do cadastro do cliente ou o último trecho do endereço ("rua · bairro · cidade") */
 function cidadeEntrega(v) {
@@ -5643,28 +5646,37 @@ function gEntregas() {
   const nada = 'Nada encontrado para essa busca.';
   return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
   buscaBox('en', 'eq', ui.eq, 'Buscar cliente, endereço ou cidade') +
-  `<div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
-  <div class="cx-fseg" style="margin:0 0 -4px"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>
+  `<div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
   <div class="stack">${agrupa(rotaI, x => x.v, rotaHtml, false, (c, it) => it.length > 1 ? `<button class="link" data-act="rota-tirar" data-cid="${esc(c)}" ${W()}>Tirar todos</button>` : '') || emptyBox(q && r.length ? nada : 'Nenhuma entrega na rota.')}</div>
   <div class="sec-h"><h2>Aguardando rota · ${q ? sepF.length + ' de ' + sep.length : sep.length}</h2></div>
   <div class="stack">${agrupa(sepF, v => v, sepHtml, true, (c, it) => it.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" data-cid="${esc(c)}" ${W()}>Pôr todos</button>` : '') || `<p class="sub" style="margin:0">${q && sep.length ? nada : 'Nada esperando.'}</p>`}</div>
   <div class="sec-h"><h2>Entregues · ${q ? doneF.length + ' de ' + done.length : done.length}</h2>${doneF.length ? `<span class="muted num">${money(doneTot)}</span>` : ''}</div>
   ${doneF.length ? `<div class="card list">${agrupa(doneF, v => v, doneHtml, true)}</div>` : `<p class="sub" style="margin:0">${q && done.length ? nada : ui.ep === 'hoje' ? 'Nenhuma ainda.' : 'Nenhuma entrega neste período.'}</p>`}`;
 }
+/* compras agrupadas pela cidade do fornecedor (cadastro); "Todas as cidades" quando está em Lista */
+function comprasGrupo(list, porCid, card) {
+  if (!list.length) return '';
+  const cab = (nome, it) => `<div class="en-cid"><b>${esc(nome)}</b><span>${it.length} ${it.length === 1 ? 'compra' : 'compras'} · ${money(it.reduce((a, c) => a + (Number(c.total) || 0), 0))}</span></div>`;
+  if (!porCid) return cab('Todas as cidades', list) + list.map(card).join('');
+  const cid = c => String((S.fornecedores.find(f => (c.fornecedorId && f.id === c.fornecedorId) || bnorm(f.nome) === bnorm(c.fornecedor)) || {}).cidade || '').trim() || 'Sem cidade';
+  const m = new Map(); list.forEach(c => { const k = cid(c); if (!m.has(k)) m.set(k, []); m.get(k).push(c); });
+  return [...m.entries()].sort((a, b) => a[0] === 'Sem cidade' ? 1 : b[0] === 'Sem cidade' ? -1 : a[0].localeCompare(b[0], 'pt-BR')).map(([k, it]) => cab(k, it) + it.map(card).join('')).join('');
+}
 function gCompras() {
   const per = ui.kp === 'custom' ? 'kcustom' : ui.kp;
   const list = S.compras.filter(c => inPeriod(c.ts, per)).sort((a, b) => b.ts - a.ts);
   const tot = list.reduce((s, c) => s + cAberto(c), 0);
   const apT = aPagar();
-  const qk = bnorm(ui.kq.trim());
+  const qk = bnorm(ui.kq.trim()), porCid = ui.kg === 'cidade';
   if (qk) { const f = list.filter(c => bnorm([c.fornecedor, c.obs, (c.itens || []).map(i => i.nome).join(' '), FORMAS[c.forma] || c.forma, money(c.total)].filter(Boolean).join(' ')).includes(qk)); list.length = 0; list.push(...f); }
   return pageHeaderFixo('Compras na roça', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="kp" aria-label="Período das compras: ${kPerLabel()}"><small>Período</small><span><b>${kPerLabel()}</b>${ic('down')}</span></button></div>`) +
   buscaBox('cp', 'kq', ui.kq, 'Buscar fornecedor, produto ou valor') + `<div class="kpis cx-kpis"><div class="kpi"><small>Comprado no período</small><b>${money(tot)}</b></div><button class="kpi ${apT.length ? 'alert' : ''}" data-act="go-caixa-pagar" aria-label="Compras a pagar, todas em aberto: ${money(apT.reduce((s, c) => s + cFalta(c), 0))}. Ver no caixa"><small>Compras a pagar</small><b>${money(apT.reduce((s, c) => s + cFalta(c), 0))}</b><span class="s"><span>${apT.length} ${apT.length === 1 ? 'compra' : 'compras'}</span><span>Ver</span></span></button></div>
-  <div class="stack">${list.map(c => tcard({ act: 'editar-compra', id: c.id, title: c.fornecedor || 'Roça', val: money(c.total),
+  <div class="sec-h"><h2>Compras · ${list.length}</h2><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="kg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="kg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div><span class="muted num">${money(list.reduce((s, c) => s + (Number(c.total) || 0), 0))}</span></div>
+  <div class="stack">${comprasGrupo(list, porCid, c => tcard({ act: 'editar-compra', id: c.id, title: c.fornecedor || 'Roça', val: money(c.total),
     meta: fmtDT(c.ts) + (c.obs ? ' · ' + esc(c.obs) : ''),
     det: esc((c.itens || []).map(i => `${fmtNum(i.qtd)}× ${i.nome} a ${money(i.custo)}`).join(', ')),
     pills: `${c.pago ? '<span class="pill p-ok">Pago</span>' : parcV(c) > 0 ? parcPill(c, cFalta(c), 'Parcial') : '<span class="pill p-no">A pagar</span>'}${estPill('compras', c)}${formaPill(c.forma)}`,
-    acts: `${c.pago || !cAberto(c) ? '' : `<button class="btn small green" data-act="compra-paga" data-id="${c.id}" ${W()}>Marcar paga</button>`}${cAberto(c) > 0 ? `<button class="btn small ghost" data-act="estornar" data-col="compras" data-id="${c.id}" ${W()}>Estornar</button>` : ''}${estornos(c).length ? '' : `<button class="btn small ghost" data-act="apagar-compra" data-id="${c.id}" ${W()}>Apagar</button>`}` })).join('') || (S.compras.length ? emptyBox(qk ? 'Nada encontrado para essa busca.' : 'Nenhuma compra neste período.', '') : emptyBox('Nenhuma compra registrada. Cada compra na roça soma no estoque e sai do caixa.', canWrite ? '<button class="btn primary" data-act="nova-compra">Registrar compra</button>' : ''))}</div>`;
+    acts: `${c.pago || !cAberto(c) ? '' : `<button class="btn small green" data-act="compra-paga" data-id="${c.id}" ${W()}>Marcar paga</button>`}${cAberto(c) > 0 ? `<button class="btn small ghost" data-act="estornar" data-col="compras" data-id="${c.id}" ${W()}>Estornar</button>` : ''}${estornos(c).length ? '' : `<button class="btn small ghost" data-act="apagar-compra" data-id="${c.id}" ${W()}>Apagar</button>`}` })) || (S.compras.length ? emptyBox(qk ? 'Nada encontrado para essa busca.' : 'Nenhuma compra neste período.', '') : emptyBox('Nenhuma compra registrada. Cada compra na roça soma no estoque e sai do caixa.', canWrite ? '<button class="btn primary" data-act="nova-compra">Registrar compra</button>' : ''))}</div>`;
 }
 const bnorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 /* campo de busca padrão do app (igual ao de Clientes e Fornecedores) */
@@ -5731,8 +5743,7 @@ function gCaixa() {
     const tot = rs.reduce((s, r) => s + r.valor, 0);
     const rec = tipo === 'receber';
     const bar = `<div class="cx-fbar">${buscaBox('cx', 'cxq', ui.cxq, rec ? 'Buscar cliente' : tipo === 'cpagar' ? 'Buscar fornecedor' : 'Buscar despesa')}
-      <div class="cx-fseg"><button class="chip" data-act="filter" data-k="cxg" data-v="pessoa" aria-pressed="${ui.cxg !== 'lista'}">Por ${rec ? 'cliente' : tipo === 'cpagar' ? 'fornecedor' : 'despesa'}</button><button class="chip" data-act="filter" data-k="cxg" data-v="lista" aria-pressed="${ui.cxg === 'lista'}">Lista</button></div>
-      <div class="cx-ftot"><span>${rec ? 'Total que me devem' : 'Total que devo'}${q ? ' (busca)' : ''}</span><b class="num">${money(tot)}</b></div></div>`;
+      <div class="cx-ftot"><span>${rec ? 'Total que me devem' : 'Total que devo'}${q ? ' (busca)' : ''}</span><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="cxg" data-v="pessoa" aria-pressed="${ui.cxg !== 'lista'}">Por ${rec ? 'cliente' : tipo === 'cpagar' ? 'fornecedor' : 'despesa'}</button><button class="chip" data-act="filter" data-k="cxg" data-v="lista" aria-pressed="${ui.cxg === 'lista'}">Lista</button></div><b class="num">${money(tot)}</b></div></div>`;
     if (!rs.length) return bar + `<div class="card list"><div class="empty">${q ? 'Nada encontrado para essa busca.' : vazio}</div></div>`;
     if (ui.cxg === 'lista') return bar + `<div class="card list">${rs.map(r => r.li).join('')}</div>`;
     const g = {}; rs.forEach(r => { (g[r.nome] = g[r.nome] || []).push(r); });
