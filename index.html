@@ -5526,9 +5526,34 @@ function cidadeEntrega(v) {
   const pt = String(c.endereco || '').split(' · ').map(x => x.trim()).filter(Boolean);
   return pt.length > 1 ? pt[pt.length - 1] : 'Sem cidade';
 }
+/* vários pedidos em aberto do mesmo cliente viram uma entrega só (união só na tela; cada venda continua separada nos dados) */
+function unificarEntregas(list) {
+  const m = new Map(), out = [];
+  list.forEach(v => {
+    const c = v.cliente || {}, k = c.id || c.clienteId || (c.nome ? bnorm(c.nome) : '');
+    if (!k) { out.push(v); return; }
+    if (!m.has(k)) { const g = { ...v, _ids: [v.id], _vs: [v] }; m.set(k, g); out.push(g); } else { const g = m.get(k); g._ids.push(v.id); g._vs.push(v); }
+  });
+  out.forEach(g => {
+    const vs = g._vs; if (!vs || vs.length < 2) return;
+    const it = new Map();
+    vs.forEach(v => (v.itens || []).forEach(i => { const kk = i.nome; if (it.has(kk)) it.get(kk).qtd = n2(Number(it.get(kk).qtd || 0) + Number(i.qtd || 0)); else it.set(kk, { ...i }); }));
+    g.itens = [...it.values()];
+    g.total = n2(vs.reduce((a, v) => a + (Number(v.total) || 0), 0));
+    g.estornos = vs.flatMap(v => estornos(v));
+    g.pago = vs.every(v => v.pago);
+    g.valorPago = g.pago ? 0 : n2(vs.reduce((a, v) => a + (v.pago ? vLiq(v) : parcV(v)), 0));
+    g.obs = [...new Set(vs.map(v => v.obs).filter(Boolean))].join(' · ');
+    g.forma = vs.every(v => v.forma === vs[0].forma) ? vs[0].forma : '';
+    g.clienteInformouPix = vs.some(v => v.clienteInformouPix);
+    g.ts = Math.min(...vs.map(v => v.ts));
+    g.status = vs.some(v => v.status === 'recebido') ? 'recebido' : vs[0].status;
+  });
+  return out;
+}
 function gEntregas() {
-  const r = rota();
-  const sep = S.vendas.filter(v => v.status === 'separado' || v.status === 'recebido').sort((a, b) => a.ts - b.ts);
+  const r = unificarEntregas(rota());
+  const sep = unificarEntregas(S.vendas.filter(v => v.status === 'separado' || v.status === 'recebido').sort((a, b) => a.ts - b.ts));
   const done = S.vendas.filter(v => v.status === 'entregue' && inPeriod(v.entregueTs || v.ts, ui.ep === 'custom' ? 'ecustom' : ui.ep));
   const q = bnorm(ui.eq.trim()), porCid = ui.eg !== 'lista';
   const bate = v => !q || bnorm([v.cliente?.nome, v.cliente?.endereco, cidadeEntrega(v), itemsText(v.itens), v.obs, v.cliente?.telefone].filter(Boolean).join(' ')).includes(q);
@@ -5547,15 +5572,15 @@ function gEntregas() {
     title: v.cliente?.nome || 'Cliente', val: money(v.total),
     meta: `${ic('pin', 'i')}<span>${esc(v.cliente?.endereco || 'Sem endereço')}</span>`,
     det: esc(itemsText(v.itens)) + (v.obs ? ' · ' + esc(v.obs) : ''),
-    pills: `${i === 0 ? '<span class="pill p-red">Próxima</span>' : ''}${v.pago ? '<span class="pill p-ok">Pago</span>' : parcV(v) > 0 ? parcPill(v, vFalta(v), 'Parcial') : '<span class="pill p-no">Cobrar</span>'}${formaPill(v.forma)}`,
-    acts: `<button class="btn small green" data-act="status" data-id="${v.id}" data-v="entregue" ${W()}>Entregue</button>
+    pills: `${v._ids && v._ids.length > 1 ? `<span class="pill p-gray">${v._ids.length} pedidos</span>` : ''}${i === 0 ? '<span class="pill p-red">Próxima</span>' : ''}${v.pago ? '<span class="pill p-ok">Pago</span>' : parcV(v) > 0 ? parcPill(v, vFalta(v), 'Parcial') : '<span class="pill p-no">Cobrar</span>'}${formaPill(v.forma)}`,
+    acts: `<button class="btn small green" data-act="status" data-id="${v.id}" data-ids="${(v._ids || [v.id]).join(',')}" data-v="entregue" ${W()}>Entregue</button>
       <button class="btn small ghost" data-act="ver-rota-cliente" data-id="${v.id}">Ver progresso</button>
-      <button class="btn small ghost" data-act="status" data-id="${v.id}" data-v="separado" ${W()}>Tirar da rota</button>` }); };
+      <button class="btn small ghost" data-act="status" data-id="${v.id}" data-ids="${(v._ids || [v.id]).join(',')}" data-v="separado" ${W()}>Tirar da rota</button>` }); };
   const sepHtml = v => tcard({ act: 'editar-entrega', id: v.id, title: v.cliente?.nome || 'Cliente', val: money(v.total),
     meta: `${ic('pin', 'i')}<span>${esc(v.cliente?.endereco || 'Sem endereço')}</span>`,
     det: esc(itemsText(v.itens)) + (v.obs ? ' · ' + esc(v.obs) : ''),
-    pills: `${statusPill(v.status)}${pagoPill(v)}${formaPill(v.forma)}`,
-    acts: v.status === 'recebido' ? `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="separado" ${W()}>Separar</button>` : `<button class="btn small primary" data-act="status" data-id="${v.id}" data-v="em_rota" ${W()}>Pôr na rota</button>` });
+    pills: `${v._ids && v._ids.length > 1 ? `<span class="pill p-gray">${v._ids.length} pedidos</span>` : ''}${statusPill(v.status)}${pagoPill(v)}${formaPill(v.forma)}`,
+    acts: v.status === 'recebido' ? `<button class="btn small primary" data-act="status" data-id="${v.id}" data-ids="${(v._ids || [v.id]).join(',')}" data-v="separado" ${W()}>Separar</button>` : `<button class="btn small primary" data-act="status" data-id="${v.id}" data-ids="${(v._ids || [v.id]).join(',')}" data-v="em_rota" ${W()}>Pôr na rota</button>` });
   const doneHtml = v => `<div class="li tc-li" data-act="editar-entrega" data-id="${v.id}" tabindex="0"><span class="av in">${ic('check')}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente')}</b><small>${esc(v.cliente?.endereco || '')}</small></span><span class="val">${money(v.total)}</span></div>`;
   const nada = 'Nada encontrado para essa busca.';
   return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
@@ -10423,7 +10448,7 @@ document.addEventListener('click', async e => {
     case 'apagar-cliente': modalConfirm('Apagar este cliente? As vendas dele continuam no histórico.', 'Apagar cliente', () => safe(() => del('clientes', id), 'Cliente apagado.')); break;
     case 'close-modal': closeModal(); break;
     case 'pago': await safe(() => patch('vendas', id, v === '1' ? { pago: true, pagoTs: Date.now() } : { pago: false, pagoTs: null, clienteInformouPix: false }), v === '1' ? 'Marcado como pago.' : 'Marcado como não pago.'); break;
-    case 'status': await setStatus(id, v); break;
+    case 'status': { const ids = t.dataset.ids ? t.dataset.ids.split(',') : [id]; for (const x of ids) { const vd = S.vendas.find(y => y.id === x); if (ids.length > 1 && (!vd || vd.status === v)) continue; await setStatus(x, v); } break; }
     case 'mover': await move(id, Number(v)); break;
     case 'rota-tirar': { const cid = t.dataset.cid; const em = rota().filter(x => !cid || cidadeEntrega(x) === cid); if (!em.length) break; await safe(async () => { for (const x of em) await patch('vendas', x.id, { status: 'separado' }); }, em.length === 1 ? 'Pedido tirado da rota.' : 'Pedidos tirados da rota.'); break; }
     case 'rota-todos': { const cid = t.dataset.cid; const sep = S.vendas.filter(x => x.status === 'separado' && (!cid || cidadeEntrega(x) === cid)).sort((p, q) => p.ts - q.ts); let o = nextOrdem(); await safe(async () => { for (const x of sep) await patch('vendas', x.id, { status: 'em_rota', ordemRota: o++ }); }, 'Pedidos colocados na rota.'); break; }
