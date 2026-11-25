@@ -6532,7 +6532,7 @@ const AJ_G = [
     ['Como cadastrar um fornecedor?', 'Em <b>Configurações → Fornecedores</b>, toque no <b>+</b>. Dá para guardar o que ele fornece, a <b>chave Pix</b>, os dados bancários, o endereço da roça e observações como dias de colheita. Toque no nome na lista para ver as compras e o que está a pagar.', [['Novo fornecedor', 'novo-fornecedor'], ['Abrir Fornecedores', 'go-cfg', 'fornecedores']]],
   ]],
   ['Inteligência artificial (IA e voz)', [
-    ['A IA do app: o que é e como começar?', 'O app tem <b>três jeitos</b> de usar a IA, todos com a <b>mesma chave</b>:<ul><li><b>Lançar com IA</b>: você escreve, dita ou envia um arquivo e ela monta uma lista para conferir.</li><li><b>Assistente de voz</b> (“oi Ander”): você fala e ele faz, na Gestão.</li><li><b>Suporte no Chat</b>: tira dúvidas de como usar o app.</li></ul><b>Para começar:</b><ol><li>Abra <b>Configurações → Lançar com IA</b>.</li><li>Cole a <b>chave gratuita do Google AI Studio</b> (começa com <b>AQ.</b> ou <b>AIza</b>) e toque em <b>Salvar chaves</b>.</li><li>Opcional: cole uma <b>chave reserva</b> paga (Google ou Anthropic). Ela só é usada se a gratuita falhar.</li></ol>A chave fica <b>só neste aparelho</b>. Sem chave, nenhuma função de IA funciona.', [['Colocar a chave da IA', 'sheet', 'ia-cfg']]],
+    ['A IA do app: o que é e como começar?', 'O app tem <b>três jeitos</b> de usar a IA:<ul><li><b>Lançar com IA</b>: você escreve, dita ou envia um arquivo e ela monta uma lista para conferir.</li><li><b>Assistente de voz</b> (“oi Ander”): você fala e ele faz, na Gestão.</li><li><b>Suporte no Chat</b>: tira dúvidas de como usar o app.</li></ul><b>Como configurar:</b><ol><li>A chave de API é cadastrada pelo <b>Administrador Master</b> em <b>Configurações → Lançar com IA</b> e compartilhada com segurança com a equipe.</li><li>Aceita chaves do <b>Google Gemini</b>, <b>Anthropic Claude</b> ou <b>DeepSeek</b> (o app reconhece o provedor automaticamente).</li></ol>Sem chave cadastrada pelo Master, as funções de IA ficam indisponíveis.', [['Colocar a chave da IA', 'sheet', 'ia-cfg']]],
     ['O que o Lançar com IA pode fazer?', 'Você escreve, dita ou envia um arquivo e a IA monta uma <b>lista para você conferir</b>. Nada entra no app antes de você confirmar.<ul><li><b>Vendas</b>: cliente, itens, preço, pagamento (pago, parcial ou fiado) e entrega.</li><li><b>Compras na roça</b> e <b>despesas</b> (com a categoria).</li><li><b>Cadastro de cliente e de fornecedor</b>, com telefone, CEP, número e complemento.</li><li><b>Produtos</b>: cadastrar, editar (nome, preço, custo, unidade, descrição, mostrar ou tirar da Loja), ajustar o estoque (perda, contagem ou entrada) e excluir.</li><li><b>Ações no app</b>: mudar o preço ou o estoque de um produto, marcar uma venda como paga, mudar a entrega, trocar o tema, abrir uma tela, mudar o período padrão e o WhatsApp do relatório.</li></ul>', [['Abrir Lançar com IA', 'ia-lancar'], ['Chave da IA', 'sheet', 'ia-cfg']]],
     ['Como lançar vendas, compras ou despesas com a IA (passo a passo)?', '<ol><li>Toque no <b>+</b> e em <b>Lançar com IA</b> (ou abra pelo botão abaixo).</li><li>Em <b>Conte o que aconteceu</b>, escreva do seu jeito. Exemplo: <i>“Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80.”</i> Ou toque em <b>Ditar</b> e fale.</li><li>Se quiser, anexe um arquivo ou foto (veja a pergunta abaixo).</li><li>Toque em <b>Ler com a IA</b>.</li><li>Confira a lista: cada item mostra tipo, pessoa, valor, itens, forma de pagamento, se foi pago, data e entrega. <b>Desligue</b> o que não quiser lançar.</li><li>Toque em <b>Lançar selecionados</b>.</li></ol>Um cliente ou fornecedor e uma mesma data viram <b>um só lançamento</b> com todos os produtos.', [['Abrir Lançar com IA', 'ia-lancar']]],
     ['Que arquivos e fotos a IA lê?', '<ul><li><b>Texto</b>: escrito ou ditado, até 30 mil caracteres. Se passar, envie em partes.</li><li><b>Planilhas</b>: Excel (.xlsx, .xls), .ods, .csv e .tsv.</li><li><b>PDF</b> e arquivos de texto (.txt).</li><li><b>Fotos e prints</b>: cupom fiscal, nota, caderno de anotações. Use o ícone de <b>enviar arquivo</b> ou o da <b>câmera</b>, no topo da janela.</li></ul>Cada arquivo pode ter até <b>25 MB</b> e dá para mandar vários de uma vez. Cupom fiscal de loja ou posto vira <b>despesa</b>; só vira compra se os itens forem produtos seus comprados de um fornecedor.', [['Abrir Lançar com IA', 'ia-lancar']]],
@@ -6544,8 +6544,8 @@ const AJ_G = [
     ['Como ajustar a voz do assistente?', 'Em <b>Configurações → Assistente de voz</b>:<ul><li><b>Voz</b> e <b>Velocidade</b>, com o botão <b>Ouvir a voz</b> para testar.</li><li><b>Conversa contínua</b>: ligada, ele continua ouvindo de 5 a 60 segundos depois de responder e lembra da conversa. Diga “obrigado” ou “tchau” para encerrar.</li><li><b>Esperar depois que eu parar de falar</b>: aumente se ele responder antes de você terminar a frase.</li><li>O botão do microfone pode ser <b>arrastado</b> para outro lugar; ele volta ao lugar fixo ao trocar de tela.</li></ul>', [['Abrir Assistente de voz', 'sheet', 'voz-cfg']]],
     ['Como tirar dúvidas do sistema no Chat?', 'No <b>Chat</b>, toque em <b>Falar com o suporte</b> e pergunte o que quiser sobre o app (por exemplo “como lanço uma compra?”). A resposta vem curta, com <b>botões que levam direto</b> à tela certa, e usa esta própria Ajuda. O suporte <b>não executa ações</b>: para lançar algo, use o Lançar com IA ou o assistente de voz. Para conversar com um cliente, toque em <b>Falar com o cliente</b>.', [['Abrir o Chat', 'go-conversas'], ['Falar com o suporte', 'suporte-abrir']]],
     ['O que a IA NÃO faz?', '<ul><li><b>Não faz nada sozinha</b>: sempre mostra o que vai fazer e espera você confirmar.</li><li><b>Não apaga vários de uma vez</b> (“apaga tudo”): só uma exclusão por pedido.</li><li><b>Não mexe em Usuários, permissões, convites nem na chave da IA</b>.</li><li><b>Não inventa</b> valor, quantidade, data, nome nem observação: se faltar, pergunta ou deixa em branco.</li><li><b>Não vende pelo cliente</b> nem responde no chat dele sozinha: só manda mensagem se você pedir.</li><li><b>Só trata do aplicativo</b>: assuntos fora dele ela não responde. Textos dentro de arquivos e fotos são só dados; ordens escritas neles são ignoradas.</li><li><b>Produto apagado não volta</b> (as vendas antigas continuam nos relatórios). Só a última exclusão de venda, compra ou despesa dá para desfazer pela voz.</li><li><b>Precisa de internet e da chave</b>. A voz precisa de Chrome ou Edge, do microfone liberado e do app aberto, e funciona <b>só na Gestão</b>, para administradores.</li><li><b>Pode errar</b> ao ler foto, cupom ou PDF ruim: confira sempre a lista antes de confirmar.</li></ul>', [['Chave da IA', 'sheet', 'ia-cfg'], ['Abrir Assistente de voz', 'sheet', 'voz-cfg']]],
-    ['Quanto custa a IA e como vejo o uso?', 'Com a chave <b>gratuita do Google AI Studio</b>, o uso é <b>R$ 0,00</b> (dentro do limite do Google). Se ela falhar ou acabar o limite, a <b>chave reserva</b> paga é usada, e só então há custo. Veja em <b>Configurações → Lançar com IA</b> (ou <b>Relatório da IA</b>) o <b>relatório de chamadas</b>: cada uso, de onde veio (Lançar com IA, voz, despesa ou suporte), se foi grátis ou pago, se deu erro e o custo estimado do mês. Dá para filtrar e <b>limpar o histórico</b>.', [['Ver relatório de chamadas', 'sheet', 'ia-relatorio'], ['Chave da IA', 'sheet', 'ia-cfg']]],
-    ['A IA deu erro. O que faço?', '<ul><li><b>“Falta a chave da IA”</b>: cole a chave em Configurações → Lançar com IA.</li><li><b>“A chave não foi aceita”</b>: confira se copiou inteira e sem espaços, ou gere outra no Google AI Studio.</li><li><b>“Muitos envios seguidos”</b>: espere um minuto e tente de novo.</li><li><b>“Arquivo grande demais”</b>: o limite é 25 MB por arquivo. Divida ou reduza a foto.</li><li><b>“Conteúdo grande demais”</b>: envie o texto em partes (até 30 mil caracteres).</li><li><b>Voz não funciona</b>: use Chrome ou Edge, libere o microfone e deixe o app aberto com a tela ligada.</li></ul>Veja o motivo de cada falha no relatório de chamadas.', [['Ver relatório de chamadas', 'sheet', 'ia-relatorio'], ['Chave da IA', 'sheet', 'ia-cfg']]],
+    ['Quanto custa a IA e como vejo o uso?', 'O custo depende do consumo de tokens da chave cadastrada (Google Gemini, Claude ou DeepSeek). Veja em <b>Configurações → Lançar com IA</b> (ou <b>Relatório da IA</b>) o <b>relatório de chamadas</b>: cada uso, modelo, tokens consumidos, duração e o custo estimado do mês. Dá para filtrar por chamadas com sucesso, erros, voz e texto, além de <b>limpar o histórico</b>.', [['Ver relatório de chamadas', 'sheet', 'ia-relatorio'], ['Chave da IA', 'sheet', 'ia-cfg']]],
+    ['A IA deu erro. O que faço?', '<ul><li><b>“Falta a chave da IA”</b>: o Administrador Master pode cadastrar a chave em Configurações → Lançar com IA.</li><li><b>“A chave não foi aceita”</b>: confira se copiou inteira e sem espaços.</li><li><b>“Muitos envios seguidos”</b>: espere um minuto e tente de novo.</li><li><b>“Arquivo grande demais”</b>: o limite é 25 MB por arquivo. Divida ou reduza a foto.</li><li><b>“Conteúdo grande demais”</b>: envie o texto em partes (até 30 mil caracteres).</li><li><b>Voz não funciona</b>: use Chrome ou Edge, libere o microfone e deixe o app aberto com a tela ligada.</li></ul>Veja o motivo de cada falha no relatório de chamadas.', [['Ver relatório de chamadas', 'sheet', 'ia-relatorio'], ['Chave da IA', 'sheet', 'ia-cfg']]],
   ]],
   ['Configurações do aparelho', [
     ['Como mudar as cores ou usar o modo escuro?', 'Em <b>Configurações → Aparência</b>: escolha o visual (Clássico, Aurora ou Bento), o modo (sistema, claro ou escuro) e a cor.', [['Abrir Aparência', 'sheet', 'ajustes']]],
@@ -8470,28 +8470,33 @@ function iaLogSalva(entry) {
 function iaCustoEstimado(provedor, modelo, ent, sai, gratis) {
   if (gratis) return 0;
   if (provedor === 'anthropic') return ((ent * IA_USD_ENT) + (sai * IA_USD_SAI)) / 1e6 * IA_USD_BRL;
+  if (provedor === 'deepseek') {
+    const usdIn = 0.14, usdOut = 0.28;
+    return ((ent * usdIn) + (sai * usdOut)) / 1e6 * IA_USD_BRL;
+  }
   const lite = /lite/i.test(modelo || '');
   const usdIn = lite ? 0.075 : 0.15, usdOut = lite ? 0.30 : 0.60;
   return ((ent * usdIn) + (sai * usdOut)) / 1e6 * IA_USD_BRL;
 }
 function iaResumoMes() {
   const m = new Date().toISOString().slice(0, 7), u = iaUso(), logs = iaLogs().filter(x => x.mes === m);
-  const pg = u.porChave.principal_gratis, pp = u.porChave.principal_paga, res = u.porChave.reserva;
-  const gratisN = pg.n || (logs.length ? 0 : (u.g || 0));
-  const pagaN = (pp.n || 0) + (res.n || 0) || (logs.length ? 0 : Math.max(0, (u.n || 0) - (u.g || 0)));
-  const pagaReais = (pp.reais || 0) + (res.reais || 0) || (logs.length ? 0 : iaReais(u));
+  const totalCalls = logs.length;
+  const okCalls = logs.filter(x => x.ok).length;
+  const erroCalls = logs.filter(x => !x.ok).length;
   const vozLogs = logs.filter(x => x.origem === 'voz');
   const duracoes = logs.filter(x => x.duracaoMs > 0).map(x => x.duracaoMs);
   const mediaMs = duracoes.length ? Math.round(duracoes.reduce((a, b) => a + b, 0) / duracoes.length) : 0;
+  const totalReais = logs.reduce((s, x) => s + (Number(x.reais) || 0), 0) || u.porChave?.principal_paga?.reais || 0;
+  const totalTokens = logs.reduce((s, x) => s + (Number(x.ent) || 0) + (Number(x.sai) || 0), 0);
   return {
-    mes: m, total: logs.length || u.n || 0,
-    gratis: { ...pg, n: gratisN, reais: 0 },
-    paga: { n: pagaN, ok: (pp.ok || 0) + (res.ok || 0), erro: (pp.erro || 0) + (res.erro || 0), ent: (pp.ent || 0) + (res.ent || 0), sai: (pp.sai || 0) + (res.sai || 0), reais: pagaReais },
-    principal: { n: (pg.n || 0) + (pp.n || 0), ok: (pg.ok || 0) + (pp.ok || 0), erro: (pg.erro || 0) + (pp.erro || 0), ent: (pg.ent || 0) + (pp.ent || 0), sai: (pg.sai || 0) + (pp.sai || 0), reais: pp.reais || 0, ehGratis: iaChave() ? iaEhGemini(iaChave()) : true },
-    reserva: { ...res },
+    mes: m,
+    total: totalCalls || u.n || 0,
+    ok: okCalls || (u.porChave?.principal_paga?.ok || 0),
+    erro: erroCalls || (u.porChave?.principal_paga?.erro || 0),
+    totalTokens,
     vozN: vozLogs.length,
     vozReais: vozLogs.reduce((s, x) => s + (Number(x.reais) || 0), 0),
-    totalReais: pagaReais,
+    totalReais,
     mediaMs,
     ultima: iaLogs()[0] || null,
     logs
@@ -8502,13 +8507,13 @@ const iaFmtR = v => v <= 0 ? 'R$ 0,00' : v < 0.01 ? '< R$ 0,01' : money(v);
 const iaGConfigVal = () => {
   if (!iaTemChave()) return 'colocar a chave';
   const r = iaResumoMes();
-  if (!r.total) return iaEhGemini(iaChave()) ? 'chave salva · Grátis' : 'chave salva · R$ 0,00 no mês';
+  if (!r.total) return 'chave salva · R$ 0,00 no mês';
   return `${r.total} ${r.total === 1 ? 'chamada' : 'chamadas'} · ${iaFmtR(r.totalReais)} no mês`;
 };
 const iaRelConfigVal = () => {
   const r = iaResumoMes();
   if (!r.total) return 'nenhuma chamada no mês';
-  return `${r.total} no mês (${r.gratis.n} grátis · ${r.paga.n} paga) · ${iaFmtR(r.totalReais)}`;
+  return `${r.total} no mês · ${iaFmtR(r.totalReais)}`;
 };
 const iaFerramenta = {
   name: 'registrar_lancamentos',
@@ -8874,7 +8879,7 @@ async function iaChamar(texto, pdfs = [], imgs = [], voz = null, origem = '') {
     origem: origem || (voz ? 'voz' : 'ia'),
     resumo: String(texto || (imgs.length ? '[imagem]' : pdfs.length ? '[PDF]' : '')).replace(/\s+/g, ' ').trim().slice(0, 90),
     ok: okFinal, duracaoMs: Date.now() - tStart,
-    slotFinal: winInfo?.slot || ultT.slot || 'principal', tipoFinal: winInfo?.tipo || ultT.tipo || 'paga',
+    slotFinal: 'master', tipoFinal: 'paga',
     apiFinal: winInfo?.api || ultT.api || '', modeloFinal: winInfo?.modelo || ultT.modelo || '',
     chaveFinal: winInfo?.chave || ultT.chave || '',
     ent: okFinal ? winInfo.ent : totEnt, sai: okFinal ? winInfo.sai : totSai, reais: okFinal ? winInfo.reais : totReais,
@@ -9506,12 +9511,18 @@ async function iaPreencheDespesa(files) {
 }
 function iaBlocoUsoResumo(soVoz = false) {
   const r = iaResumoMes(), u = r.ultima;
-  const fmtUlt = l => l ? `${l.slotFinal === 'reserva' ? 'Chave Reserva (Paga)' : (l.tipoFinal === 'gratis' ? 'Chave Principal (Grátis)' : 'Chave Principal (Paga)')} · ${esc(l.apiFinal || '?')} (${esc(l.modeloFinal || '?')}) · ${iaFmtMs(l.duracaoMs || 0)}${l.ok ? '' : ' · erro'}` : '';
+  const c = iaChave();
+  const prov = iaDetectProvider(c);
+  const provName = !c ? 'Não configurada' : (prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek');
+  const fmtUlt = l => {
+    if (!l) return '';
+    const provL = l.apiFinal === 'anthropic' ? 'Anthropic Claude' : l.apiFinal === 'deepseek' ? 'DeepSeek' : (l.apiFinal === 'gemini' || l.apiFinal === 'google' ? 'Google Gemini' : (l.apiFinal || provName));
+    return `${esc(provL)} (${esc(l.modeloFinal || '?')}) · ${iaFmtMs(l.duracaoMs || 0)}${l.ok ? '' : ' · erro'}`;
+  };
   const ultVoz = soVoz ? (r.logs.find(x => x.origem === 'voz') || u) : u;
   return `<div class="card cfg-card" style="font-size:13px;line-height:1.5;font-weight:500">
     <div><b>Uso neste mês (neste aparelho):</b> ${r.total} ${r.total === 1 ? 'chamada' : 'chamadas'}${r.mediaMs ? ` · média ${iaFmtMs(r.mediaMs)}` : ''} · <b>${iaFmtR(r.totalReais)}</b></div>
-    <div style="margin-top:4px">• <b>Chave Principal (${r.principal.ehGratis ? 'Grátis' : 'Paga'}):</b> ${r.principal.n} ${r.principal.n === 1 ? 'chamada' : 'chamadas'}${r.principal.erro ? ` (${r.principal.erro} ${r.principal.erro === 1 ? 'falha' : 'falhas'})` : ''} · <b>${r.principal.ehGratis ? 'R$ 0,00' : iaFmtR(r.principal.reais)}</b></div>
-    <div style="margin-top:2px">• <b>Chave Reserva (Fallback Pago):</b> ${r.reserva.n} ${r.reserva.n === 1 ? 'chamada' : 'chamadas'}${r.reserva.erro ? ` (${r.reserva.erro} ${r.reserva.erro === 1 ? 'falha' : 'falhas'})` : ''} · <b>${iaFmtR(r.reserva.reais || 0)}</b></div>
+    <div style="margin-top:4px">• <b>Provedor ativo:</b> ${esc(provName)} · ${r.ok || 0} ${r.ok === 1 ? 'sucesso' : 'sucessos'}${r.erro ? ` (${r.erro} ${r.erro === 1 ? 'falha' : 'falhas'})` : ''}${r.totalTokens ? ` · ${r.totalTokens.toLocaleString('pt-BR')} tokens` : ''}</div>
     ${soVoz ? `<div style="margin-top:2px">• <b>Só Assistente de voz no mês:</b> ${r.vozN} ${r.vozN === 1 ? 'chamada' : 'chamadas'} · <b>${iaFmtR(r.vozReais)}</b></div>` : ''}
     ${ultVoz ? `<div style="margin-top:4px;opacity:.9"><b>${soVoz && ultVoz.origem === 'voz' ? 'Última fala' : 'Última chamada'}:</b> ${fmtUlt(ultVoz)}</div>` : ''}
   </div>`;
@@ -9543,43 +9554,49 @@ function iaRelatorioSheet(wrap) {
   const r = iaResumoMes(), f = ui.iaLogF || 'todas';
   const all = iaLogs();
   const vis = all.filter(x => {
-    if (f === 'gratis') return x.tipoFinal === 'gratis';
-    if (f === 'paga') return x.tipoFinal === 'paga';
-    if (f === 'erro') return !x.ok || (x.tentativas && x.tentativas.length > 1);
+    if (f === 'ok') return x.ok;
+    if (f === 'erro') return !x.ok;
     if (f === 'voz') return x.origem === 'voz';
     if (f === 'ia') return x.origem !== 'voz';
     return true;
   });
   const origLbl = o => ({ voz: 'Assistente de voz', ia: 'Lançar com IA', despesa: 'Despesa', suporte: 'Suporte no chat' }[o] || 'IA');
-  const chvLbl = (slot, tipo, pref) => (slot === 'reserva' ? 'Chave Reserva (Paga)' : (tipo === 'gratis' ? 'Chave Principal (Grátis)' : 'Chave Principal (Paga)')) + (pref ? ' · ' + pref : '');
-  const filtros = [['todas', 'Todas (' + all.length + ')'], ['gratis', 'Grátis'], ['paga', 'Pagas'], ['erro', 'Trocas / Erros'], ['voz', 'Voz'], ['ia', 'Texto / Foto']];
-  const cardChave = (titulo, sub, obj, gratis) => `<div class="card" style="padding:10px 12px;margin:0">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>${esc(titulo)}</b><b class="num">${gratis ? 'R$ 0,00' : iaFmtR(obj.reais || 0)}</b></div>
-    <small class="muted" style="display:block;margin-top:2px">${esc(sub)}</small>
-    <small style="display:block;margin-top:4px">${obj.n || 0} ${(obj.n || 0) === 1 ? 'chamada concluída' : 'chamadas concluídas'}${obj.erro ? ` · ${obj.erro} ${obj.erro === 1 ? 'falha' : 'falhas'}` : ''}${obj.ent || obj.sai ? ` · ${(obj.ent + obj.sai).toLocaleString('pt-BR')} tokens` : ''}</small>
-  </div>`;
+  const c = iaChave();
+  const prov = iaDetectProvider(c);
+  const provName = !c ? 'Chave de IA não configurada' : (prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek');
+  const filtros = [
+    ['todas', 'Todas (' + all.length + ')'],
+    ['ok', 'Sucessos (' + all.filter(x => x.ok).length + ')'],
+    ['erro', 'Erros (' + all.filter(x => !x.ok).length + ')'],
+    ['voz', 'Voz'],
+    ['ia', 'Texto / Foto']
+  ];
   return wrap('Relatório de chamadas da IA', `
-    <p class="muted" style="margin:0 0 10px;font-size:13px">Mostra cada chamada feita à IA neste aparelho, qual chave foi usada (grátis ou paga), a API, o modelo e quanto tempo demorou.</p>
+    <p class="muted" style="margin:0 0 10px;font-size:13px">Mostra cada chamada feita à IA neste aparelho, o provedor utilizado, o modelo, consumo de tokens e tempo de resposta.</p>
     <div style="display:grid;gap:8px;margin-bottom:10px">
-      ${cardChave('Chave Principal', r.principal.ehGratis ? 'Google AI Studio · Grátis' : 'Anthropic / Paga', r.principal, r.principal.ehGratis)}
-      ${cardChave('Chave Reserva (Fallback Pago)', 'Acionada só quando a Principal falha', r.reserva, false)}
-      <div class="note" style="margin:0;font-size:13px"><b>Total no mês:</b> ${r.total} ${r.total === 1 ? 'chamada' : 'chamadas'} (${r.gratis.n} grátis · ${r.paga.n} paga) · tempo médio <b>${r.mediaMs ? iaFmtMs(r.mediaMs) : '—'}</b> · gasto estimado <b>${iaFmtR(r.totalReais)}</b></div>
+      <div class="card" style="padding:10px 12px;margin:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>${esc(provName)}</b><b class="num">${iaFmtR(r.totalReais || 0)}</b></div>
+        <small class="muted" style="display:block;margin-top:2px">Chave única gerenciada pelo Master · Reconhecimento automático</small>
+        <small style="display:block;margin-top:4px">${r.ok || 0} ${(r.ok || 0) === 1 ? 'chamada com sucesso' : 'chamadas com sucesso'}${r.erro ? ` · ${r.erro} ${r.erro === 1 ? 'falha' : 'falhas'}` : ''}${r.totalTokens ? ` · ${r.totalTokens.toLocaleString('pt-BR')} tokens` : ''}</small>
+      </div>
+      <div class="note" style="margin:0;font-size:13px"><b>Total no mês:</b> ${r.total} ${r.total === 1 ? 'chamada' : 'chamadas'} · tempo médio <b>${r.mediaMs ? iaFmtMs(r.mediaMs) : '—'}</b> · gasto estimado <b>${iaFmtR(r.totalReais)}</b></div>
     </div>
     <div class="lt-chips" style="margin-bottom:10px">${filtros.map(([k, l]) => `<button type="button" class="lt-chip ${f === k ? 'on' : ''}" data-act="ia-log-f" data-v="${k}">${esc(l)}</button>`).join('')}</div>
     ${vis.length ? `<div style="display:grid;gap:8px">${vis.slice(0, 80).map(x => {
       const tsStr = new Date(x.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const badgeBg = !x.ok ? '#c0392b22;color:#c0392b' : x.tipoFinal === 'gratis' ? '#1b8a4b22;color:#1b8a4b' : '#b8860b22;color:#9a6700';
-      const badgeTxt = !x.ok ? 'Falhou' : (x.tipoFinal === 'gratis' ? 'Grátis' : 'Paga');
+      const badgeBg = !x.ok ? '#c0392b22;color:#c0392b' : '#1b8a4b22;color:#1b8a4b';
+      const badgeTxt = !x.ok ? 'Falhou' : 'Sucesso';
+      const provItem = x.apiFinal === 'anthropic' ? 'Anthropic Claude' : x.apiFinal === 'deepseek' ? 'DeepSeek' : (x.apiFinal === 'gemini' || x.apiFinal === 'google' ? 'Google Gemini' : (x.apiFinal || provName));
       const passos = (x.tentativas || []).length > 1 || !x.ok
-        ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(128,128,128,.25);font-size:12px">${(x.tentativas || []).map(t => `<div>${t.n}ª tent.: <b>${esc(t.slot === 'reserva' ? 'Reserva' : 'Principal')}</b> · ${esc(t.api)} (${esc(t.modelo)}) → ${t.ok ? `OK em ${iaFmtMs(t.duracaoMs)}` : `Erro ${t.status || ''} em ${iaFmtMs(t.duracaoMs)}${t.erro ? ' (' + esc(t.erro) + ')' : ''}`}</div>`).join('')}</div>`
+        ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(128,128,128,.25);font-size:12px">${(x.tentativas || []).map(t => `<div>${t.n}ª tent.: <b>${esc(t.api)}</b> (${esc(t.modelo)}) → ${t.ok ? `OK em ${iaFmtMs(t.duracaoMs)}` : `Erro ${t.status || ''} em ${iaFmtMs(t.duracaoMs)}${t.erro ? ' (' + esc(t.erro) + ')' : ''}`}</div>`).join('')}</div>`
         : '';
       return `<div class="card" style="padding:10px 12px;margin:0;font-size:13px;line-height:1.4">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap">
           <span><b>${esc(origLbl(x.origem))}</b> · <span class="muted">${esc(tsStr)}</span></span>
           <span style="padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:${badgeBg}">${badgeTxt} · ${iaFmtMs(x.duracaoMs || 0)}</span>
         </div>
-        <div style="margin-top:4px"><b>${esc(chvLbl(x.slotFinal, x.tipoFinal, x.chaveFinal))}</b></div>
-        <div class="muted" style="font-size:12.5px">API: ${esc(x.apiFinal || '—')} · Modelo: ${esc(x.modeloFinal || '—')} · ${x.ent || x.sai ? `${(x.ent + x.sai).toLocaleString('pt-BR')} tokens · ` : ''}${x.tipoFinal === 'gratis' ? 'R$ 0,00 (Grátis)' : iaFmtR(x.reais || 0)}</div>
+        <div style="margin-top:4px"><b>${esc(provItem)}</b>${x.modeloFinal ? ` · <span class="muted">${esc(x.modeloFinal)}</span>` : ''}</div>
+        <div class="muted" style="font-size:12.5px">${x.ent || x.sai ? `${(x.ent + x.sai).toLocaleString('pt-BR')} tokens · ` : ''}${iaFmtR(x.reais || 0)}</div>
         ${x.resumo ? `<div class="muted" style="margin-top:3px;font-size:12px">“${esc(x.resumo)}”</div>` : ''}
         ${x.erro && !passos ? `<div style="margin-top:3px;color:#c0392b;font-size:12px">${esc(x.erro)}</div>` : ''}
         ${passos}
@@ -10475,7 +10492,6 @@ document.addEventListener('click', async e => {
       render();
       break;
     }
-    case 'ia-chave-res-remover': ls.set('mmr-ia-chave-reserva', ''); toast('Chave reserva removida.'); render(); break;
     case 'per-cfg-pg': ui.perPg = v; ui.sheet = { type: 'per-cfg-pg' }; render(); break;
     case 'per-padrao': { const pg = ui.perPg || 'todas', pv = PERIODOS[v] ? v : '7d'; perPadraoSet(pg, pv); ui.sheet = { type: 'per-cfg' }; render();
       toast((pg === 'todas' ? 'Todas as telas' : (PER_TELAS.find(x => x[0] === pg) || [, pg])[1]) + ': ' + PERIODOS[pv] + '.'); break; }
