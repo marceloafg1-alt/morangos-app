@@ -5568,13 +5568,14 @@ function vendasFiltradas() {
 }
 function gVendas() {
   const qv = bnorm(ui.vq.trim());
-  const list = vendasFiltradas().filter(v => !qv || bnorm([v.cliente?.nome, v.cliente?.endereco, cidadeEntrega(v), itemsText(v.itens), v.obs, FORMAS[v.forma] || v.forma, money(v.total)].filter(Boolean).join(' ')).includes(qv));
+  const base = vendasFiltradas(), vendidoPer = base.filter(v => v.status !== 'cancelado').reduce((s, v) => s + (Number(v.total) || 0), 0), arT = aReceber(), arV = arT.reduce((s, v) => s + vFalta(v), 0);
+  const list = base.filter(v => !qv || bnorm([v.cliente?.nome, v.cliente?.endereco, cidadeEntrega(v), itemsText(v.itens), v.obs, FORMAS[v.forma] || v.forma, money(v.total)].filter(Boolean).join(' ')).includes(qv));
   const tot = list.filter(v => v.status !== 'cancelado').reduce((s, v) => s + v.total, 0);
   const porCid = ui.vg === 'cidade';
   const agrupaCid = (() => { if (!porCid) return ''; const m = new Map(); list.forEach(v => { const c = cidadeEntrega(v); if (!m.has(c)) m.set(c, []); m.get(c).push(v); });
     return [...m.entries()].sort((a, b) => a[0] === 'Sem cidade' ? 1 : b[0] === 'Sem cidade' ? -1 : a[0].localeCompare(b[0], 'pt-BR')).map(([c, it]) => { const t = it.filter(v => v.status !== 'cancelado').reduce((x, v) => x + v.total, 0); return `<div class="en-cid"><b>${esc(c)}</b><span>${it.length} ${it.length === 1 ? 'venda' : 'vendas'} · ${money(t)}</span></div>` + it.map(vendaItem).join(''); }).join(''); })();
   return pageHeaderFixo('Vendas', btnImportar, `<div class="vsel">${[['vt', 'Tipo de venda', VTIPOS[ui.vt]], ['vf', 'Pedido', VPED[ui.vf]], ['vp', 'Período', vPerLabel()]].map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`) +
-    buscaBox('vd', 'vq', ui.vq, 'Buscar cliente, produto, cidade ou valor') + `
+    buscaBox('vd', 'vq', ui.vq, 'Buscar cliente, produto, cidade ou valor') + `<div class="kpis cx-kpis"><div class="kpi"><small>Vendido no período</small><b>${money(vendidoPer)}</b></div><button class="kpi ${arT.length ? 'alert' : ''}" data-act="go-vendas-receber" aria-label="Vendas a receber, todas em aberto: ${money(arV)}. Ver"><small>Vendas a receber</small><b>${money(arV)}</b><span class="s"><span>${arT.length} ${arT.length === 1 ? 'venda' : 'vendas'}</span><span>Ver</span></span></button></div>
     <div class="sec-h"><h2>Vendas · ${list.length}</h2><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="vg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="vg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div><span class="muted num">${money(tot)}</span></div>
     <div class="stack">${(list.length ? (porCid ? agrupaCid : `<div class="en-cid"><b>Todas as cidades</b><span>${list.length} ${list.length === 1 ? 'venda' : 'vendas'} · ${money(tot)}</span></div>` + list.map(vendaItem).join('')) : '') || emptyBox(qv ? 'Nada encontrado para essa busca.' : 'Nenhuma venda com esse filtro.', canWrite && !qv ? '<button class="btn primary" data-act="nova-venda">Lançar venda avulsa</button>' : '')}</div>`;
 }
