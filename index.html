@@ -9166,7 +9166,10 @@ function iaPreparaAcao(o, l) {
     o.resumo = 'Editar ' + rot + ' ' + (c ? c.nome : (o.pessoa || '?')) + ': ' + (txt.join('; ') || '?') + '.';
     o.exec = async () => {
       if (mud.cep && mud.cep.length === 8 && !(mud.endereco || mud.bairro || mud.cidade)) { const r = await buscaCEP(mud.cep); if (r && !r.naoExiste) { if (r.rua) mud.endereco = r.rua; if (r.bairro) mud.bairro = r.bairro; if (r.cidade) mud.cidade = r.cidade; } }
-      await patch(col, c.id, mud); if (ehC) await vincularVendas(c.id, { ...c, ...mud });
+      const antesC = { ...c }, novoC = { ...c, ...mud };
+      if (!mud.cep) { await cepAuto(novoC, antesC); if ((novoC.cep || '') !== (antesC.cep || '')) mud.cep = novoC.cep || ''; }
+      await patch(col, c.id, mud);
+      if (ehC) { await vincularVendas(c.id, { ...c, ...mud }); await atualizaAbertosCliente(c.id, antesC, { ...novoC, id: c.id }); }
     };
   } else if (l.acao === 'compra_editar') {
     if (!canWrite) o.problemas.push('modo leitura: não dá para editar');
