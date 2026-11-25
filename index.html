@@ -4215,7 +4215,28 @@ async function registrarBiometria() {
   return false;
 }
 
-let appLocked = false; /* ao atualizar a página não bloqueia; bloqueia ao voltar do app (visibilitychange) */
+/* Estado de bloqueio guardado no aparelho: atualizar a página NÃO libera o app. Só some quando o PIN/digital é aceito. */
+const LOCK_FLAG_KEY = 'mmr-app-locked';
+const LOCK_SEEN_KEY = 'mmr-app-lock-seen';
+function readLockFlag() {
+  try {
+    const c = getLockCfg();
+    if (!c.ativo || !c.pinHash) return false;
+    if (localStorage.getItem(LOCK_FLAG_KEY) === '1') return true;
+    /* app fechado/recarregado fora do tempo permitido: bloqueia ao abrir */
+    const seen = Number(localStorage.getItem(LOCK_SEEN_KEY) || 0);
+    if (seen && (Date.now() - seen) / 1000 >= (c.timeout || 0) && (c.timeout || 0) > 0) return true;
+  } catch (_) {}
+  return false;
+}
+function writeLockFlag(v) {
+  try { if (v) localStorage.setItem(LOCK_FLAG_KEY, '1'); else localStorage.removeItem(LOCK_FLAG_KEY); } catch (_) {}
+}
+let _appLocked = readLockFlag();
+if (_appLocked) writeLockFlag(true);
+let lastSeenTimer = setInterval(() => { try { if (!_appLocked) localStorage.setItem(LOCK_SEEN_KEY, String(Date.now())); } catch (_) {} }, 5000);
+window.addEventListener('pagehide', () => { try { if (!_appLocked) localStorage.setItem(LOCK_SEEN_KEY, String(Date.now())); } catch (_) {} });
+function setAppLocked(v) { _appLocked = !!v; writeLockFlag(_appLocked); }
 let lockDigits = '';
 let lockShake = false;
 let lastAppHideTs = 0;
@@ -4227,13 +4248,13 @@ function isAppLocked() {
   if (!cfg.ativo) return false;
   // Se não houver PIN configurado, não bloqueia para não travar o usuário
   if (!cfg.pinHash) {
-    appLocked = false;
+    setAppLocked(false);
     return false;
   }
-  return !!appLocked;
+  return !!_appLocked;
 }
 function unlockApp() {
-  appLocked = false;
+  setAppLocked(false);
   lockView = 'pin';
   lockBioTried = false;
   lockDigits = '';
@@ -4318,7 +4339,7 @@ document.addEventListener('visibilitychange', () => {
   } else {
     const pass = (Date.now() - (lastAppHideTs || 0)) / 1000;
     if (pass >= (cfg.timeout || 0)) {
-      appLocked = true;
+      setAppLocked(true);
       lockView = 'pin';
       lockBioTried = false;
       lockDigits = '';
@@ -10007,7 +10028,7 @@ document.addEventListener('click', async e => {
         break;
       }
       ui.sheet = null;
-      appLocked = true;
+      setAppLocked(true);
       lockView = 'pin';
       lockBioTried = false;
       lockDigits = '';
@@ -10021,7 +10042,7 @@ document.addEventListener('click', async e => {
         'Sair da conta',
         async () => {
           setLockCfg({ ativo: false, bio: false, pinHash: '', credId: '' });
-          appLocked = false;
+          setAppLocked(false);
           lockDigits = '';
           const fb = window.__fb;
           if (fb && fb.auth && fb.auth.currentUser && fb.signOut) {
