@@ -9616,18 +9616,18 @@ function iaCfgSheet(wrap) {
       ${isMaster ? (temCfg ? `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <span class="cfg-tag ok" style="font-size:13px;padding:4px 10px">
-            Ativa no servidor · ${esc(provName)}
+            Ativa · Salva no Firestore · ${esc(provName)}
           </span>
         </div>
         <p style="margin:0 0 10px;font-size:13px;color:var(--c-text)">
-          A chave está salva com segurança exclusiva no servidor. O aplicativo não armazena nenhuma cópia dela.
+          A chave está guardada com segurança permanente no banco de dados Firestore na nuvem. O aplicativo não armazena nenhuma cópia no seu aparelho ou navegador.
         </p>
         <div class="f">
           <label for="ia-chave">Substituir chave de API</label>
           <input type="password" id="ia-chave" autocomplete="new-password" placeholder="Cole a nova chave para substituir">
         </div>
-        <button class="lt-btn lt-block" data-act="ia-chave-salvar">Substituir chave no servidor</button>
-        <div class="lt-chips" style="margin-top:10px"><button type="button" class="lt-chip" style="color:#c0392b" data-act="ia-chave-remover">Remover chave do servidor</button></div>
+        <button class="lt-btn lt-block" data-act="ia-chave-salvar">Substituir chave no Firestore</button>
+        <div class="lt-chips" style="margin-top:10px"><button type="button" class="lt-chip" style="color:#c0392b" data-act="ia-chave-remover">Remover chave do Firestore</button></div>
       ` : `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <span class="cfg-tag" style="font-size:13px;padding:4px 10px">
@@ -9637,21 +9637,21 @@ function iaCfgSheet(wrap) {
         <div class="f">
           <label for="ia-chave">Chave de API (Gemini, Claude ou DeepSeek)</label>
           <input type="password" id="ia-chave" autocomplete="new-password" placeholder="AIza… / AQ… / sk-ant-… / sk-…">
-          <small class="muted" style="margin-top:4px;display:block">O app enviará a chave diretamente ao servidor seguro e nada ficará gravado no seu navegador.</small>
+          <small class="muted" style="margin-top:4px;display:block">A chave será gravada no seu Firestore na nuvem (protegida exclusivamente para o seu login Master) e nada ficará salvo no aparelho.</small>
         </div>
-        <button class="lt-btn lt-block" data-act="ia-chave-salvar">Salvar chave no servidor</button>
+        <button class="lt-btn lt-block" data-act="ia-chave-salvar">Salvar no Firestore</button>
       `) : `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
           <span class="cfg-tag ${temCfg ? 'ok' : ''}" style="font-size:13px;padding:4px 10px">
-            ${temCfg ? `Ativa no servidor · ${esc(provName)}` : 'Chave não configurada'}
+            ${temCfg ? `Ativa na nuvem · ${esc(provName)}` : 'Chave não configurada'}
           </span>
         </div>
         <p style="margin:0 0 8px;font-size:13px;color:var(--c-text)">
           ${temCfg
-            ? 'A chave de IA está configurada no servidor pelo Administrador Master e pronta para uso por toda a equipe.'
-            : 'O Administrador Master ainda não configurou a chave de IA no servidor.'}
+            ? 'A chave de IA está configurada pelo Administrador Master no Firestore e pronta para uso por toda a equipe.'
+            : 'O Administrador Master ainda não configurou a chave de IA no Firestore.'}
         </p>
-        <small class="muted">Por segurança, a chave fica guardada no servidor e apenas o Administrador Master pode configurá-la ou alterá-la.</small>
+        <small class="muted">Por segurança, a chave fica guardada no Firestore e apenas o Administrador Master tem permissão de configurá-la ou alterá-la.</small>
       `}
     </div>
     <div class="cfg-h">Uso da IA</div>
@@ -10606,9 +10606,9 @@ document.addEventListener('click', async e => {
         };
         try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
         try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
-        toast('Chave salva no servidor com sucesso! Nenhum dado ficou armazenado no app.');
+        toast('Chave salva com sucesso no Firestore! Nenhum dado ficou armazenado no app.');
       } catch (err) {
-        toast('Erro de conexão ao salvar chave no servidor.');
+        toast('Erro de conexão ao salvar chave no Firestore.');
         break;
       }
       render();
@@ -10636,7 +10636,7 @@ document.addEventListener('click', async e => {
       window.__serverIa = { configured: false, provider: null, providerName: null, isMaster: true };
       try { localStorage.removeItem('mmr-server-ia-cache'); } catch (_) {}
       try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
-      toast('Chave removida do servidor.');
+      toast('Chave removida do Firestore.');
       render();
       break;
     }

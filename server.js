@@ -62,6 +62,69 @@ function removeStoredAiConfig() {
   }
 }
 
+async function saveKeyToFirestore(chave, idToken) {
+  try {
+    const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+    const projectId = firebaseConfig.projectId;
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/config/ai`;
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${idToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fields: {
+          id: { stringValue: 'ai' },
+          chave: { stringValue: String(chave).trim() },
+          ts: { integerValue: String(Date.now()) }
+        }
+      })
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('saveKeyToFirestore error:', err);
+    return false;
+  }
+}
+
+async function removeKeyFromFirestore(idToken) {
+  try {
+    const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+    const projectId = firebaseConfig.projectId;
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/config/ai`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${idToken}`
+      }
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('removeKeyFromFirestore error:', err);
+    return false;
+  }
+}
+
+async function getKeyFromFirestore(idToken) {
+  try {
+    const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+    const projectId = firebaseConfig.projectId;
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/config/ai`;
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${idToken}`
+      }
+    });
+    if (!res.ok) return '';
+    const doc = await res.json();
+    return doc.fields?.chave?.stringValue || '';
+  } catch (err) {
+    console.error('getKeyFromFirestore error:', err);
+    return '';
+  }
+}
+
 function detectProvider(key) {
   const k = String(key || '').trim();
   if (/^(AIza|AQ\.)/.test(k)) return 'google';
@@ -415,7 +478,18 @@ app.get('/api/ia/status', async (req, res) => {
   const isAdmin = await isAuthorizedAdmin(authInfo);
   if (!isAdmin) return res.status(403).json({ error: 'Acesso não autorizado' });
 
-  const cfg = getStoredAiConfig();
+  let cfg = getStoredAiConfig();
+  // Se for o Master, sincroniza com o Firestore na nuvem
+  if (authInfo.isMaster) {
+    const firestoreKey = await getKeyFromFirestore(authInfo.idToken);
+    if (firestoreKey && firestoreKey !== cfg.chave) {
+      saveStoredAiConfig(firestoreKey);
+      cfg = { chave: firestoreKey };
+    } else if (!firestoreKey && cfg.chave) {
+      await saveKeyToFirestore(cfg.chave, authInfo.idToken);
+    }
+  }
+
   const hasKey = !!cfg.chave;
   const prov = hasKey ? detectProvider(cfg.chave) : null;
 
@@ -438,10 +512,13 @@ app.post('/api/ia/save-key', async (req, res) => {
     return res.status(400).json({ error: 'Chave inválida' });
   }
 
-  const ok = saveStoredAiConfig(chave.trim());
-  if (!ok) return res.status(500).json({ error: 'Não foi possível salvar a chave no servidor.' });
+  const cleanKey = chave.trim();
+  // 1. Salva no banco de dados Firestore na nuvem (protegido exclusivamente para o Master)
+  await saveKeyToFirestore(cleanKey, authInfo.idToken);
+  // 2. Salva no arquivo local do servidor
+  saveStoredAiConfig(cleanKey);
 
-  const prov = detectProvider(chave);
+  const prov = detectProvider(cleanKey);
   return res.json({
     ok: true,
     provider: prov,
@@ -455,7 +532,11 @@ app.post('/api/ia/remove-key', async (req, res) => {
   if (!authInfo) return res.status(401).json({ error: 'Não autenticado' });
   if (!authInfo.isMaster) return res.status(403).json({ error: 'Apenas o Administrador Master pode remover a chave de IA.' });
 
+  // 1. Remove do Firestore
+  await removeKeyFromFirestore(authInfo.idToken);
+  // 2. Remove do arquivo local
   removeStoredAiConfig();
+
   return res.json({ ok: true });
 });
 
