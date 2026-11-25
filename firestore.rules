@@ -311,9 +311,22 @@ service cloud.firestore {
       );
     }
 
+    function isValidConfig(d) {
+      return d.keys().hasOnly(['id', 'chave', 'ts'])
+        && optStr(d, 'id', 128)
+        && optStr(d, 'chave', 500)
+        && optNum(d, 'ts');
+    }
+
     // ===============================================================
     // Collections
     // ===============================================================
+
+    match /config/{configId} {
+      allow get, list: if isAdmin();
+      allow create, update: if isValidId(configId) && isMaster() && isValidConfig(request.resource.data);
+      allow delete: if isValidId(configId) && isMaster();
+    }
 
     match /test/{testId} {
       allow get: if isValidId(testId);

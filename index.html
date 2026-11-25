@@ -3044,15 +3044,9 @@ import {
   limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const firebaseConfig = {
-  projectId: "gen-lang-client-0695224324",
-  appId: "1:98675133499:web:e9486ded582da97b38201e",
-  apiKey: "AIzaSyCK1-r9MLQAc-nuK33NeiPWTQMcbaU1wxE",
-  authDomain: "gen-lang-client-0695224324.firebaseapp.com",
-  firestoreDatabaseId: "ai-studio-morangosapp-63dff1c2-2e4c-4db7-ad1b-4fcbd593ed4b",
-  storageBucket: "gen-lang-client-0695224324.firebasestorage.app",
-  messagingSenderId: "98675133499"
-};
+const cfgRes = await fetch('/firebase-applet-config.json');
+if (!cfgRes.ok) throw new Error('Falha ao carregar firebase-applet-config.json');
+const firebaseConfig = await cfgRes.json();
 
 const app = initializeApp(firebaseConfig);
 let db;
@@ -3269,8 +3263,8 @@ async function testConnection(writeCheck = false) {
   }
 }
 
-const COLS = ['produtos', 'vendas', 'compras', 'despesas', 'noticias', 'clientes', 'mensagens', 'fornecedores', 'notificacoes', 'categorias', 'admins', 'convites'];
-const S = { produtos: [], vendas: [], compras: [], despesas: [], noticias: [], clientes: [], mensagens: [], fornecedores: [], notificacoes: [], categorias: [], admins: [], convites: [] };
+const COLS = ['produtos', 'vendas', 'compras', 'despesas', 'noticias', 'clientes', 'mensagens', 'fornecedores', 'notificacoes', 'categorias', 'admins', 'convites', 'config'];
+const S = { produtos: [], vendas: [], compras: [], despesas: [], noticias: [], clientes: [], mensagens: [], fornecedores: [], notificacoes: [], categorias: [], admins: [], convites: [], config: [] };
 const loaded = {};
 let backend = 'pending'; // 'db' | 'local'
 let db = null;
@@ -8446,9 +8440,18 @@ const IA_MAX_TXT = 30000, IA_MAX_ARQ = 25 * 1024 * 1024;
 /* preços do Haiku 5.5 em US$ por milhão de tokens (até 100 mil tokens por envio) e câmbio aproximado: ajuste aqui se mudar */
 const IA_USD_ENT = 0.10, IA_USD_SAI = 0.50, IA_USD_BRL = 5.5;
 const iaReais = u => ((u?.ent || 0) * IA_USD_ENT + (u?.sai || 0) * IA_USD_SAI) / 1e6 * IA_USD_BRL;
-const iaChave = () => String(ls.get('mmr-ia-chave', '') || '').trim();
-const iaChaveReserva = () => String(ls.get('mmr-ia-chave-reserva', '') || '').trim();
-const iaTemChave = () => !!(iaChave() || iaChaveReserva());
+const iaChave = () => {
+  const rec = (S.config || []).find(x => x.id === 'ai');
+  if (rec && rec.chave) return String(rec.chave).trim();
+  return String(ls.get('mmr-ia-key', '') || '').trim();
+};
+const iaTemChave = () => !!iaChave();
+const iaDetectProvider = key => {
+  const k = String(key || '').trim();
+  if (/^(AIza|AQ\.)/.test(k)) return 'google';
+  if (/^sk-ant-/.test(k)) return 'anthropic';
+  return 'deepseek';
+};
 const iaMascara = c => { const s = String(c || '').trim(); return s ? s.slice(0, 6) + '…' : ''; };
 const iaUsoVazio = m => ({ mes: m, ent: 0, sai: 0, n: 0, g: 0, porChave: { principal_gratis: { n: 0, ok: 0, erro: 0, ent: 0, sai: 0, reais: 0 }, principal_paga: { n: 0, ok: 0, erro: 0, ent: 0, sai: 0, reais: 0 }, reserva: { n: 0, ok: 0, erro: 0, ent: 0, sai: 0, reais: 0 } } });
 const iaUso = () => {
@@ -8729,71 +8732,140 @@ async function iaChamarAnthropic(chave, texto, pdfs, imgs, voz) {
   if (!tu) { const err = new Error('A IA não devolveu lançamentos. Tente reescrever o texto.'); err.status = 200; err.rawMsg = 'sem tool_use'; err.duracaoMs = duracaoMs; err.ent = ent; err.sai = sai; throw err; }
   return { args: tu.input, ent, sai, duracaoMs };
 }
-async function iaChamarComChave(chave, texto, pdfs, imgs, voz, modeloGemini = IA_GEMINI_MODELO) {
-  if (iaEhGemini(chave)) return iaChamarGemini(chave, texto, pdfs, imgs, voz, modeloGemini);
-  return iaChamarAnthropic(chave, texto, pdfs, imgs, voz);
+async function iaChamarDeepSeek(chave, texto, pdfs, imgs, voz) {
+  const t0 = Date.now();
+  const ferr = voz ? voz.ferramenta : iaFerramenta;
+  const systemMsg = voz ? voz.sistema : iaSistema();
+  const messages = [{ role: 'system', content: systemMsg }];
+  if (voz && voz.hist) {
+    for (const m of voz.hist) {
+      messages.push({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content });
+    }
+  }
+  const userContent = [];
+  for (const img of imgs) {
+    userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img.img}` } });
+  }
+  for (const pdf of pdfs) {
+    userContent.push({ type: 'text', text: `[Documento PDF anexado]` });
+  }
+  userContent.push({ type: 'text', text: texto || 'Leia o que foi anexado e registre os lançamentos.' });
+  messages.push({ role: 'user', content: userContent });
+
+  const body = {
+    model: 'deepseek-chat',
+    messages,
+    tools: [{
+      type: 'function',
+      function: {
+        name: ferr.name,
+        description: ferr.description,
+        parameters: ferr.input_schema
+      }
+    }],
+    tool_choice: { type: 'function', function: { name: ferr.name } }
+  };
+
+  const ac = new AbortController();
+  const tm = setTimeout(() => ac.abort(), 45000);
+  let r;
+  try {
+    r = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + chave.trim() },
+      body: JSON.stringify(body),
+      signal: ac.signal
+    });
+  } catch (e) {
+    clearTimeout(tm);
+    const duracaoMs = Date.now() - t0, isTimeout = e && e.name === 'AbortError';
+    const err = new Error(isTimeout ? 'A API da DeepSeek demorou demais para responder.' : (e?.message || 'Erro de rede ao falar com a DeepSeek.'));
+    err.status = isTimeout ? 504 : 0; err.rawMsg = isTimeout ? 'timeout' : String(e?.message || ''); err.duracaoMs = duracaoMs;
+    throw err;
+  }
+  clearTimeout(tm);
+  const j = await r.json().catch(() => ({})), duracaoMs = Date.now() - t0;
+  const ent = j.usage?.prompt_tokens || 0, sai = j.usage?.completion_tokens || 0;
+  if (!r.ok) {
+    const m = j?.error?.message || '';
+    const err = new Error(r.status === 401 ? 'A chave da DeepSeek não foi aceita. Verifique a chave em Configurações > Lançar com IA.' : r.status === 429 ? 'Limite da DeepSeek atingido. Espere um minuto.' : 'A IA não respondeu agora' + (m ? ' (' + m + ')' : '') + '.');
+    err.status = r.status; err.rawMsg = m; err.duracaoMs = duracaoMs; err.ent = ent; err.sai = sai; throw err;
+  }
+  const choice = j.choices?.[0];
+  const toolCall = choice?.message?.tool_calls?.[0];
+  if (!toolCall || !toolCall.function) {
+    const err = new Error('A IA não devolveu lançamentos. Tente reescrever o texto.'); err.status = 200; err.rawMsg = 'sem tool_call'; err.duracaoMs = duracaoMs; err.ent = ent; err.sai = sai; throw err;
+  }
+  let args = {};
+  try { args = JSON.parse(toolCall.function.arguments || '{}'); } catch { args = {}; }
+  return { args, ent, sai, duracaoMs };
 }
+
 async function iaChamar(texto, pdfs = [], imgs = [], voz = null, origem = '') {
-  const k1 = iaChave(), k2 = iaChaveReserva();
-  if (!k1 && !k2) throw new Error('Falta a chave da IA. Coloque em Configurações > Lançar com IA.');
+  const chave = iaChave();
+  if (!chave) throw new Error('Falta a chave da IA. O Administrador Master deve configurar a chave em Configurações > Lançar com IA.');
+  const prov = iaDetectProvider(chave);
   const tsIni = Date.now(), tStart = Date.now(), tentativas = [];
   let res = null, ultimoErro = null, winInfo = null;
-  const tenta = async (slot, chave, modeloGemini) => {
-    const ehG = iaEhGemini(chave), provedor = ehG ? 'google' : 'anthropic';
-    const api = ehG ? 'Google Gemini' : 'Anthropic Claude', modelo = ehG ? modeloGemini : IA_MODELO;
-    const gratis = slot === 'principal' && ehG, tipo = gratis ? 'gratis' : 'paga';
-    const pref = iaMascara(chave), bucket = slot === 'reserva' ? 'reserva' : (gratis ? 'principal_gratis' : 'principal_paga');
+
+  const tenta = async (modeloGemini) => {
+    const api = prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek';
+    const modelo = prov === 'google' ? modeloGemini : (prov === 'anthropic' ? IA_MODELO : 'deepseek-chat');
+    const pref = iaMascara(chave);
     try {
-      const r = await iaChamarComChave(chave, texto, pdfs, imgs, voz, modeloGemini);
-      const reais = iaCustoEstimado(provedor, modelo, r.ent, r.sai, gratis);
-      tentativas.push({ n: tentativas.length + 1, slot, tipo, api, modelo, chave: pref, ok: true, status: 200, duracaoMs: r.duracaoMs, ent: r.ent, sai: r.sai, reais, erro: '' });
-      winInfo = { slot, tipo, api, modelo, chave: pref, ent: r.ent, sai: r.sai, reais, bucket };
+      let r;
+      if (prov === 'google') {
+        r = await iaChamarGemini(chave, texto, pdfs, imgs, voz, modeloGemini);
+      } else if (prov === 'anthropic') {
+        r = await iaChamarAnthropic(chave, texto, pdfs, imgs, voz);
+      } else {
+        r = await iaChamarDeepSeek(chave, texto, pdfs, imgs, voz);
+      }
+      const reais = iaCustoEstimado(prov, modelo, r.ent, r.sai, false);
+      tentativas.push({ n: 1, slot: 'principal', tipo: 'paga', api, modelo, chave: pref, ok: true, status: 200, duracaoMs: r.duracaoMs, ent: r.ent, sai: r.sai, reais, erro: '' });
+      winInfo = { slot: 'principal', tipo: 'paga', api, modelo, chave: pref, ent: r.ent, sai: r.sai, reais, bucket: 'principal_paga' };
       return r;
     } catch (e) {
-      const ent = e.ent || 0, sai = e.sai || 0, reais = iaCustoEstimado(provedor, modelo, ent, sai, gratis);
-      tentativas.push({ n: tentativas.length + 1, slot, tipo, api, modelo, chave: pref, ok: false, status: e.status || 0, duracaoMs: e.duracaoMs || 0, ent, sai, reais, erro: String(e.rawMsg || e.message || 'erro').slice(0, 120) });
+      const ent = e.ent || 0, sai = e.sai || 0, reais = iaCustoEstimado(prov, modelo, ent, sai, false);
+      tentativas.push({ n: 1, slot: 'principal', tipo: 'paga', api, modelo, chave: pref, ok: false, status: e.status || 0, duracaoMs: e.duracaoMs || 0, ent, sai, reais, erro: String(e.rawMsg || e.message || 'erro').slice(0, 120) });
       throw e;
     }
   };
-  if (k1) {
-    if (iaEhGemini(k1)) {
-      /* Tentativa 1 (Grátis 1): gemini-3.8-flash na Chave Principal */
-      try {
-        res = await tenta('principal', k1, IA_GEMINI_MODELO);
-      } catch (e1) {
-        ultimoErro = e1;
-        /* Tentativa 2 (Grátis 2): em erro 503 (high demand), 429 ou timeout, pula imediatamente (0ms) para gemini-3.8-flash-lite */
-        if (e1.status === 503 || e1.status === 429 || e1.status === 504 || /high demand|rate limit|resource exhausted|unavailable|overloaded|timeout/i.test(e1.rawMsg || '')) {
-          try {
-            res = await tenta('principal', k1, IA_GEMINI_MODELO_LITE);
-            ultimoErro = null;
-          } catch (e2) {
-            ultimoErro = e2;
-          }
+
+  if (prov === 'google') {
+    try {
+      res = await tenta(IA_GEMINI_MODELO);
+    } catch (e1) {
+      ultimoErro = e1;
+      if (e1.status === 503 || e1.status === 429 || e1.status === 504 || /high demand|rate limit|resource exhausted|unavailable|overloaded|timeout/i.test(e1.rawMsg || '')) {
+        try {
+          res = await tenta(IA_GEMINI_MODELO_LITE);
+          ultimoErro = null;
+        } catch (e2) {
+          ultimoErro = e2;
         }
       }
-    } else {
-      try { res = await tenta('principal', k1, IA_GEMINI_MODELO); } catch (e1) { ultimoErro = e1; }
     }
-  }
-  /* Tentativa 3 (Reserva Paga): se as tentativas principais falharem e houver Chave Reserva, executa imediatamente */
-  if (!res && k2) {
+  } else {
     try {
-      res = await tenta('reserva', k2, IA_GEMINI_MODELO);
-      ultimoErro = null;
+      res = await tenta(prov === 'anthropic' ? IA_MODELO : 'deepseek-chat');
     } catch (e3) {
       ultimoErro = e3;
     }
   }
+
   const u = iaUso(), totEnt = tentativas.reduce((s, x) => s + (x.ent || 0), 0), totSai = tentativas.reduce((s, x) => s + (x.sai || 0), 0), totReais = tentativas.reduce((s, x) => s + (x.reais || 0), 0);
   const okFinal = !!res && !!winInfo;
   if (okFinal) {
-    u.n++; if (winInfo.tipo === 'gratis') u.g = (u.g || 0) + 1;
-    if (winInfo.api === 'Anthropic Claude') { u.ent += winInfo.ent; u.sai += winInfo.sai; }
-    const bk = u.porChave[winInfo.bucket]; bk.n++; bk.ok++; bk.ent += winInfo.ent; bk.sai += winInfo.sai; bk.reais = (bk.reais || 0) + winInfo.reais; bk.ultimaApi = winInfo.api; bk.ultimoModelo = winInfo.modelo;
+    u.n++;
+    if (!u.porChave.principal_paga) u.porChave.principal_paga = { n: 0, ok: 0, erro: 0, ent: 0, sai: 0, reais: 0 };
+    const bk = u.porChave.principal_paga;
+    bk.n++; bk.ok++; bk.ent += winInfo.ent; bk.sai += winInfo.sai; bk.reais = (bk.reais || 0) + winInfo.reais; bk.ultimaApi = winInfo.api; bk.ultimoModelo = winInfo.modelo;
   } else if (tentativas.length) {
-    const ult = tentativas[tentativas.length - 1], bkKey = ult.slot === 'reserva' ? 'reserva' : (ult.tipo === 'gratis' ? 'principal_gratis' : 'principal_paga');
-    const bk = u.porChave[bkKey]; bk.erro++; bk.ultimaApi = ult.api; bk.ultimoModelo = ult.modelo;
+    if (!u.porChave.principal_paga) u.porChave.principal_paga = { n: 0, ok: 0, erro: 0, ent: 0, sai: 0, reais: 0 };
+    const bk = u.porChave.principal_paga;
+    const ult = tentativas[tentativas.length - 1];
+    bk.erro++; bk.ultimaApi = ult.api; bk.ultimoModelo = ult.modelo;
   }
   ls.set('mmr-ia-uso', u);
   const ultT = tentativas[tentativas.length - 1] || {};
@@ -8802,7 +8874,7 @@ async function iaChamar(texto, pdfs = [], imgs = [], voz = null, origem = '') {
     origem: origem || (voz ? 'voz' : 'ia'),
     resumo: String(texto || (imgs.length ? '[imagem]' : pdfs.length ? '[PDF]' : '')).replace(/\s+/g, ' ').trim().slice(0, 90),
     ok: okFinal, duracaoMs: Date.now() - tStart,
-    slotFinal: winInfo?.slot || ultT.slot || '', tipoFinal: winInfo?.tipo || ultT.tipo || '',
+    slotFinal: winInfo?.slot || ultT.slot || 'principal', tipoFinal: winInfo?.tipo || ultT.tipo || 'paga',
     apiFinal: winInfo?.api || ultT.api || '', modeloFinal: winInfo?.modelo || ultT.modelo || '',
     chaveFinal: winInfo?.chave || ultT.chave || '',
     ent: okFinal ? winInfo.ent : totEnt, sai: okFinal ? winInfo.sai : totSai, reais: okFinal ? winInfo.reais : totReais,
@@ -9445,15 +9517,23 @@ function iaBlocoUsoResumo(soVoz = false) {
   </div>`;
 }
 function iaCfgSheet(wrap) {
-  const c = iaChave(), cr = iaChaveReserva();
+  const c = iaChave();
+  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+  const prov = iaDetectProvider(c);
+  const provName = prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek';
+
   return wrap('Lançar com IA', `
-    <div class="cfg-hero"><span class="ml-ic">${ic('bolt')}</span><p>Cole a chave gratuita do Google AI Studio (começa com <b>AQ.</b> ou <b>AIza</b>). Se quiser, adicione uma chave reserva paga do Google ou da Anthropic (<b>sk-ant-</b>) para troca automática quando o limite gratuito oscilar. As chaves ficam só neste aparelho.</p></div>
-    <div class="cfg-h">Chaves</div>
+    <div class="cfg-hero"><span class="ml-ic">${ic('bolt')}</span><p>Insira sua chave de API (Gemini, Claude ou DeepSeek). O app reconhece automaticamente o tipo da chave. ${isMaster ? 'Como você é o Administrador Master, a chave é salva com segurança no banco de dados para toda a equipe utilizar.' : 'A chave é gerenciada pelo Administrador Master.'}</p></div>
+    <div class="cfg-h">Chave de IA</div>
     <div class="card cfg-card">
-      <div class="f"><label for="ia-chave">Chave principal <span class="cfg-tag">Grátis</span>${c ? '<span class="cfg-tag ok">Salva</span>' : ''}</label><input type="password" id="ia-chave" autocomplete="off" placeholder="${c ? 'chave salva (' + esc(c.slice(0, 7)) + '…)' : 'AQ… ou AIza…'}"></div>
-      <div class="f"><label for="ia-chave-res">Chave reserva <span class="cfg-tag">Paga</span>${cr ? '<span class="cfg-tag ok">Salva</span>' : ''}</label><input type="password" id="ia-chave-res" autocomplete="off" placeholder="${cr ? 'chave reserva salva (' + esc(cr.slice(0, 7)) + '…)' : 'Opcional: AIza… / AQ… / sk-ant-…'}"></div>
-      <button class="lt-btn lt-block" data-act="ia-chave-salvar">Salvar chaves</button>
-      ${c || cr ? `<div class="lt-chips">${c ? '<button type="button" class="lt-chip" data-act="ia-chave-remover">Remover principal</button>' : ''}${cr ? '<button type="button" class="lt-chip" data-act="ia-chave-res-remover">Remover reserva</button>' : ''}</div>` : ''}
+      ${isMaster ? `
+        <div class="f"><label for="ia-chave">Chave de API ${c ? `<span class="cfg-tag ok">Salva · ${provName}</span>` : ''}</label><input type="password" id="ia-chave" autocomplete="off" placeholder="${c ? 'chave salva (' + esc(c.slice(0, 7)) + '…)' : 'AIza… / AQ… / sk-ant-… / sk-…'}"></div>
+        <button class="lt-btn lt-block" data-act="ia-chave-salvar">Salvar chave</button>
+        ${c ? `<div class="lt-chips"><button type="button" class="lt-chip" data-act="ia-chave-remover">Remover chave</button></div>` : ''}
+      ` : `
+        <p style="margin:0 0 10px">Status da IA: <b>${c ? 'Configurada (' + provName + ')' : 'Não configurada pelo Master'}</b></p>
+        <small class="muted">Apenas o Administrador Master pode cadastrar ou alterar a chave de IA.</small>
+      `}
     </div>
     <div class="cfg-h">Uso da IA</div>
     ${iaBlocoUsoResumo(false)}
@@ -10370,7 +10450,16 @@ document.addEventListener('click', async e => {
     case 'cat-apagar': catApagar(id); break;
     case 'cat-voltar': closeModal(); ui.sheet = { type: 'cat-cfg' }; render(); break;
     case 'rota-gps': rotaGps(); break;
-    case 'ia-chave-salvar': { const k1 = (document.getElementById('ia-chave')?.value || '').trim(), k2 = (document.getElementById('ia-chave-res')?.value || '').trim(); if (!k1 && !k2) { toast('Cole ao menos uma chave para salvar.'); break; } if (k1) ls.set('mmr-ia-chave', k1); if (k2) ls.set('mmr-ia-chave-reserva', k2); toast('Chave salva neste aparelho.'); render(); break; }
+    case 'ia-chave-salvar': {
+      const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+      if (!isMaster) { toast('Apenas o Administrador Master pode salvar a chave de IA.'); break; }
+      const k = (document.getElementById('ia-chave')?.value || '').trim();
+      if (!k) { toast('Digite a chave de API.'); break; }
+      await safe(() => put('config', 'ai', { id: 'ai', chave: k, ts: Date.now() }), 'Chave de IA salva com sucesso!');
+      ls.set('mmr-ia-key', k);
+      render();
+      break;
+    }
     case 'ia-log-f': ui.iaLogF = v; render(); break;
     case 'ia-log-limpar': ls.set('mmr-ia-log', []); toast('Histórico de chamadas limpo.'); render(); break;
     case 'voz-teste': vozTeste(); break;
@@ -10378,7 +10467,14 @@ document.addEventListener('click', async e => {
     case 'voz-conv-step': vozConvSet(vozContinuaEspera() + Number(v)); break;
     case 'voz-conv-set': { const nv = Math.min(60, Math.max(5, Number(v))); ls.set('mmr-voz-conversa-espera', nv); render(); break; }
     case 'voz-toggle': { const on = !vozLigado(); ls.set('mmr-voz', on); if (on) { VOZ.negado = false; VOZ.estado = 'espera'; if (!iaTemChave()) toast('Coloque a chave da IA em Lançar com IA.'); vozIniciaRec(); } else { vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.msg = ''; } vozPill(); render(); break; }
-    case 'ia-chave-remover': ls.set('mmr-ia-chave', ''); toast('Chave principal removida.'); render(); break;
+    case 'ia-chave-remover': {
+      const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+      if (!isMaster) { toast('Apenas o Administrador Master pode remover a chave de IA.'); break; }
+      await safe(() => del('config', 'ai'), 'Chave de IA removida.');
+      ls.set('mmr-ia-key', '');
+      render();
+      break;
+    }
     case 'ia-chave-res-remover': ls.set('mmr-ia-chave-reserva', ''); toast('Chave reserva removida.'); render(); break;
     case 'per-cfg-pg': ui.perPg = v; ui.sheet = { type: 'per-cfg-pg' }; render(); break;
     case 'per-padrao': { const pg = ui.perPg || 'todas', pv = PERIODOS[v] ? v : '7d'; perPadraoSet(pg, pv); ui.sheet = { type: 'per-cfg' }; render();

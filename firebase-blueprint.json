@@ -249,6 +249,17 @@
       "properties": {
         "ok": { "type": "boolean" }
       }
+    },
+    "Config": {
+      "title": "Config",
+      "description": "Configurações globais do sistema (como chave de IA)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "chave": { "type": "string", "maxLength": 500 },
+        "ts": { "type": "number" }
+      },
+      "required": ["chave"]
     }
   },
   "firestore": {
@@ -303,6 +314,10 @@
     "/usuarios/{userId}": {
       "schema": { "$ref": "#/entities/Usuario" },
       "description": "Contas de acesso dos usuários"
+    },
+    "/config/{configId}": {
+      "schema": { "$ref": "#/entities/Config" },
+      "description": "Configurações de sistema"
     },
     "/test/{testId}": {
       "schema": { "$ref": "#/entities/TestDoc" },

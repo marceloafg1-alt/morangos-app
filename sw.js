@@ -3,6 +3,7 @@ const APP_SHELL = [
   '/',
   '/?v=2',
   '/index.html',
+  '/firebase-applet-config.json',
   '/manifest-v2.webmanifest?v=2',
   '/manifest.webmanifest',
   '/icon-192.png',
