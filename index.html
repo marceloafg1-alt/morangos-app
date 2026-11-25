@@ -2229,6 +2229,22 @@ span.news-cta { padding-right: 13px; }
 .nt-pref .grow { flex: 1; min-width: 0; }
 .nt-pref b { display: block; font-weight: 700; font-size: 15px; }
 .nt-pref small { color: var(--muted); font-size: 12.5px; }
+/* telas de Configurações (Desbloqueio, Usuários, Rotas): mesmas linhas das listas de Notificações e Tela inicial */
+button.nt-pref { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; font: inherit; color: inherit; text-align: left; }
+button.nt-pref:last-child { border-bottom: 0; }
+.nt-pref .nt-v { flex: none; color: var(--muted); font-size: 13.5px; font-weight: 600; }
+.nt-pref .chev { flex: none; width: 18px; height: 18px; color: var(--muted); }
+.nt-pref.off { cursor: default; }
+.nt-pref.off .lt-switch { opacity: .5; }
+.nt-pref .nt-ic.av { border-radius: 50%; background: var(--accent); color: var(--onA, #fff); font-weight: 800; font-size: 17px; overflow: hidden; }
+.nt-pref .nt-ic.av img { width: 100%; height: 100%; object-fit: cover; }
+.nt-pref .pills { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; flex: none; }
+.nt-pref.nt-wrap { flex-wrap: wrap; }
+.nt-pref .team-acts { flex-basis: 100%; padding-left: 52px; display: flex; flex-wrap: wrap; gap: 6px; }
+.nt-pref .inv-code { font-size: 15px; }
+.nt-sec { margin: 20px 0 2px; font-size: 15px; font-weight: 800; }
+.nt-form { display: grid; gap: 10px; margin-top: 8px; }
+.nt-pé { display: block; margin: 8px 0 0; font-size: 12.5px; line-height: 1.4; }
 .cfg-list .ml { grid-template-columns: 40px auto minmax(0, 1fr) 18px; }
 .cfg-list .ml-l { white-space: nowrap; }
 .cfg-list .ml-v { min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4421,48 +4437,19 @@ function lockCfgSheet(wrap) {
   const bioSuportada = !!window.PublicKeyCredential;
   const timeoutLabels = { 0: 'Imediatamente ao sair', 60: 'Após 1 minuto', 300: 'Após 5 minutos', 900: 'Após 15 minutos' };
 
-  return wrap('Desbloqueio do app', `
-    <div class="cfg-hero"><span class="ml-ic">${ic('lock')}</span><p>Proteja a gestão no seu aparelho. Quando ativo, o app pede a digital ou o PIN de 4 dígitos para abrir.</p></div>
-
-    <div class="cfg-h">Proteção</div>
-    <div class="card cfg-card">
-      <div class="cfg-ln">
-        <div class="cfg-tx"><b>Exigir desbloqueio</b><small class="muted">${temPin ? 'Bloquear este aparelho ao fechar ou minimizar' : 'Cadastre primeiro um PIN de 4 dígitos abaixo'}</small></div>
-        <input type="checkbox" class="lt-switch" id="lock-ativo-sw" data-act="lock-toggle-ativo" ${cfg.ativo && temPin ? 'checked' : ''} style="${temPin ? '' : 'opacity:0.5'}">
-      </div>
+  return wrap('Desbloqueio do app', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Proteja a gestão neste aparelho. Quando ativo, o app pede a digital ou o PIN de 4 dígitos para abrir.</p>
+    <div class="nt-prefs">
+      <label class="nt-pref ${temPin ? '' : 'off'}" for="lock-ativo-sw"><span class="nt-ic t-pedido">${ic('lock')}</span><span class="grow"><b>Exigir desbloqueio</b><small>${temPin ? 'Bloquear este aparelho ao fechar ou minimizar' : 'Cadastre primeiro o PIN abaixo'}</small></span><input type="checkbox" class="lt-switch" id="lock-ativo-sw" data-act="lock-toggle-ativo" ${cfg.ativo && temPin ? 'checked' : ''}></label>
+      <button type="button" class="nt-pref" data-act="lock-pin-modal"><span class="nt-ic t-aviso">${ic('key')}</span><span class="grow"><b>Código PIN</b><small>${temPin ? 'Cadastrado · toque para alterar' : '4 dígitos · obrigatório para proteger'}</small></span><span class="nt-v">${temPin ? '••••' : 'Criar'}</span>${ic('right', 'i chev')}</button>
+      <label class="nt-pref ${temPin && bioSuportada ? '' : 'off'}" for="lock-bio-sw"><span class="nt-ic t-rota">${ic('fingerprint')}</span><span class="grow"><b>Digital</b><small>${bioSuportada ? (cfg.bio && temPin ? 'Ativada neste aparelho' : (temPin ? 'Ligue para entrar com a digital' : 'Crie o PIN antes de ativar')) : 'Não suportada por este navegador'}</small></span><input type="checkbox" class="lt-switch" id="lock-bio-sw" data-act="lock-toggle-bio" ${cfg.bio && temPin ? 'checked' : ''} ${bioSuportada ? '' : 'disabled'}></label>
     </div>
-
-    <div class="cfg-h">Métodos de desbloqueio</div>
-    <div class="bs-list">
-      <button type="button" class="bs-row" data-act="lock-pin-modal">
-        <span class="ml-ic">${ic('key')}</span>
-        <span class="grow"><b>Código PIN (4 dígitos)</b><small>${temPin ? 'PIN cadastrado (toque para alterar)' : 'Obrigatório para segurança (toque para criar)'}</small></span>
-        <span class="num">${temPin ? '••••' : 'Criar PIN'}</span>
-        ${ic('right', 'i chev')}
-      </button>
-      <div class="bs-row" style="cursor:default">
-        <span class="ml-ic">${ic('fingerprint')}</span>
-        <span class="grow"><b>Digital</b><small>${bioSuportada ? (cfg.bio && temPin ? 'Ativada neste celular' : (temPin ? 'Toque na chave para ativar' : 'Crie o PIN antes de ativar')) : 'Não suportada pelo navegador'}</small></span>
-        <input type="checkbox" class="lt-switch" id="lock-bio-sw" data-act="lock-toggle-bio" ${cfg.bio && temPin ? 'checked' : ''} ${bioSuportada ? '' : 'disabled'} style="${temPin && bioSuportada ? '' : 'opacity:0.5'}">
-      </div>
-    </div>
-
     ${temPin && cfg.ativo ? `
-      <div class="cfg-h">Tempo para bloquear</div>
-      <div class="bs-list">
-        ${[0, 60, 300, 900].map(s => `
-          <button type="button" class="bs-row" data-act="lock-timeout" data-v="${s}" aria-pressed="${cfg.timeout === s}">
-            <span class="grow">${timeoutLabels[s]}</span>
-            ${cfg.timeout === s ? ic('check') : ''}
-          </button>
-        `).join('')}
+      <div class="nt-sec">Tempo para bloquear</div>
+      <div class="nt-prefs">
+        ${[0, 60, 300, 900].map(s => `<button type="button" class="nt-pref" data-act="lock-timeout" data-v="${s}" aria-pressed="${cfg.timeout === s}"><span class="grow"><b style="font-weight:${cfg.timeout === s ? 800 : 600}">${timeoutLabels[s]}</b></span>${cfg.timeout === s ? ic('check', 'i chev') : ''}</button>`).join('')}
       </div>
-      <button type="button" class="lt-btn lt-block" style="margin-top:14px" data-act="lock-testar">${ic('lock')} Testar tela de bloqueio agora</button>
-    ` : temPin ? `
-      <div class="note" style="margin-top:12px"><b>PIN salvo!</b> Agora ligue a opção <b>Exigir desbloqueio</b> acima (e se quiser, a <b>Digital</b>) para proteger o app.</div>
-    ` : `
-      <div class="note" style="margin-top:12px">Cadastre primeiro um <b>PIN de 4 dígitos</b> para habilitar o bloqueio do app e o uso da Digital.</div>
-    `}
+      <button type="button" class="lt-btn lt-block" style="margin-top:12px" data-act="lock-testar">Testar tela de bloqueio agora</button>
+    ` : `<small class="muted nt-pé">${temPin ? 'PIN salvo. Agora ligue <b>Exigir desbloqueio</b> (e, se quiser, a <b>Digital</b>) para proteger o app.' : 'Comece criando o <b>PIN de 4 dígitos</b>. Depois ligue <b>Exigir desbloqueio</b>.'}</small>`}
   `);
 }
 
@@ -5316,22 +5303,17 @@ function usuariosCfgSheet(wrap) {
     .filter(c => c.ativo !== false)
     .sort((a, b) => (b.criadoEm || 0) - (a.criadoEm || 0));
 
+  const inicial = n => esc(String(n || '?').charAt(0).toUpperCase());
+
   const membroRow = a => {
     const ativo = a.ativo !== false;
     const nextRole = a.role === 'admin' ? 'operador' : 'admin';
     const isSelf = a.id === u?.uid || a.uid === u?.uid;
     const podeEditar = isManager && a.role !== 'master' && !isSelf;
-    return `<div class="team-row">
-      <div class="team-meta">
-        <div style="min-width:0;flex:1">
-          <b>${esc(a.nome || a.email || 'Usuário')}${isSelf ? ' (você)' : ''}</b>
-          <small>${esc(a.email || 'Sem e-mail')}</small>
-        </div>
-        <div class="pills">
-          <span class="pill ${a.role === 'admin' ? 'p-blue' : 'p-gray'}">${roleLabel(a.role || 'operador')}</span>
-          <span class="pill ${ativo ? 'p-ok' : 'p-no'}">${ativo ? 'Ativo' : 'Pausado'}</span>
-        </div>
-      </div>
+    return `<div class="nt-pref nt-wrap" style="cursor:default">
+      <span class="nt-ic">${inicial(a.nome || a.email)}</span>
+      <span class="grow"><b>${esc(a.nome || a.email || 'Usuário')}${isSelf ? ' (você)' : ''}</b><small>${esc(a.email || 'Sem e-mail')}</small></span>
+      <span class="pills"><span class="pill ${a.role === 'admin' ? 'p-blue' : 'p-gray'}">${roleLabel(a.role || 'operador')}</span><span class="pill ${ativo ? 'p-ok' : 'p-no'}">${ativo ? 'Ativo' : 'Pausado'}</span></span>
       ${podeEditar ? `<div class="team-acts">
         <button type="button" class="btn small" data-act="team-role" data-id="${esc(a.id)}" data-v="${nextRole}">${a.role === 'admin' ? 'Tornar Operador' : 'Tornar Admin'}</button>
         <button type="button" class="btn small" data-act="team-toggle" data-id="${esc(a.id)}" data-v="${ativo ? '0' : '1'}">${ativo ? 'Pausar acesso' : 'Reativar'}</button>
@@ -5343,14 +5325,10 @@ function usuariosCfgSheet(wrap) {
   const conviteRow = c => {
     const link = location.origin + '/?convite=' + encodeURIComponent(c.codigo || c.id);
     const waTxt = 'Oi! Segue o seu convite para acessar o Morangos Gestão:\nCódigo: ' + (c.codigo || c.id) + '\nLink direto: ' + link;
-    return `<div class="team-row">
-      <div class="team-meta">
-        <div>
-          <span class="inv-code">${esc(c.codigo || c.id)}</span>
-          <small style="margin-top:4px">${c.email ? 'Exclusivo para: ' + esc(c.email) : 'Convite livre (Google ou E-mail e senha)'}</small>
-        </div>
-        <span class="pill ${c.role === 'admin' ? 'p-blue' : 'p-gray'}">${roleLabel(c.role || 'operador')}</span>
-      </div>
+    return `<div class="nt-pref nt-wrap" style="cursor:default">
+      <span class="nt-ic t-aviso">${ic('send')}</span>
+      <span class="grow"><b class="inv-code">${esc(c.codigo || c.id)}</b><small>${c.email ? 'Exclusivo para: ' + esc(c.email) : 'Convite livre (Google ou E-mail e senha)'}</small></span>
+      <span class="pills"><span class="pill ${c.role === 'admin' ? 'p-blue' : 'p-gray'}">${roleLabel(c.role || 'operador')}</span></span>
       <div class="team-acts">
         <button type="button" class="btn small" data-act="copy-text" data-v="${esc(c.codigo || c.id)}">Copiar código</button>
         <button type="button" class="btn small" data-act="copy-text" data-v="${esc(link)}">Copiar link</button>
@@ -5360,60 +5338,49 @@ function usuariosCfgSheet(wrap) {
     </div>`;
   };
 
-  return wrap('Usuários e Equipe', `
-    <div class="card cfg-card" style="display:flex;align-items:center;gap:12px">
-      <div style="width:46px;height:46px;border-radius:23px;background:var(--accent,#2e7d32);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;overflow:hidden;flex-shrink:0">
-        ${u?.photoURL ? `<img src="${esc(u.photoURL)}" style="width:100%;height:100%;object-fit:cover" alt="">` : esc(String(myName).charAt(0).toUpperCase())}
-      </div>
-      <div style="flex:1;min-width:0">
-        <b style="display:block;font-size:15px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">${esc(myName)}</b>
-        <small class="muted" style="display:block;font-size:12.5px">${esc(u?.email || 'Não conectado')}</small>
-        <span class="pill ${badgeColor}" style="margin-top:4px;display:inline-flex">${myRole === 'master' ? 'Administrador Mestre' : roleLabel(myRole)}</span>
+  return wrap('Usuários e Equipe', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">Quem pode usar a gestão. Todos trabalham juntos no mesmo estoque, vendas, clientes e caixa, em vários aparelhos ao mesmo tempo.</p>
+    <div class="nt-prefs">
+      <div class="nt-pref" style="cursor:default">
+        <span class="nt-ic av">${u?.photoURL ? `<img src="${esc(u.photoURL)}" alt="">` : inicial(myName)}</span>
+        <span class="grow"><b>${esc(myName)}</b><small>${esc(u?.email || 'Entre para sincronizar com a equipe')}</small></span>
+        <span class="pills"><span class="pill ${badgeColor}">${myRole === 'master' ? 'Mestre' : roleLabel(myRole)}</span></span>
       </div>
     </div>
-
-    <div style="display:grid;gap:8px;margin-bottom:16px">
-      ${!isLogado ? `<button class="lt-btn lt-block" data-act="auth-login">Entrar com Google</button>` : `<button class="lt-btn lt-block" data-act="auth-logout" style="background:transparent;color:inherit;border:1.5px solid currentColor;opacity:0.85">Sair da conta</button>`}
-      <button class="lt-btn lt-block" data-act="auth-test" style="background:transparent;color:inherit;border:1.5px solid currentColor;opacity:0.85">Testar conexão com o Firebase</button>
+    <div style="display:grid;gap:10px;margin-top:12px">
+      ${!isLogado ? `<button class="lt-btn lt-block" data-act="auth-login">Entrar com Google</button>` : `<button class="btn block" data-act="auth-logout">Sair da conta</button>`}
+      <button class="btn block" data-act="auth-test">Testar conexão com o Firebase</button>
     </div>
 
-    <div class="cfg-h">Equipe com acesso (${1 + equipeLista.length})</div>
-    <div class="team-list" style="margin-bottom:16px">
-      <div class="team-row">
-        <div class="team-meta">
-          <div style="min-width:0;flex:1">
-            <b>Administrador Mestre</b>
-            <small>${MASTER_EMAIL}</small>
-          </div>
-          <div class="pills"><span class="pill p-ok">Mestre</span><span class="pill p-ok">Ativo</span></div>
-        </div>
+    <div class="nt-sec">Equipe com acesso (${1 + equipeLista.length})</div>
+    <div class="nt-prefs">
+      <div class="nt-pref" style="cursor:default">
+        <span class="nt-ic t-pedido">${ic('user')}</span>
+        <span class="grow"><b>Administrador Mestre</b><small>${MASTER_EMAIL}</small></span>
+        <span class="pills"><span class="pill p-ok">Mestre</span><span class="pill p-ok">Ativo</span></span>
       </div>
       ${equipeLista.map(membroRow).join('')}
     </div>
 
     ${isManager ? `
-      <div class="cfg-h">Adicionar usuário (E-mail e Senha)</div>
-      <form data-form="team-create-user" class="card cfg-card" style="margin-bottom:12px">
-        <div class="f"><label for="tm-nome">Nome completo</label><input type="text" id="tm-nome" name="nome" required placeholder="Ex.: Maria Oliveira"></div>
-        <div class="f"><label for="tm-email">E-mail de acesso</label><input type="email" id="tm-email" name="email" required placeholder="maria@email.com"></div>
-        <div class="f"><label for="tm-senha">Senha inicial (mín. 6 caracteres)</label><input type="password" id="tm-senha" name="senha" required minlength="6" placeholder="••••••••"></div>
-        <div class="f"><label for="tm-role">Perfil</label><select id="tm-role" name="role"><option value="operador">Operador (vendas, estoque, compras e caixa)</option><option value="admin">Administrador (também gerencia equipe)</option></select></div>
+      <div class="nt-sec">Adicionar usuário</div>
+      <small class="muted">Com e-mail e senha. Você continua conectado enquanto o novo usuário é criado.</small>
+      <form data-form="team-create-user" class="nt-form">
+        <div class="f full"><label for="tm-nome">Nome completo</label><input type="text" id="tm-nome" name="nome" required placeholder="Ex.: Maria Oliveira"></div>
+        <div class="f full"><label for="tm-email">E-mail de acesso</label><input type="email" id="tm-email" name="email" required placeholder="maria@email.com"></div>
+        <div class="f full"><label for="tm-senha">Senha inicial (mín. 6 caracteres)</label><input type="password" id="tm-senha" name="senha" required minlength="6" placeholder="••••••••"></div>
+        <div class="f full"><label for="tm-role">Perfil</label><select id="tm-role" name="role"><option value="operador">Operador (vendas, estoque, compras e caixa)</option><option value="admin">Administrador (também gerencia equipe)</option></select></div>
         <button type="submit" class="lt-btn lt-block">Criar usuário na equipe</button>
-        <small class="muted">Você continua conectado normalmente enquanto o novo usuário é criado.</small>
       </form>
 
-      <div class="cfg-h">Gerar convite (Código / Link)</div>
-      <form data-form="team-create-invite" class="card cfg-card">
-        <div class="f"><label for="iv-role">Perfil do convidado</label><select id="iv-role" name="role"><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
-        <div class="f"><label for="iv-email">E-mail específico (opcional)</label><input type="email" id="iv-email" name="email" placeholder="Deixe em branco para qualquer pessoa usar"></div>
-        <small class="muted">Deixe o e-mail em branco para convite livre (Google ou E-mail e senha). Se informar um e-mail, exigirá login Google daquela conta.</small>
+      <div class="nt-sec">Convidar por código ou link</div>
+      <small class="muted">Deixe o e-mail em branco para convite livre (Google ou e-mail e senha). Com e-mail, só aquela conta Google entra.</small>
+      <form data-form="team-create-invite" class="nt-form">
+        <div class="f full"><label for="iv-role">Perfil do convidado</label><select id="iv-role" name="role"><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
+        <div class="f full"><label for="iv-email">E-mail específico (opcional)</label><input type="email" id="iv-email" name="email" placeholder="Deixe em branco para qualquer pessoa usar"></div>
         <button type="submit" class="lt-btn lt-block">Gerar código de convite</button>
       </form>
-      ${convitesAtivos.length ? `<div class="team-list" style="margin-bottom:16px">${convitesAtivos.map(conviteRow).join('')}</div>` : '<p class="muted" style="font-size:13px;margin:0 0 16px">Nenhum convite ativo no momento.</p>'}
-    ` : '<div class="note" style="margin-bottom:14px">Seu perfil é Operador: você pode usar todo o painel de Gestão. Apenas Mestre e Admin gerenciam usuários e convites.</div>'}
-
-    <div class="cfg-h">Multiusuário em Tempo Real</div>
-    <p class="muted" style="margin:0 0 12px;font-size:13px">Todos os usuários autorizados trabalham juntos no mesmo estoque, vendas, clientes e fluxo de caixa, inclusive no mesmo login em vários aparelhos ao mesmo tempo, com sincronização instantânea.</p>
+      ${convitesAtivos.length ? `<div class="nt-sec">Convites ativos (${convitesAtivos.length})</div><div class="nt-prefs">${convitesAtivos.map(conviteRow).join('')}</div>` : '<small class="muted nt-pé">Nenhum convite ativo no momento.</small>'}
+    ` : '<small class="muted nt-pé">Seu perfil é Operador: você usa todo o painel de Gestão. Só Mestre e Administrador gerenciam usuários e convites.</small>'}
   `);
 }
 
@@ -8115,27 +8082,16 @@ function catApagar(id) {
 /* ajustes da rota (ponto de partida, tempo por parada, chave) */
 function rotaCfgSheet(wrap) {
   const c = rotaCfg();
-  return wrap('Rotas', `
-    <div class="cfg-hero"><span class="ml-ic">${ic('pin')}</span><p>Valem para este aparelho. O ponto de partida é de onde você sai com as entregas.</p></div>
-
-    <div class="cfg-h">Ponto de partida</div>
-    <div class="card cfg-card">
-      <div class="f"><label for="rt-part">Endereço</label><input type="text" id="rt-part" value="${esc(c.partida)}" placeholder="Rua, número, cidade ou só o CEP" autocomplete="off" inputmode="text"></div>
-      <button type="button" class="lt-btn2" style="justify-self:start" data-act="rota-gps">${ic('pin')} Usar minha localização agora</button>
-      <small id="rt-gps" class="muted" style="display:block;min-height:1.2em;margin-top:-6px" aria-live="polite"></small>
+  return wrap('Rotas', `<p class="muted" style="margin:0 0 10px;font-size:13.5px">O ponto de partida é de onde você sai com as entregas. Vale para este aparelho.</p>
+    <div class="f full"><label for="rt-part">Ponto de partida</label><input type="text" id="rt-part" value="${esc(c.partida)}" placeholder="Rua, número, cidade ou só o CEP" autocomplete="off" inputmode="text"></div>
+    <small id="rt-gps" class="muted" style="display:block;margin-top:6px;min-height:1.2em" aria-live="polite"></small>
+    <div class="nt-prefs">
+      <button type="button" class="nt-pref" data-act="rota-gps"><span class="nt-ic t-rota">${ic('pin')}</span><span class="grow"><b>Usar minha localização agora</b><small>Preenche o ponto de partida pelo GPS</small></span>${ic('right', 'i chev')}</button>
+      <label class="nt-pref" for="rt-par"><span class="nt-ic t-fiado">${ic('truck')}</span><span class="grow"><b>Tempo por parada</b><small>Minutos em cada entrega, para a previsão do cliente</small></span><input type="number" id="rt-par" min="0" max="60" step="1" value="${Number(c.parada) || 0}" inputmode="numeric" style="width:72px;flex:none;text-align:center"></label>
     </div>
-
-    <div class="cfg-h">Entregas</div>
-    <div class="card cfg-card">
-      <div class="f"><label for="rt-par">Tempo por parada (minutos)</label><input type="number" id="rt-par" min="0" max="60" step="1" value="${Number(c.parada) || 0}" inputmode="numeric"></div>
-    </div>
-
-    <div class="cfg-h">Avançado</div>
-    <div class="card cfg-card">
-      <div class="f"><label for="rt-chave">Chave do OpenRouteService (opcional)</label><input type="text" id="rt-chave" value="${esc(c.chave)}" placeholder="${c.chave ? '' : 'Em branco usa a chave do app'}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
-      <small class="muted">Sem chave própria, o app usa a chave dele. Se um dia parar de calcular, crie uma gratuita em openrouteservice.org e cole aqui.</small>
-    </div>
-
+    <div class="nt-sec">Avançado</div>
+    <div class="f full" style="margin-top:8px"><label for="rt-chave">Chave do OpenRouteService (opcional)</label><input type="text" id="rt-chave" value="${esc(c.chave)}" placeholder="${c.chave ? '' : 'Em branco usa a chave do app'}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+    <small class="muted nt-pé">Sem chave própria, o app usa a dele. Se um dia parar de calcular, crie uma gratuita em openrouteservice.org e cole aqui.</small>
     <button class="lt-btn lt-block" style="margin-top:14px" data-act="rota-cfg-salvar">Salvar</button>`);
 }
 /* voltar para o mapa quando os ajustes foram abertos de dentro dele */
