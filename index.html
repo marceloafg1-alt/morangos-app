@@ -1771,6 +1771,12 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .en-cid > span{margin-left:auto}
 .en-cid{display:flex;flex-wrap:wrap;row-gap:4px;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 6px;min-height:40px;font-size:13px;font-weight:700;color:var(--muted)}
 .en-cid b{color:var(--ink);font-size:14px}
+/* título da cidade dentro do card Entregues: com espaço interno, sem encostar nem sair das bordas */
+.li.mv2 b{white-space:normal;overflow:visible;line-height:1.25}
+.li.mv2 .val{align-self:start}
+.card.list > .en-cid{margin:0;padding:12px 14px 8px;min-height:0;box-sizing:border-box}
+/* web: o título da cidade ocupa a linha toda e os cards ficam alinhados nas colunas abaixo dele */
+html[data-modo="gestao"][data-visao="web"] .stack > .en-cid{grid-column:1/-1}
 .en-cid .link{flex:none;white-space:nowrap;align-self:center;line-height:1.2;margin-block:0}
 .en-cid b,.en-cid > span{line-height:1.2}
 .cx-fbar { display: grid; gap: 8px; }
@@ -3861,15 +3867,15 @@ function cashMoves(periodo) {
     const nome = v.cliente?.nome || 'Cliente avulso';
     const vp = Math.min(Math.max(0, Number(v.valorPago) || 0), Math.max(0, n2((v.total || 0) - abatido(v))));
     if ((v.pago || vp > 0) && (v.status !== 'cancelado' || estornos(v).length)) {
-      if (vp > 0) m.push({ ts: v.parcialTs || v.ts, tipo: 'in', k: 'vendas', desc: 'Venda (parcial) · ' + nome, det: (FORMAS[v.forma] || v.forma || '') + origTxt(v), forma: v.forma, valor: vp, col: 'vendas', id: v.id });
-      if (v.pago) m.push({ ts: v.pagoTs || v.ts, tipo: 'in', k: 'vendas', desc: 'Venda · ' + nome, det: (FORMAS[v.forma] || v.forma || '') + origTxt(v), forma: v.forma, valor: n2((v.total || 0) - abatido(v) - vp), col: 'vendas', id: v.id });
+      if (vp > 0) m.push({ ts: v.parcialTs || v.ts, tipo: 'in', k: 'vendas', desc: 'Venda (parcial) · ' + nome, itens: itemsText(v.itens), det: (FORMAS[v.forma] || v.forma || '') + origTxt(v), forma: v.forma, valor: vp, col: 'vendas', id: v.id });
+      if (v.pago) m.push({ ts: v.pagoTs || v.ts, tipo: 'in', k: 'vendas', desc: 'Venda · ' + nome, itens: itemsText(v.itens), det: (FORMAS[v.forma] || v.forma || '') + origTxt(v), forma: v.forma, valor: n2((v.total || 0) - abatido(v) - vp), col: 'vendas', id: v.id });
     }
     est('vendas', v, nome);
   }
   for (const c of S.compras) {
     const cp = Math.min(Math.max(0, Number(c.valorPago) || 0), Math.max(0, n2((c.total || 0) - abatido(c))));
-    if (cp > 0) m.push({ ts: c.parcialTs || c.ts, tipo: 'out', k: 'compras', desc: 'Compra (parcial) · ' + (c.fornecedor || 'Roça'), det: itemsText(c.itens), forma: c.forma, valor: cp, col: 'compras', id: c.id });
-    if (c.pago) m.push({ ts: c.pagoTs || c.ts, tipo: 'out', k: 'compras', desc: 'Compra · ' + (c.fornecedor || 'Roça'), det: itemsText(c.itens), forma: c.forma, valor: n2((c.total || 0) - abatido(c) - cp), col: 'compras', id: c.id });
+    if (cp > 0) m.push({ ts: c.parcialTs || c.ts, tipo: 'out', k: 'compras', desc: 'Compra (parcial) · ' + (c.fornecedor || 'Roça'), itens: itemsText(c.itens), det: itemsText(c.itens), forma: c.forma, valor: cp, col: 'compras', id: c.id });
+    if (c.pago) m.push({ ts: c.pagoTs || c.ts, tipo: 'out', k: 'compras', desc: 'Compra · ' + (c.fornecedor || 'Roça'), itens: itemsText(c.itens), det: itemsText(c.itens), forma: c.forma, valor: n2((c.total || 0) - abatido(c) - cp), col: 'compras', id: c.id });
     est('compras', c, c.fornecedor || 'Roça');
   }
   for (const d of S.despesas) {
@@ -5727,6 +5733,11 @@ addEventListener('resize', () => abrevNomesFit());
 function moveLi(m) {
   const av = m.k === 'estornos' ? ic('undo') : m.k === 'vendas' ? ic('receipt') : m.k === 'compras' ? ic('cart') : ic('cash');
   const forma = m.forma ? (FORMAS[m.forma] || m.forma) : '';
+  if ((m.k === 'vendas' || m.k === 'compras') && !m.agendada && / · /.test(m.desc)) { /* web e celular: Venda · hora · forma + valor; embaixo: nome · itens */
+    const i = m.desc.indexOf(' · '), rotulo = m.desc.slice(0, i).replace(/ \(parcial\)/, ' parcial'), nome = m.desc.slice(i + 3), fc = m.forma ? (FORMAS_CURTO[m.forma] || FORMAS[m.forma] || m.forma) : '';
+    const hr = new Date(m.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return `<div class="li tc-li mv2" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" tabindex="0"><span class="av ${m.tipo}">${av}</span><span style="min-width:0"><b>${esc([/parcial/.test(rotulo) ? rotulo.replace(' parcial', '') + ' · parcial ' + money(m.valor) : rotulo, WIDE.matches ? hr : '', fc].filter(Boolean).join(' · '))}</b><small>${esc([nome, m.itens].filter(Boolean).join(' · '))}</small></span><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span></div>`;
+  }
   if ((m.k === 'vendas' || m.k === 'compras') && !m.agendada && / · /.test(m.desc)) { /* linha 1: Venda · hora · forma, com o valor ao lado; linha 2: nome (abrevia se não couber) */
     const i = m.desc.indexOf(' · '), rotulo = m.desc.slice(0, i).replace(/ \(parcial\)/, ' parcial'), nome = m.desc.slice(i + 3), fc = m.forma ? (FORMAS_CURTO[m.forma] || FORMAS[m.forma] || m.forma) : '';
     return `<div class="li tc-li li-2l" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" tabindex="0"><span class="av ${m.tipo}">${av}</span><b>${esc(rotulo)}${fc ? `<span class="hf"> · ${esc(fc)}</span>` : ''}</b><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span><span class="nm" data-nome="${esc(nome)}">${esc(nome)}</span></div>`;
