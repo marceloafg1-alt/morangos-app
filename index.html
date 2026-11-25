@@ -1833,6 +1833,10 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .sec-h{align-items:center!important}
 .sec-h h2{line-height:1.2}
 .sec-h .link{align-self:center;line-height:1.2;margin-block:0}
+/* "Mapa e otimizar": sem contorno/pílula, mesmo tamanho e fonte do título "Rota · N paradas" */
+.lt .sec-h .link.rt-lk{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;padding:4px 0!important;font-family:var(--fh);font-size:var(--fs-md)!important;font-weight:700!important;letter-spacing:normal;line-height:1.2;text-transform:none;color:var(--on-page-link)}
+.lt[data-visual="aurora"] .sec-h .link.rt-lk{font-size:12.5px!important;font-weight:800!important;letter-spacing:.07em;text-transform:uppercase}
+.lt[data-visual="bento"] .sec-h .link.rt-lk{font-size:16px!important;letter-spacing:-.02em}
 .en-cid > span{margin-left:auto}
 .en-cid{display:flex;flex-wrap:wrap;row-gap:4px;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 6px;min-height:40px;font-size:13px;font-weight:700;color:var(--muted)}
 .en-cid b{color:var(--ink);font-size:14px}
@@ -1841,6 +1845,13 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cx-fbar { display: grid; gap: 8px; }
 .cx-fbar input[type=search] { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface, var(--card, #fff)); color: var(--fg); font: inherit; font-size: 14px; }
 .cx-fseg { display: flex; gap: 6px; flex-wrap: wrap; }
+.li.li-2l > .val { align-self: flex-start; }
+.li.li-2l { grid-template-columns: 42px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 12px; row-gap: 2px; align-items: center; }
+.li.li-2l > .av { grid-row: 1 / span 2; grid-column: 1; align-self: center; }
+.li.li-2l > b { grid-row: 1; grid-column: 2; font-size: 15px; align-self: end; }
+.li.li-2l > b .hf { font-size: 13px; font-weight: 600; }
+.li.li-2l > .val { grid-row: 1; grid-column: 3; align-self: end; white-space: nowrap; }
+.li.li-2l > .nm { grid-row: 2; grid-column: 2 / 4; display: block; min-width: 0; font-size: 13px; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: start; }
 .cx-fseg.sec-seg { flex-wrap: nowrap; gap: 4px; flex: none; }
 .sec-seg .chip { height: 28px; padding: 0 10px; font-size: 12px; }
 .sec-h + .stack > .en-cid:first-child, .sec-h + .stack > .en-cid { margin: 2px 0 2px; min-height: 28px; }
@@ -5092,6 +5103,7 @@ function render() {
   cabecalhoFixo();
   document.documentElement.dataset.modo = 'gestao'; document.documentElement.dataset.visao = WIDE.matches ? 'web' : 'celular';
   ivUltFit();
+  abrevNomesFit();
 }
 /* cabeçalho fixo: sombra ao rolar e espaço para rolagens automáticas não pararem atrás dele */
 function cabecalhoFixo() {
@@ -5727,7 +5739,7 @@ function gEntregas() {
   const nada = 'Nada encontrado para essa busca.';
   return pageHeaderFixo('Entregas', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="ep" aria-label="Período das entregas: ${ePerLabel()}"><small>Período</small><span><b>${ePerLabel()}</b>${ic('down')}</span></button></div>`) +
   buscaBox('en', 'eq', ui.eq, 'Buscar cliente, endereço ou cidade') +
-  `<div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>${r.length ? '<button class="link" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
+  `<div class="sec-h"><h2>Rota · ${q ? rotaI.length + ' de ' + r.length : r.length} ${r.length === 1 ? 'parada' : 'paradas'}</h2><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="eg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="eg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div>${r.length ? '<button class="link rt-lk" data-act="rota-mapa">Mapa e otimizar</button>' : ''}</div>
   <div class="stack">${agrupa(rotaI, x => x.v, rotaHtml, false, (c, it) => it.length > 1 ? `<button class="link" data-act="rota-tirar" data-cid="${esc(c)}" ${W()}>Tirar todos</button>` : '') || emptyBox(q && r.length ? nada : 'Nenhuma entrega na rota.')}</div>
   <div class="sec-h"><h2>Aguardando rota · ${q ? sepF.length + ' de ' + sep.length : sep.length}</h2></div>
   <div class="stack">${agrupa(sepF, v => v, sepHtml, true, (c, it) => it.filter(x => x.status === 'separado').length > 1 ? `<button class="link" data-act="rota-todos" data-cid="${esc(c)}" ${W()}>Pôr todos</button>` : '') || `<p class="sub" style="margin:0">${q && sep.length ? nada : 'Nada esperando.'}</p>`}</div>
@@ -5779,12 +5791,33 @@ function saldoFimDoDia() {
 }
 const diaLabel = ts => { const d0 = startOfDay(); if (ts >= d0) return 'Hoje'; if (ts >= d0 - 864e5) return 'Ontem'; return new Date(ts).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }); };
 const sinal = v => (v < 0 ? '− ' : v > 0 ? '+ ' : '') + money(Math.abs(v));
+/* nome que não cabe na linha: abrevia do penúltimo nome para trás ("Maria Aparecida Souza Lima" → "Maria Aparecida S. Lima"), sempre com ponto após a inicial */
+const NOME_PART = new Set(['da', 'de', 'do', 'das', 'dos', 'e', 'di', 'du', 'del', 'van', 'von']);
+function abrevNomesFit() {
+  document.querySelectorAll('.nm[data-nome]').forEach(el => {
+    const w = el.dataset.nome.trim().split(/\s+/); el.textContent = w.join(' ');
+    if (w.length < 3) return;
+    for (let i = w.length - 2; i >= 1 && el.scrollWidth > el.clientWidth + 1; i--) {
+      if (NOME_PART.has(w[i].toLowerCase())) continue;
+      w[i] = w[i][0].toUpperCase() + '.'; el.textContent = w.join(' ');
+    }
+  });
+}
+addEventListener('resize', () => abrevNomesFit());
 function moveLi(m) {
   const av = m.k === 'estornos' ? ic('undo') : m.k === 'vendas' ? ic('receipt') : m.k === 'compras' ? ic('cart') : ic('cash');
   const forma = m.forma ? (FORMAS[m.forma] || m.forma) : '';
-  const hora = new Date(m.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const sub = m.k === 'vendas' ? m.det : [m.det, m.k === 'estornos' ? '' : forma].filter(Boolean).join(' · ');
-  return `<div class="li tc-li" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" ${m.eid ? `data-eid="${m.eid}"` : ''} tabindex="0"><span class="av ${m.k === 'estornos' ? 'est' : m.tipo}">${av}</span><span style="min-width:0"><b>${esc(m.desc)}</b><small>${m.agendada ? new Date(m.ts).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : hora} · ${esc(sub)}</small></span><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span></div>`;
+  if ((m.k === 'vendas' || m.k === 'compras') && !m.agendada && / · /.test(m.desc)) { /* linha 1: Venda · hora · forma, com o valor ao lado; linha 2: nome (abrevia se não couber) */
+    const i = m.desc.indexOf(' · '), rotulo = m.desc.slice(0, i).replace(/ \(parcial\)/, ' parcial'), nome = m.desc.slice(i + 3), fc = m.forma ? (FORMAS_CURTO[m.forma] || FORMAS[m.forma] || m.forma) : '';
+    return `<div class="li tc-li li-2l" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" tabindex="0"><span class="av ${m.tipo}">${av}</span><b>${esc(rotulo)}${fc ? `<span class="hf"> · ${esc(fc)}</span>` : ''}</b><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span><span class="nm" data-nome="${esc(nome)}">${esc(nome)}</span></div>`;
+  }
+  const hora = m.agendada ? new Date(m.ts).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : new Date(m.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  /* linha de cima: Venda/Compra · hora · forma de pagamento; linha de baixo: cliente/fornecedor (sem "parcial" e sem itens) */
+  const i = m.desc.indexOf(' · ');
+  const tipo = m.k === 'despesas' ? 'Despesa' : (i > 0 ? m.desc.slice(0, i) : m.desc).replace(/\s*\(parcial\)/i, '');
+  const nome = m.k === 'despesas' ? m.desc : (i > 0 ? m.desc.slice(i + 3) : '');
+  const topo = [tipo, hora, forma].filter(Boolean).join(' · ');
+  return `<div class="li tc-li" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" ${m.eid ? `data-eid="${m.eid}"` : ''} tabindex="0"><span class="av ${m.k === 'estornos' ? 'est' : m.tipo}">${av}</span><span style="min-width:0"><b>${esc(topo)}</b>${nome ? `<small>${esc(nome)}</small>` : ''}</span><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span></div>`;
 }
 function gCaixa() {
   const per = ui.cp === 'custom' ? 'ccustom' : ui.cp;
