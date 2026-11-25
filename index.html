@@ -4422,44 +4422,34 @@ function lockCfgSheet(wrap) {
   const timeoutLabels = { 0: 'Imediatamente ao sair', 60: 'Após 1 minuto', 300: 'Após 5 minutos', 900: 'Após 15 minutos' };
 
   return wrap('Desbloqueio do app', `
-    <p class="muted" style="margin:0 0 14px;font-size:13.5px">
-      Proteja a gestão no seu aparelho. Quando ativo, o app pede a digital ou o PIN de 4 dígitos para abrir.
-    </p>
+    <div class="cfg-hero"><span class="ml-ic">${ic('lock')}</span><p>Proteja a gestão no seu aparelho. Quando ativo, o app pede a digital ou o PIN de 4 dígitos para abrir.</p></div>
 
-    <div class="card" style="padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-      <div>
-        <b>Exigir desbloqueio</b>
-        <small class="muted" style="display:block;font-size:12px">${temPin ? 'Bloquear este aparelho ao fechar ou minimizar' : 'Cadastre primeiro um PIN de 4 dígitos abaixo'}</small>
+    <div class="cfg-h">Proteção</div>
+    <div class="card cfg-card">
+      <div class="cfg-ln">
+        <div class="cfg-tx"><b>Exigir desbloqueio</b><small class="muted">${temPin ? 'Bloquear este aparelho ao fechar ou minimizar' : 'Cadastre primeiro um PIN de 4 dígitos abaixo'}</small></div>
+        <input type="checkbox" class="lt-switch" id="lock-ativo-sw" data-act="lock-toggle-ativo" ${cfg.ativo && temPin ? 'checked' : ''} style="${temPin ? '' : 'opacity:0.5'}">
       </div>
-      <input type="checkbox" class="lt-switch" id="lock-ativo-sw" data-act="lock-toggle-ativo" ${cfg.ativo && temPin ? 'checked' : ''} style="${temPin ? '' : 'opacity:0.5'}">
     </div>
 
-    <div class="sec-h" style="margin:16px 0 8px"><h2>Métodos de desbloqueio</h2></div>
-    <nav class="card menu-list" style="margin-bottom:14px">
-      <button type="button" class="ml" data-act="lock-pin-modal">
+    <div class="cfg-h">Métodos de desbloqueio</div>
+    <div class="bs-list">
+      <button type="button" class="bs-row" data-act="lock-pin-modal">
         <span class="ml-ic">${ic('key')}</span>
-        <div class="grow" style="text-align:left">
-          <b>Código PIN (4 dígitos)</b>
-          <small class="muted" style="display:block;font-size:12px">${temPin ? 'PIN cadastrado (toque para alterar)' : 'Obrigatório para segurança (toque para criar)'}</small>
-        </div>
-        <span class="ml-v num">${temPin ? '••••' : 'Criar PIN'}</span>
+        <span class="grow"><b>Código PIN (4 dígitos)</b><small>${temPin ? 'PIN cadastrado (toque para alterar)' : 'Obrigatório para segurança (toque para criar)'}</small></span>
+        <span class="num">${temPin ? '••••' : 'Criar PIN'}</span>
         ${ic('right', 'i chev')}
       </button>
-
-
-      <div class="ml" style="cursor:default">
+      <div class="bs-row" style="cursor:default">
         <span class="ml-ic">${ic('fingerprint')}</span>
-        <div class="grow" style="text-align:left">
-          <b>Digital</b>
-          <small class="muted" style="display:block;font-size:12px">${bioSuportada ? (cfg.bio && temPin ? 'Ativada neste celular' : (temPin ? 'Toque na chave para ativar' : 'Crie o PIN antes de ativar')) : 'Não suportada pelo navegador'}</small>
-        </div>
+        <span class="grow"><b>Digital</b><small>${bioSuportada ? (cfg.bio && temPin ? 'Ativada neste celular' : (temPin ? 'Toque na chave para ativar' : 'Crie o PIN antes de ativar')) : 'Não suportada pelo navegador'}</small></span>
         <input type="checkbox" class="lt-switch" id="lock-bio-sw" data-act="lock-toggle-bio" ${cfg.bio && temPin ? 'checked' : ''} ${bioSuportada ? '' : 'disabled'} style="${temPin && bioSuportada ? '' : 'opacity:0.5'}">
       </div>
-    </nav>
+    </div>
 
     ${temPin && cfg.ativo ? `
-      <div class="sec-h" style="margin:16px 0 8px"><h2>Tempo para bloquear</h2></div>
-      <div class="bs-list" style="margin-bottom:14px">
+      <div class="cfg-h">Tempo para bloquear</div>
+      <div class="bs-list">
         ${[0, 60, 300, 900].map(s => `
           <button type="button" class="bs-row" data-act="lock-timeout" data-v="${s}" aria-pressed="${cfg.timeout === s}">
             <span class="grow">${timeoutLabels[s]}</span>
@@ -4467,18 +4457,11 @@ function lockCfgSheet(wrap) {
           </button>
         `).join('')}
       </div>
-
-      <div style="margin-top:14px">
-        <button type="button" class="btn block outline" data-act="lock-testar">${ic('lock')} Testar tela de bloqueio agora</button>
-      </div>
+      <button type="button" class="lt-btn lt-block" style="margin-top:14px" data-act="lock-testar">${ic('lock')} Testar tela de bloqueio agora</button>
     ` : temPin ? `
-      <div class="note" style="margin-top:8px">
-        <b>PIN salvo!</b> Agora ligue a opção <b>Exigir desbloqueio</b> acima (e se quiser, a <b>Digital</b>) para proteger o app.
-      </div>
+      <div class="note" style="margin-top:12px"><b>PIN salvo!</b> Agora ligue a opção <b>Exigir desbloqueio</b> acima (e se quiser, a <b>Digital</b>) para proteger o app.</div>
     ` : `
-      <div class="note" style="margin-top:8px">
-        Cadastre primeiro um <b>PIN de 4 dígitos</b> para habilitar o bloqueio do app e o uso da Digital.
-      </div>
+      <div class="note" style="margin-top:12px">Cadastre primeiro um <b>PIN de 4 dígitos</b> para habilitar o bloqueio do app e o uso da Digital.</div>
     `}
   `);
 }
@@ -5378,7 +5361,7 @@ function usuariosCfgSheet(wrap) {
   };
 
   return wrap('Usuários e Equipe', `
-    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface-2,rgba(0,0,0,0.03));border-radius:14px;margin-bottom:14px">
+    <div class="card cfg-card" style="display:flex;align-items:center;gap:12px">
       <div style="width:46px;height:46px;border-radius:23px;background:var(--accent,#2e7d32);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;overflow:hidden;flex-shrink:0">
         ${u?.photoURL ? `<img src="${esc(u.photoURL)}" style="width:100%;height:100%;object-fit:cover" alt="">` : esc(String(myName).charAt(0).toUpperCase())}
       </div>
@@ -5394,7 +5377,7 @@ function usuariosCfgSheet(wrap) {
       <button class="lt-btn lt-block" data-act="auth-test" style="background:transparent;color:inherit;border:1.5px solid currentColor;opacity:0.85">Testar conexão com o Firebase</button>
     </div>
 
-    <div class="sec-h" style="margin:14px 0 8px"><h2>Equipe com acesso (${1 + equipeLista.length})</h2></div>
+    <div class="cfg-h">Equipe com acesso (${1 + equipeLista.length})</div>
     <div class="team-list" style="margin-bottom:16px">
       <div class="team-row">
         <div class="team-meta">
@@ -5409,27 +5392,27 @@ function usuariosCfgSheet(wrap) {
     </div>
 
     ${isManager ? `
-      <div class="sec-h" style="margin:14px 0 8px"><h2>Adicionar usuário (E-mail e Senha)</h2></div>
-      <form data-form="team-create-user" class="card" style="padding:14px;display:grid;gap:10px;margin-bottom:16px">
+      <div class="cfg-h">Adicionar usuário (E-mail e Senha)</div>
+      <form data-form="team-create-user" class="card cfg-card" style="margin-bottom:12px">
         <div class="f"><label for="tm-nome">Nome completo</label><input type="text" id="tm-nome" name="nome" required placeholder="Ex.: Maria Oliveira"></div>
         <div class="f"><label for="tm-email">E-mail de acesso</label><input type="email" id="tm-email" name="email" required placeholder="maria@email.com"></div>
         <div class="f"><label for="tm-senha">Senha inicial (mín. 6 caracteres)</label><input type="password" id="tm-senha" name="senha" required minlength="6" placeholder="••••••••"></div>
         <div class="f"><label for="tm-role">Perfil</label><select id="tm-role" name="role"><option value="operador">Operador (vendas, estoque, compras e caixa)</option><option value="admin">Administrador (também gerencia equipe)</option></select></div>
-        <button type="submit" class="btn primary block">Criar usuário na equipe</button>
+        <button type="submit" class="lt-btn lt-block">Criar usuário na equipe</button>
         <small class="muted">Você continua conectado normalmente enquanto o novo usuário é criado.</small>
       </form>
 
-      <div class="sec-h" style="margin:14px 0 8px"><h2>Gerar convite (Código / Link)</h2></div>
-      <form data-form="team-create-invite" class="card" style="padding:14px;display:grid;gap:10px;margin-bottom:12px">
+      <div class="cfg-h">Gerar convite (Código / Link)</div>
+      <form data-form="team-create-invite" class="card cfg-card">
         <div class="f"><label for="iv-role">Perfil do convidado</label><select id="iv-role" name="role"><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
         <div class="f"><label for="iv-email">E-mail específico (opcional)</label><input type="email" id="iv-email" name="email" placeholder="Deixe em branco para qualquer pessoa usar"></div>
         <small class="muted">Deixe o e-mail em branco para convite livre (Google ou E-mail e senha). Se informar um e-mail, exigirá login Google daquela conta.</small>
-        <button type="submit" class="btn block">Gerar código de convite</button>
+        <button type="submit" class="lt-btn lt-block">Gerar código de convite</button>
       </form>
       ${convitesAtivos.length ? `<div class="team-list" style="margin-bottom:16px">${convitesAtivos.map(conviteRow).join('')}</div>` : '<p class="muted" style="font-size:13px;margin:0 0 16px">Nenhum convite ativo no momento.</p>'}
     ` : '<div class="note" style="margin-bottom:14px">Seu perfil é Operador: você pode usar todo o painel de Gestão. Apenas Mestre e Admin gerenciam usuários e convites.</div>'}
 
-    <div class="sec-h" style="margin:14px 0 6px"><h2>Multiusuário em Tempo Real</h2></div>
+    <div class="cfg-h">Multiusuário em Tempo Real</div>
     <p class="muted" style="margin:0 0 12px;font-size:13px">Todos os usuários autorizados trabalham juntos no mesmo estoque, vendas, clientes e fluxo de caixa, inclusive no mesmo login em vários aparelhos ao mesmo tempo, com sincronização instantânea.</p>
   `);
 }
@@ -8098,14 +8081,28 @@ function catApagar(id) {
 /* ajustes da rota (ponto de partida, tempo por parada, chave) */
 function rotaCfgSheet(wrap) {
   const c = rotaCfg();
-  return wrap('Rotas', `<p class="muted" style="margin:0 0 10px;font-size:14px">Valem para este aparelho. O ponto de partida é de onde você sai com as entregas.</p>
-    <div class="f full"><label for="rt-part">Ponto de partida (endereço)</label><input type="text" id="rt-part" value="${esc(c.partida)}" placeholder="Rua, número, cidade ou só o CEP" autocomplete="off" inputmode="text"></div>
-    <button class="lt-btn lt-block" style="margin-top:8px;background:transparent;color:inherit;box-shadow:none;border:1.5px solid currentColor;opacity:.85" data-act="rota-gps">Usar minha localização agora</button>
-    <small id="rt-gps" class="muted" style="display:block;margin-top:6px;min-height:1.2em" aria-live="polite"></small>
-    <div class="f full" style="margin-top:12px"><label for="rt-par">Tempo por parada (minutos)</label><input type="number" id="rt-par" min="0" max="60" step="1" value="${Number(c.parada) || 0}" inputmode="numeric"></div>
-    <div class="f full" style="margin-top:12px"><label for="rt-chave">Chave do OpenRouteService (opcional)</label><input type="text" id="rt-chave" value="${esc(c.chave)}" placeholder="${c.chave ? '' : 'Em branco usa a chave do app'}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
-    <small class="muted" style="display:block;margin-top:6px">Sem chave própria, o app usa a chave dele. Se um dia parar de calcular, crie uma gratuita em openrouteservice.org e cole aqui.</small>
-    <div style="display:grid;gap:10px;margin-top:14px"><button class="lt-btn lt-block" data-act="rota-cfg-salvar">Salvar</button></div>`);
+  return wrap('Rotas', `
+    <div class="cfg-hero"><span class="ml-ic">${ic('pin')}</span><p>Valem para este aparelho. O ponto de partida é de onde você sai com as entregas.</p></div>
+
+    <div class="cfg-h">Ponto de partida</div>
+    <div class="card cfg-card">
+      <div class="f"><label for="rt-part">Endereço</label><input type="text" id="rt-part" value="${esc(c.partida)}" placeholder="Rua, número, cidade ou só o CEP" autocomplete="off" inputmode="text"></div>
+      <button type="button" class="lt-btn2" style="justify-self:start" data-act="rota-gps">${ic('pin')} Usar minha localização agora</button>
+      <small id="rt-gps" class="muted" style="display:block;min-height:1.2em;margin-top:-6px" aria-live="polite"></small>
+    </div>
+
+    <div class="cfg-h">Entregas</div>
+    <div class="card cfg-card">
+      <div class="f"><label for="rt-par">Tempo por parada (minutos)</label><input type="number" id="rt-par" min="0" max="60" step="1" value="${Number(c.parada) || 0}" inputmode="numeric"></div>
+    </div>
+
+    <div class="cfg-h">Avançado</div>
+    <div class="card cfg-card">
+      <div class="f"><label for="rt-chave">Chave do OpenRouteService (opcional)</label><input type="text" id="rt-chave" value="${esc(c.chave)}" placeholder="${c.chave ? '' : 'Em branco usa a chave do app'}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <small class="muted">Sem chave própria, o app usa a chave dele. Se um dia parar de calcular, crie uma gratuita em openrouteservice.org e cole aqui.</small>
+    </div>
+
+    <button class="lt-btn lt-block" style="margin-top:14px" data-act="rota-cfg-salvar">Salvar</button>`);
 }
 /* voltar para o mapa quando os ajustes foram abertos de dentro dele */
 function rtVolta() { if (RT.volta) { RT.volta = false; setTimeout(rotaMapaAbrir, 60); } }
