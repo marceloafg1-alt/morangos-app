@@ -7427,6 +7427,38 @@ async function vincularVendas(cid, c) {
   await Promise.all(ps.map(v => patch('vendas', v.id, { clienteId: cid })));
   return ps.length;
 }
+// CEP automático: se o endereço mudou (ou não tem CEP), busca o CEP pela rua e cidade/UF
+const nzCep = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+async function cepPelaRua(rua, bairro, cidade) {
+  const partes = String(cidade || '').split(/[\/,\-]/).map(s => s.trim()).filter(Boolean);
+  const uf = partes.length > 1 && partes[partes.length - 1].length === 2 ? partes.pop() : '';
+  const cid = partes.join(' ').trim();
+  const r0 = String(rua || '').trim();
+  if (!uf || !cid || r0.length < 3) return '';
+  let lista;
+  try { const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 8000); try { const r = await fetch(`https://viacep.com.br/ws/${uf}/${encodeURIComponent(cid)}/${encodeURIComponent(r0)}/json/`, { signal: ac.signal }); lista = r.ok ? await r.json() : []; } finally { clearTimeout(t); } }
+  catch (e) { return ''; }
+  if (!Array.isArray(lista) || !lista.length) return '';
+  let pool = lista.filter(x => nzCep(x.logradouro) === nzCep(r0));
+  if (!pool.length) pool = lista;
+  if (bairro) { const b = pool.filter(x => nzCep(x.bairro) === nzCep(bairro)); if (b.length) pool = b; }
+  const ceps = [...new Set(pool.map(x => String(x.cep || '').replace(/\D/g, '')).filter(Boolean))];
+  return ceps.length === 1 ? ceps[0] : '';
+}
+async function cepAuto(body, antes) {
+  const ruaMudou = (body.endereco || '') !== (antes.endereco || '') || (body.cidade || '') !== (antes.cidade || '');
+  if (!body.endereco) return;
+  if (body.cep && !(ruaMudou && body.cep === (antes.cep || ''))) return;
+  body.cep = await cepPelaRua(body.endereco, body.bairro, body.cidade);
+}
+// Vendas e entregas em aberto (a receber ou a entregar) recebem os dados novos do cliente
+async function atualizaAbertosCliente(cid, antes, c) {
+  if (!antes || !antes.id) return 0;
+  const ps = cliVendas(antes).filter(v => !v.pago || v.status !== 'entregue');
+  const cliente = { nome: c.nome, telefone: c.telefone || '', email: c.email || '', cep: c.cep || '', endereco: cliEndereco(c), numero: c.numero || '', complemento: c.complemento || '', bairro: c.bairro || '', cidade: c.cidade || '', referencia: c.referencia || '' };
+  await Promise.all(ps.map(v => patch('vendas', v.id, { clienteId: cid, cliente: { ...(v.cliente || {}), ...cliente } })));
+  return ps.length;
+}
 const cadTog = k => `<div class="lt-chips cad-tog" role="group" aria-label="Tipo de cadastro" style="margin-bottom:12px"><button type="button" class="lt-chip ${k === 'c' ? 'on' : ''}" data-act="cad-tipo" data-v="c" aria-pressed="${k === 'c'}">Lançar cliente</button><button type="button" class="lt-chip ${k === 'f' ? 'on' : ''}" data-act="cad-tipo" data-v="f" aria-pressed="${k === 'f'}">Lançar fornecedor</button></div>`;
 function modalCliente(id, novo) {
   const c = id ? S.clientes.find(x => x.id === id) : { nome: (novo && novo.nome) || '', telefone: (novo && novo.telefone) || '', email: '', cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', referencia: '', tipo: 'pessoa', obs: '' };
@@ -7448,7 +7480,8 @@ function modalCliente(id, novo) {
   async f => { const fd = new FormData(f); const nome = String(fd.get('nome') || '').trim(); if (!nome) { toast('Escreva o nome do cliente.'); return false; }
     const g = k => String(fd.get(k) || '').trim();
     const body = { nome, tipo: fd.get('tipo') || 'pessoa', telefone: g('telefone'), cep: g('cep').replace(/\D/g, ''), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs'), email: g('email').toLowerCase(), complemento: g('complemento') };
-    if (id) return safe(async () => { await patch('clientes', id, body); await vincularVendas(id, body); }, 'Cliente salvo.');
+    await cepAuto(body, c);
+    if (id) return safe(async () => { const antes = { ...S.clientes.find(x => x.id === id) }; await patch('clientes', id, body); await vincularVendas(id, body); await atualizaAbertosCliente(id, antes, { ...body, id }); }, 'Cliente salvo.');
     if (S.clientes.some(x => (x.nome || '').trim().toLowerCase() === nome.toLowerCase())) { toast('Já existe um cliente com esse nome.'); return false; }
     const nid = uid(); return safe(async () => { await put('clientes', nid, { ...body, ts: Date.now() }); await vincularVendas(nid, body); }, 'Cliente cadastrado.'); },
   wireCep);
@@ -7504,6 +7537,7 @@ function modalFornecedor(id, novo) {
   async f => { const fd = new FormData(f); const nome = String(fd.get('nome') || '').trim(); if (!nome) { toast('Escreva o nome do fornecedor.'); return false; }
     const g = k => String(fd.get(k) || '').trim();
     const body = { nome, tipo: fd.get('tipo') || 'produtor', telefone: g('telefone'), produtos: g('produtos'), pix: g('pix'), banco: g('banco'), agencia: g('agencia'), conta: g('conta'), tipoConta: fd.get('tipoConta') || 'corrente', titular: g('titular'), docTitular: g('docTitular'), cep: g('cep').replace(/\D/g, ''), endereco: g('endereco'), numero: g('numero'), bairro: g('bairro'), cidade: g('cidade'), referencia: g('referencia'), obs: g('obs') };
+    await cepAuto(body, c);
     if (id) return safe(() => patch('fornecedores', id, body), 'Fornecedor salvo.');
     if (S.fornecedores.some(x => norm(x.nome) === norm(nome))) { toast('Já existe um fornecedor com esse nome.'); return false; }
     return safe(() => put('fornecedores', uid(), { ...body, ts: Date.now() }), 'Fornecedor cadastrado.'); },
