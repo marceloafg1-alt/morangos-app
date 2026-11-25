@@ -3263,8 +3263,8 @@ async function testConnection(writeCheck = false) {
   }
 }
 
-const COLS = ['produtos', 'vendas', 'compras', 'despesas', 'noticias', 'clientes', 'mensagens', 'fornecedores', 'notificacoes', 'categorias', 'admins', 'convites', 'config'];
-const S = { produtos: [], vendas: [], compras: [], despesas: [], noticias: [], clientes: [], mensagens: [], fornecedores: [], notificacoes: [], categorias: [], admins: [], convites: [], config: [] };
+const COLS = ['produtos', 'vendas', 'compras', 'despesas', 'noticias', 'clientes', 'mensagens', 'fornecedores', 'notificacoes', 'categorias', 'admins', 'convites'];
+const S = { produtos: [], vendas: [], compras: [], despesas: [], noticias: [], clientes: [], mensagens: [], fornecedores: [], notificacoes: [], categorias: [], admins: [], convites: [] };
 const loaded = {};
 let backend = 'pending'; // 'db' | 'local'
 let db = null;
@@ -3575,6 +3575,7 @@ async function evaluateUserAccess(user) {
     window.__authReady = true;
     syncUsuarioDoc(user, 'master');
     window.__setupGestaoListeners();
+    iaCarregaStatusServidor();
     renderStatus();
     scheduleRender();
     return;
@@ -3588,6 +3589,10 @@ async function evaluateUserAccess(user) {
     window.__authErr = '';
     window.__authReady = true;
     window.__setupGestaoListeners();
+    if (cached.role !== 'master') {
+      try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
+    }
+    iaCarregaStatusServidor();
     renderStatus();
     scheduleRender();
     return;
@@ -3625,6 +3630,10 @@ async function evaluateUserAccess(user) {
         window.__authReady = true;
         syncUsuarioDoc(user, adm.role);
         window.__setupGestaoListeners();
+        if (adm.role !== 'master') {
+          try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
+        }
+        iaCarregaStatusServidor();
       } else {
         if (!adminSnap.metadata?.fromCache) clearCachedAuth();
         stopListeners();
@@ -3641,6 +3650,10 @@ async function evaluateUserAccess(user) {
       window.__authErr = '';
       window.__authReady = true;
       window.__setupGestaoListeners();
+      if (cached.role !== 'master') {
+        try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
+      }
+      iaCarregaStatusServidor();
     } else {
       if (!adminSnap.metadata?.fromCache) clearCachedAuth();
       stopListeners();
@@ -3662,6 +3675,10 @@ async function evaluateUserAccess(user) {
       window.__authErr = '';
       window.__authReady = true;
       window.__setupGestaoListeners();
+      if (cached.role !== 'master') {
+        try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
+      }
+      iaCarregaStatusServidor();
     } else {
       stopListeners();
       window.__isAdmin = false;
@@ -3689,8 +3706,8 @@ async function boot() {
     }
   } catch (_) {}
 
-  // Limpeza de rastros de exemplos antigos
-  ['mmr-demo-v1', 'mmr-ex-auto-20', 'mmr-ex-manual', 'mmr-teste-criado', 'mmr-mode', 'mmr-meus-pedidos'].forEach(k => {
+  // Limpeza de rastros de exemplos antigos e chaves locais
+  ['mmr-demo-v1', 'mmr-ex-auto-20', 'mmr-ex-manual', 'mmr-teste-criado', 'mmr-mode', 'mmr-meus-pedidos', 'mmr-ia-key'].forEach(k => {
     try { localStorage.removeItem(k); } catch (_) {}
   });
 
@@ -8440,17 +8457,61 @@ const IA_MAX_TXT = 30000, IA_MAX_ARQ = 25 * 1024 * 1024;
 /* preços do Haiku 5.5 em US$ por milhão de tokens (até 100 mil tokens por envio) e câmbio aproximado: ajuste aqui se mudar */
 const IA_USD_ENT = 0.10, IA_USD_SAI = 0.50, IA_USD_BRL = 5.5;
 const iaReais = u => ((u?.ent || 0) * IA_USD_ENT + (u?.sai || 0) * IA_USD_SAI) / 1e6 * IA_USD_BRL;
-const iaChave = () => {
-  const rec = (S.config || []).find(x => x.id === 'ai');
-  if (rec && rec.chave) return String(rec.chave).trim();
-  return String(ls.get('mmr-ia-key', '') || '').trim();
-};
-const iaTemChave = () => !!iaChave();
+let cachedIa = null;
+try { cachedIa = JSON.parse(localStorage.getItem('mmr-server-ia-cache') || 'null'); } catch (_) {}
+window.__serverIa = cachedIa || { configured: false, provider: null, providerName: null, isMaster: false };
+
+async function iaGetAuthToken() {
+  try {
+    const fb = window.__fb;
+    if (fb && fb.auth && fb.auth.currentUser) {
+      return await fb.auth.currentUser.getIdToken();
+    }
+  } catch (e) {
+    console.warn('iaGetAuthToken error:', e);
+  }
+  return '';
+}
+
+async function iaCarregaStatusServidor() {
+  try {
+    const token = await iaGetAuthToken();
+    if (!token) return;
+    const r = await fetch('/api/ia/status', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (r.ok) {
+      const data = await r.json();
+      window.__serverIa = {
+        configured: !!data.configured,
+        provider: data.provider || null,
+        providerName: data.providerName || null,
+        isMaster: !!data.isMaster
+      };
+      try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
+      scheduleRender();
+    }
+  } catch (err) {
+    console.warn('iaCarregaStatusServidor error:', err);
+  }
+}
+
+const iaChave = () => '';
+const iaTemChave = () => !!window.__serverIa?.configured;
 const iaDetectProvider = key => {
   const k = String(key || '').trim();
-  if (/^(AIza|AQ\.)/.test(k)) return 'google';
-  if (/^sk-ant-/.test(k)) return 'anthropic';
-  return 'deepseek';
+  if (k) {
+    if (/^(AIza|AQ\.)/.test(k)) return 'google';
+    if (/^sk-ant-/.test(k)) return 'anthropic';
+    return 'deepseek';
+  }
+  return window.__serverIa?.provider || 'anthropic';
+};
+const iaProviderNome = prov => {
+  if (prov === 'google') return 'Google Gemini';
+  if (prov === 'anthropic') return 'Anthropic Claude';
+  if (prov === 'deepseek') return 'DeepSeek';
+  return 'Não configurada';
 };
 const iaMascara = c => { const s = String(c || '').trim(); return s ? s.slice(0, 6) + '…' : ''; };
 const iaUsoVazio = m => ({ mes: m, ent: 0, sai: 0, n: 0, g: 0, porChave: { principal_gratis: { n: 0, ok: 0, erro: 0, ent: 0, sai: 0, reais: 0 }, principal_paga: { n: 0, ok: 0, erro: 0, ent: 0, sai: 0, reais: 0 }, reserva: { n: 0, ok: 0, erro: 0, ent: 0, sai: 0, reais: 0 } } });
@@ -8807,56 +8868,64 @@ async function iaChamarDeepSeek(chave, texto, pdfs, imgs, voz) {
 }
 
 async function iaChamar(texto, pdfs = [], imgs = [], voz = null, origem = '') {
-  const chave = iaChave();
-  if (!chave) throw new Error('Falta a chave da IA. O Administrador Master deve configurar a chave em Configurações > Lançar com IA.');
-  const prov = iaDetectProvider(chave);
+  if (!iaTemChave()) throw new Error('Falta a chave da IA. O Administrador Master deve configurar a chave em Configurações > Lançar com IA.');
   const tsIni = Date.now(), tStart = Date.now(), tentativas = [];
   let res = null, ultimoErro = null, winInfo = null;
 
-  const tenta = async (modeloGemini) => {
-    const api = prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek';
-    const modelo = prov === 'google' ? modeloGemini : (prov === 'anthropic' ? IA_MODELO : 'deepseek-chat');
-    const pref = iaMascara(chave);
-    try {
-      let r;
-      if (prov === 'google') {
-        r = await iaChamarGemini(chave, texto, pdfs, imgs, voz, modeloGemini);
-      } else if (prov === 'anthropic') {
-        r = await iaChamarAnthropic(chave, texto, pdfs, imgs, voz);
-      } else {
-        r = await iaChamarDeepSeek(chave, texto, pdfs, imgs, voz);
-      }
-      const reais = iaCustoEstimado(prov, modelo, r.ent, r.sai, false);
-      tentativas.push({ n: 1, slot: 'principal', tipo: 'paga', api, modelo, chave: pref, ok: true, status: 200, duracaoMs: r.duracaoMs, ent: r.ent, sai: r.sai, reais, erro: '' });
-      winInfo = { slot: 'principal', tipo: 'paga', api, modelo, chave: pref, ent: r.ent, sai: r.sai, reais, bucket: 'principal_paga' };
-      return r;
-    } catch (e) {
-      const ent = e.ent || 0, sai = e.sai || 0, reais = iaCustoEstimado(prov, modelo, ent, sai, false);
-      tentativas.push({ n: 1, slot: 'principal', tipo: 'paga', api, modelo, chave: pref, ok: false, status: e.status || 0, duracaoMs: e.duracaoMs || 0, ent, sai, reais, erro: String(e.rawMsg || e.message || 'erro').slice(0, 120) });
-      throw e;
-    }
-  };
+  const ferr = (voz && voz.ferramenta) ? voz.ferramenta : iaFerramenta;
+  const sistema = (voz && voz.sistema) ? voz.sistema : iaSistema();
+  const token = await iaGetAuthToken();
 
-  if (prov === 'google') {
+  if (token) {
     try {
-      res = await tenta(IA_GEMINI_MODELO);
-    } catch (e1) {
-      ultimoErro = e1;
-      if (e1.status === 503 || e1.status === 429 || e1.status === 504 || /high demand|rate limit|resource exhausted|unavailable|overloaded|timeout/i.test(e1.rawMsg || '')) {
-        try {
-          res = await tenta(IA_GEMINI_MODELO_LITE);
-          ultimoErro = null;
-        } catch (e2) {
-          ultimoErro = e2;
-        }
+      const resp = await fetch('/api/ia/call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          texto,
+          pdfs,
+          imgs,
+          voz: voz ? { hist: voz.hist || [], sistema } : null,
+          ferr,
+          sistema,
+          origem
+        })
+      });
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok) {
+        const errMsg = data.error || data.rawMsg || 'Erro ao chamar a IA no servidor.';
+        const err = new Error(errMsg);
+        err.status = resp.status;
+        err.rawMsg = data.rawMsg || errMsg;
+        err.duracaoMs = data.duracaoMs || (Date.now() - tStart);
+        err.ent = data.ent || 0;
+        err.sai = data.sai || 0;
+        throw err;
       }
+
+      const duracaoMs = data.duracaoMs || (Date.now() - tStart);
+      const prov = data.provider || window.__serverIa?.provider || 'anthropic';
+      const modelo = data.modelo || '';
+      const api = data.api || (prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek');
+      const reais = iaCustoEstimado(prov, modelo, data.ent || 0, data.sai || 0, false);
+
+      tentativas.push({ n: 1, slot: 'master', tipo: 'paga', api, modelo, chave: 'servidor', ok: true, status: 200, duracaoMs, ent: data.ent || 0, sai: data.sai || 0, reais, erro: '' });
+      winInfo = { slot: 'master', tipo: 'paga', api, modelo, chave: 'servidor', ent: data.ent || 0, sai: data.sai || 0, reais, bucket: 'principal_paga' };
+      res = { args: data.args, ent: data.ent, sai: data.sai, duracaoMs };
+    } catch (e) {
+      ultimoErro = e;
+      const ent = e.ent || 0, sai = e.sai || 0;
+      const prov = window.__serverIa?.provider || 'anthropic';
+      const modelo = prov === 'google' ? IA_GEMINI_MODELO : prov === 'anthropic' ? IA_MODELO : 'deepseek-chat';
+      const reais = iaCustoEstimado(prov, modelo, ent, sai, false);
+      tentativas.push({ n: 1, slot: 'master', tipo: 'paga', api: window.__serverIa?.providerName || 'IA Servidor', modelo, chave: 'servidor', ok: false, status: e.status || 0, duracaoMs: e.duracaoMs || (Date.now() - tStart), ent, sai, reais, erro: String(e.rawMsg || e.message || 'erro').slice(0, 120) });
     }
   } else {
-    try {
-      res = await tenta(prov === 'anthropic' ? IA_MODELO : 'deepseek-chat');
-    } catch (e3) {
-      ultimoErro = e3;
-    }
+    throw new Error('Conecte-se à internet para usar a IA.');
   }
 
   const u = iaUso(), totEnt = tentativas.reduce((s, x) => s + (x.ent || 0), 0), totSai = tentativas.reduce((s, x) => s + (x.sai || 0), 0), totReais = tentativas.reduce((s, x) => s + (x.reais || 0), 0);
@@ -9386,7 +9455,8 @@ function iaCard(o, i) {
 }
 function modalIA(iniArq = [], autoLer = false, ctx = '') {
   const temChave = iaTemChave(), chave = iaChave(); let lista = [], arquivos = [...iniArq];
-  const sem = !temChave ? `<div class="note" style="margin-bottom:10px">Falta a chave da IA. <button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button></div>` : '';
+  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+  const sem = !temChave ? `<div class="note" style="margin-bottom:10px">Falta a chave da IA. ${isMaster ? '<button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button>' : 'O Administrador Master precisa configurar a chave no servidor.'}</div>` : '';
   openModal('Lançar com IA', `${sem}<div class="fgrid">
     <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" placeholder="Ex.: Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80." style="width:100%"></textarea>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" id="ia-mic" translate="no" style="display:inline-flex;align-items:center;gap:6px">${ic('mic')}<span>Ditar</span></button></div>
@@ -9394,7 +9464,7 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
     <div class="f full"><input type="file" id="ia-arq" accept="image/*,.pdf,.csv,.xlsx,.xls,.ods,.txt,.tsv,application/pdf" multiple hidden><input type="file" id="ia-foto" accept="image/*" capture="environment" hidden>
       <div id="ia-arqs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div></div>
     <div class="f full"><button type="button" class="btn primary ia-ler" id="ia-ler" ${temChave ? '' : 'disabled'}>Ler com a IA</button></div>
-    <div class="f full" id="ia-res"></div>${iaEhGemini(chave) ? `<div class="f full"><small class="muted" id="ia-rodape">${IA_RODAPE_GRATIS}</small></div>` : ''}</div>
+    <div class="f full" id="ia-res"></div>${iaDetectProvider(chave) === 'google' ? `<div class="f full"><small class="muted" id="ia-rodape">${IA_RODAPE_GRATIS}</small></div>` : ''}</div>
     <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary" id="ia-ok" disabled>Lançar selecionados</button></div>`,
   async f => {
     const sel = [...f.querySelectorAll('[data-ia]:checked')].map(x => lista[Number(x.dataset.ia)]).filter(o => o && !o.problemas.length);
@@ -9487,7 +9557,11 @@ async function iaPreencheDespesa(files) {
   let st = document.getElementById('d-ia-st');
   if (!st) { st = document.createElement('div'); st.id = 'd-ia-st'; st.className = 'note'; st.style.margin = '0 0 10px'; f.prepend(st); }
   const say = t => { st.textContent = t; };
-  if (!iaTemChave()) { st.innerHTML = 'Falta a chave da IA. <button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button>'; return; }
+  if (!iaTemChave()) {
+    const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+    st.innerHTML = 'Falta a chave da IA. ' + (isMaster ? '<button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button>' : 'O Administrador Master precisa configurar a chave no servidor.');
+    return;
+  }
   say('Lendo com a IA…');
   try {
     const partes = [], pdfs = [], imgs = [];
@@ -9511,9 +9585,10 @@ async function iaPreencheDespesa(files) {
 }
 function iaBlocoUsoResumo(soVoz = false) {
   const r = iaResumoMes(), u = r.ultima;
-  const c = iaChave();
+  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+  const c = isMaster ? iaChave() : '';
   const prov = iaDetectProvider(c);
-  const provName = !c ? 'Não configurada' : (prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek');
+  const provName = !iaTemChave() ? 'Não configurada' : (window.__serverIa?.providerName || iaProviderNome(prov));
   const fmtUlt = l => {
     if (!l) return '';
     const provL = l.apiFinal === 'anthropic' ? 'Anthropic Claude' : l.apiFinal === 'deepseek' ? 'DeepSeek' : (l.apiFinal === 'gemini' || l.apiFinal === 'google' ? 'Google Gemini' : (l.apiFinal || provName));
@@ -9528,22 +9603,55 @@ function iaBlocoUsoResumo(soVoz = false) {
   </div>`;
 }
 function iaCfgSheet(wrap) {
-  const c = iaChave();
   const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+  const c = isMaster ? iaChave() : '';
   const prov = iaDetectProvider(c);
-  const provName = prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek';
+  const provName = window.__serverIa?.providerName || iaProviderNome(prov);
+  const temCfg = iaTemChave();
 
   return wrap('Lançar com IA', `
-    <div class="cfg-hero"><span class="ml-ic">${ic('bolt')}</span><p>Insira sua chave de API (Gemini, Claude ou DeepSeek). O app reconhece automaticamente o tipo da chave. ${isMaster ? 'Como você é o Administrador Master, a chave é salva com segurança no banco de dados para toda a equipe utilizar.' : 'A chave é gerenciada pelo Administrador Master.'}</p></div>
+    <div class="cfg-hero"><span class="ml-ic">${ic('bolt')}</span><p>Insira sua chave de API (Gemini, Claude ou DeepSeek). O app reconhece automaticamente o tipo da chave. A chave é transmitida diretamente ao servidor protegido e <b>nenhum dado da chave fica armazenado no aplicativo ou no seu navegador</b>.</p></div>
     <div class="cfg-h">Chave de IA</div>
     <div class="card cfg-card">
-      ${isMaster ? `
-        <div class="f"><label for="ia-chave">Chave de API ${c ? `<span class="cfg-tag ok">Salva · ${provName}</span>` : ''}</label><input type="password" id="ia-chave" autocomplete="off" placeholder="${c ? 'chave salva (' + esc(c.slice(0, 7)) + '…)' : 'AIza… / AQ… / sk-ant-… / sk-…'}"></div>
-        <button class="lt-btn lt-block" data-act="ia-chave-salvar">Salvar chave</button>
-        ${c ? `<div class="lt-chips"><button type="button" class="lt-chip" data-act="ia-chave-remover">Remover chave</button></div>` : ''}
+      ${isMaster ? (temCfg ? `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span class="cfg-tag ok" style="font-size:13px;padding:4px 10px">
+            Ativa no servidor · ${esc(provName)}
+          </span>
+        </div>
+        <p style="margin:0 0 10px;font-size:13px;color:var(--c-text)">
+          A chave está salva com segurança exclusiva no servidor. O aplicativo não armazena nenhuma cópia dela.
+        </p>
+        <div class="f">
+          <label for="ia-chave">Substituir chave de API</label>
+          <input type="password" id="ia-chave" autocomplete="new-password" placeholder="Cole a nova chave para substituir">
+        </div>
+        <button class="lt-btn lt-block" data-act="ia-chave-salvar">Substituir chave no servidor</button>
+        <div class="lt-chips" style="margin-top:10px"><button type="button" class="lt-chip" style="color:#c0392b" data-act="ia-chave-remover">Remover chave do servidor</button></div>
       ` : `
-        <p style="margin:0 0 10px">Status da IA: <b>${c ? 'Configurada (' + provName + ')' : 'Não configurada pelo Master'}</b></p>
-        <small class="muted">Apenas o Administrador Master pode cadastrar ou alterar a chave de IA.</small>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span class="cfg-tag" style="font-size:13px;padding:4px 10px">
+            Chave não configurada
+          </span>
+        </div>
+        <div class="f">
+          <label for="ia-chave">Chave de API (Gemini, Claude ou DeepSeek)</label>
+          <input type="password" id="ia-chave" autocomplete="new-password" placeholder="AIza… / AQ… / sk-ant-… / sk-…">
+          <small class="muted" style="margin-top:4px;display:block">O app enviará a chave diretamente ao servidor seguro e nada ficará gravado no seu navegador.</small>
+        </div>
+        <button class="lt-btn lt-block" data-act="ia-chave-salvar">Salvar chave no servidor</button>
+      `) : `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span class="cfg-tag ${temCfg ? 'ok' : ''}" style="font-size:13px;padding:4px 10px">
+            ${temCfg ? `Ativa no servidor · ${esc(provName)}` : 'Chave não configurada'}
+          </span>
+        </div>
+        <p style="margin:0 0 8px;font-size:13px;color:var(--c-text)">
+          ${temCfg
+            ? 'A chave de IA está configurada no servidor pelo Administrador Master e pronta para uso por toda a equipe.'
+            : 'O Administrador Master ainda não configurou a chave de IA no servidor.'}
+        </p>
+        <small class="muted">Por segurança, a chave fica guardada no servidor e apenas o Administrador Master pode configurá-la ou alterá-la.</small>
       `}
     </div>
     <div class="cfg-h">Uso da IA</div>
@@ -9561,9 +9669,10 @@ function iaRelatorioSheet(wrap) {
     return true;
   });
   const origLbl = o => ({ voz: 'Assistente de voz', ia: 'Lançar com IA', despesa: 'Despesa', suporte: 'Suporte no chat' }[o] || 'IA');
-  const c = iaChave();
+  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+  const c = isMaster ? iaChave() : '';
   const prov = iaDetectProvider(c);
-  const provName = !c ? 'Chave de IA não configurada' : (prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek');
+  const provName = !iaTemChave() ? 'Chave de IA não configurada' : (window.__serverIa?.providerName || iaProviderNome(prov));
   const filtros = [
     ['todas', 'Todas (' + all.length + ')'],
     ['ok', 'Sucessos (' + all.filter(x => x.ok).length + ')'],
@@ -10470,10 +10579,38 @@ document.addEventListener('click', async e => {
     case 'ia-chave-salvar': {
       const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
       if (!isMaster) { toast('Apenas o Administrador Master pode salvar a chave de IA.'); break; }
-      const k = (document.getElementById('ia-chave')?.value || '').trim();
+      const input = document.getElementById('ia-chave');
+      const k = (input?.value || '').trim();
       if (!k) { toast('Digite a chave de API.'); break; }
-      await safe(() => put('config', 'ai', { id: 'ai', chave: k, ts: Date.now() }), 'Chave de IA salva com sucesso!');
-      ls.set('mmr-ia-key', k);
+      if (input) input.value = ''; // Limpa da tela imediatamente
+
+      const token = await iaGetAuthToken();
+      if (!token) { toast('Você precisa estar conectado à internet como Master.'); break; }
+
+      try {
+        const res = await fetch('/api/ia/save-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ chave: k })
+        });
+        const js = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast(js.error || 'Erro ao salvar chave no servidor.');
+          break;
+        }
+        window.__serverIa = {
+          configured: true,
+          provider: js.provider || iaDetectProvider(k),
+          providerName: js.providerName || iaProviderNome(iaDetectProvider(k)),
+          isMaster: true
+        };
+        try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
+        try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
+        toast('Chave salva no servidor com sucesso! Nenhum dado ficou armazenado no app.');
+      } catch (err) {
+        toast('Erro de conexão ao salvar chave no servidor.');
+        break;
+      }
       render();
       break;
     }
@@ -10487,8 +10624,19 @@ document.addEventListener('click', async e => {
     case 'ia-chave-remover': {
       const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
       if (!isMaster) { toast('Apenas o Administrador Master pode remover a chave de IA.'); break; }
-      await safe(() => del('config', 'ai'), 'Chave de IA removida.');
-      ls.set('mmr-ia-key', '');
+      const token = await iaGetAuthToken();
+      if (token) {
+        try {
+          await fetch('/api/ia/remove-key', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+        } catch (_) {}
+      }
+      window.__serverIa = { configured: false, provider: null, providerName: null, isMaster: true };
+      try { localStorage.removeItem('mmr-server-ia-cache'); } catch (_) {}
+      try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
+      toast('Chave removida do servidor.');
       render();
       break;
     }
