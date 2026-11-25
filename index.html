@@ -5733,10 +5733,10 @@ addEventListener('resize', () => abrevNomesFit());
 function moveLi(m) {
   const av = m.k === 'estornos' ? ic('undo') : m.k === 'vendas' ? ic('receipt') : m.k === 'compras' ? ic('cart') : ic('cash');
   const forma = m.forma ? (FORMAS[m.forma] || m.forma) : '';
-  if ((m.k === 'vendas' || m.k === 'compras') && !m.agendada && / · /.test(m.desc)) { /* web e celular: Venda · hora · forma + valor; embaixo: nome · itens */
+  if ((m.k === 'vendas' || m.k === 'compras') && !m.agendada && / · /.test(m.desc) && WIDE.matches) { /* SÓ WEB (celular usa o layout li-2l abaixo, já aprovado): Venda · hora · forma + valor; embaixo: nome · itens */
     const i = m.desc.indexOf(' · '), rotulo = m.desc.slice(0, i).replace(/ \(parcial\)/, ' parcial'), nome = m.desc.slice(i + 3), fc = m.forma ? (FORMAS_CURTO[m.forma] || FORMAS[m.forma] || m.forma) : '';
     const hr = new Date(m.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    return `<div class="li tc-li mv2" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" tabindex="0"><span class="av ${m.tipo}">${av}</span><span style="min-width:0"><b>${esc([/parcial/.test(rotulo) ? rotulo.replace(' parcial', '') + ' · parcial ' + money(m.valor) : rotulo, WIDE.matches ? hr : '', fc].filter(Boolean).join(' · '))}</b><small>${esc([nome, m.itens].filter(Boolean).join(' · '))}</small></span><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span></div>`;
+    return `<div class="li tc-li mv2" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" tabindex="0"><span class="av ${m.tipo}">${av}</span><span style="min-width:0"><b>${esc([/parcial/.test(rotulo) ? rotulo.replace(' parcial', '') + ' · parcial ' + money(m.valor) : rotulo, hr, fc].filter(Boolean).join(' · '))}</b><small>${esc([nome, m.itens].filter(Boolean).join(' · '))}</small></span><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span></div>`;
   }
   if ((m.k === 'vendas' || m.k === 'compras') && !m.agendada && / · /.test(m.desc)) { /* linha 1: Venda · hora · forma, com o valor ao lado; linha 2: nome (abrevia se não couber) */
     const i = m.desc.indexOf(' · '), rotulo = m.desc.slice(0, i).replace(/ \(parcial\)/, ' parcial'), nome = m.desc.slice(i + 3), fc = m.forma ? (FORMAS_CURTO[m.forma] || FORMAS[m.forma] || m.forma) : '';
