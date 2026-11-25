@@ -1224,6 +1224,15 @@ textarea { min-height: 80px; resize: vertical; }
 .switch input { width: 22px; height: 22px; accent-color: var(--green); }
 .form-acts { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .form-acts .btn { flex: 1; }
+.form-acts.acts-fit .acts-sec { display: flex; gap: 6px; flex: 1 1 100%; flex-wrap: nowrap; }
+.form-acts.acts-fit .acts-sec .btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; font-size: 13px; line-height: 1.15; white-space: normal; }
+.form-acts.acts-fit > .btn.primary { flex: 1 1 100%; }
+.hist-sum { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; }
+.hist-l { display: grid; gap: 0; margin-top: 12px; border-left: 2px solid var(--line); margin-left: 6px; }
+.hist-r { padding: 6px 0 10px 14px; position: relative; }
+.hist-r::before { content: ''; position: absolute; left: -6px; top: 11px; width: 10px; height: 10px; border-radius: 50%; background: var(--green, #1f6f55); }
+.hist-t { display: flex; justify-content: space-between; gap: 10px; }
+.hist-r small { color: var(--muted, #777); }
 .banner { border-radius: 20px; padding: 16px 18px; display: grid; gap: 4px; color: #fff; position: relative; overflow: hidden; min-height: 96px; background: linear-gradient(150deg, #F0453A, #E3170A 50%, #B80F08); }
 .banner.folha { background: linear-gradient(150deg, #4DAF39, #2E8B22 50%, #1C5F13); }
 .banner.preto { background: linear-gradient(150deg, #2A292F, #0B0B0C); }
@@ -3350,16 +3359,44 @@ async function commitWrite(promise, opType, path) {
   }
 }
 
+/* Histórico de pagamento e entrega de vendas e compras: cada mudança de pagamento ou de entrega vira uma linha em x.hist.
+   Lançamentos antigos (sem hist) ganham o histórico a partir dos dados que já tinham. */
+const HIST_COLS = { vendas: 1, compras: 1 };
+function histBase(col, x) {
+  const h = [], forma = x.forma || '', vp = Number(x.valorPago) || 0, tot = Number(x.total) || 0;
+  if (vp > 0) h.push({ t: 'parcial', ts: x.parcialTs || x.ts, valor: n2(vp), forma });
+  if (x.pago) h.push(vp > 0 ? { t: 'quitou', ts: x.pagoTs || x.ts, valor: Math.max(0, n2(tot - vp)), forma } : { t: 'avista', ts: x.pagoTs || x.ts, valor: n2(tot), forma });
+  if (col === 'vendas') { if (x.status === 'entregue') h.push({ t: 'entrega', ts: x.entregueTs || x.ts }); else if (x.status === 'em_rota') h.push({ t: 'rota', ts: null }); else if (x.status === 'cancelado') h.push({ t: 'cancelada', ts: null }); }
+  return h;
+}
+function histDiff(col, old, body) {
+  if (!HIST_COLS[col] || !old || 'hist' in body) return null;
+  const nx = { ...old, ...body }, ev = [], now = Date.now(), forma = nx.forma || '';
+  const vo = Number(old.valorPago) || 0, vn = Number(nx.valorPago) || 0;
+  if (!old.pago && !nx.pago && vn > vo + 0.004) ev.push({ t: 'parcial', ts: nx.parcialTs || now, valor: n2(vn - vo), forma });
+  else if (!old.pago && !nx.pago && vn < vo - 0.004) ev.push({ t: 'ajuste', ts: now, valor: n2(vn), forma });
+  if (!old.pago && nx.pago) { const falta = col === 'vendas' ? vFalta(old) : cFalta(old); ev.push(vo > 0 ? { t: 'quitou', ts: nx.pagoTs || now, valor: falta, forma } : { t: 'avista', ts: nx.pagoTs || now, valor: falta, forma }); }
+  if (old.pago && !nx.pago) ev.push({ t: 'desfez', ts: now });
+  if (col === 'vendas' && old.status !== nx.status) {
+    if (nx.status === 'entregue') ev.push({ t: 'entrega', ts: nx.entregueTs || now });
+    else if (nx.status === 'em_rota') ev.push({ t: 'rota', ts: now });
+    else if (nx.status === 'cancelado') ev.push({ t: 'cancelada', ts: now });
+  }
+  return ev.length ? [...(Array.isArray(old.hist) ? old.hist : histBase(col, old)), ...ev] : null;
+}
+
 /* Economia de nuvem: dirty-checking antes de gravar (só salva se realmente mudou) */
 async function put(col, id, body) {
   const existing = (S[col] || []).find(x => x.id === id);
   if (existing) {
     const { id: _eId, ...existingData } = existing;
+    if (HIST_COLS[col] && !('hist' in body) && existing.hist) body = { ...body, hist: existing.hist }; /* put que reescreve o lançamento não apaga o histórico */
     const { id: _bId, ...incomingData } = body;
     if (isDeepEqual(existingData, incomingData)) {
       return; // 0 writes gastas no servidor!
     }
-  }
+    const hh = histDiff(col, existing, body); if (hh) body = { ...body, hist: hh };
+  } else if (HIST_COLS[col] && !('hist' in body)) body = { ...body, hist: histBase(col, body) };
   const fb = window.__fb;
   if (backend === 'db' && fb && fb.db) {
     const op = existing ? OperationType.UPDATE : OperationType.CREATE;
@@ -3384,6 +3421,7 @@ async function patch(col, id, body) {
       if (!isDeepEqual(existing[k], v)) { hasDiff = true; break; }
     }
     if (!hasDiff) return; // 0 writes gastas no servidor!
+    const hh = histDiff(col, existing, body); if (hh) body = { ...body, hist: hh };
   }
   const fb = window.__fb;
   if (backend === 'db' && fb && fb.db) {
@@ -7156,7 +7194,7 @@ function modalVenda(cliId, editId, titulo) {
     <div class="f full"><label for="v-ent">Entrega</label>${entregaSel}</div>
     <div class="f"><label for="v-data-b">Data</label>${dateField('v-data', 'data', dataOrig, 'Data da venda')}</div>
     <div class="f"><label for="v-obs">Observação</label><input type="text" id="v-obs" name="obs" value="${esc(ed?.obs || '')}"></div>
-  </div>${ed && estornos(ed).length ? `<p class="cx-note" style="margin-top:10px">Esta venda tem ${estornos(ed).length === 1 ? 'um estorno' : estornos(ed).length + ' estornos'} (${money(estTot(ed))}). <button type="button" class="link" data-act="cx-det" data-col="vendas" data-id="${ed.id}" style="font-size:inherit;padding:0">Ver detalhes</button></p>` : ''}<div class="form-acts">${ed ? `<button type="button" class="btn ghost" data-act="excluir-lanc" data-col="vendas" data-id="${ed.id}">Excluir venda</button>` : ''}${ed && !cancelada ? `<button type="button" class="btn ghost" data-act="cancelar" data-id="${ed.id}">Cancelar venda</button>` : ''}${ed && !cancelada && vLiq(ed) > 0 ? `<button type="button" class="btn ghost" data-act="estornar" data-col="vendas" data-id="${ed.id}" style="margin-right:auto">Estornar</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar venda'}</button></div>`,
+  </div>${ed && estornos(ed).length ? `<p class="cx-note" style="margin-top:10px">Esta venda tem ${estornos(ed).length === 1 ? 'um estorno' : estornos(ed).length + ' estornos'} (${money(estTot(ed))}). <button type="button" class="link" data-act="cx-det" data-col="vendas" data-id="${ed.id}" style="font-size:inherit;padding:0">Ver detalhes</button></p>` : ''}<div class="form-acts acts-fit"><div class="acts-sec">${ed ? `<button type="button" class="btn ghost" data-act="excluir-lanc" data-col="vendas" data-id="${ed.id}">Excluir venda</button>` : ''}${ed && !cancelada ? `<button type="button" class="btn ghost" data-act="cancelar" data-id="${ed.id}">Cancelar venda</button>` : ''}${ed && !cancelada && vLiq(ed) > 0 ? `<button type="button" class="btn ghost" data-act="estornar" data-col="vendas" data-id="${ed.id}">Estornar</button>` : ''}${ed ? `<button type="button" class="btn ghost" data-act="historico" data-col="vendas" data-id="${ed.id}">Histórico</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button></div><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar venda'}</button></div>`,
   async f => {
     const lines = readLines(f); if (!lines.length) { toast('Adicione pelo menos um item.'); return false; }
     const fd = new FormData(f);
@@ -7199,6 +7237,31 @@ function modalVenda(cliId, editId, titulo) {
 }
 const nextOrdem = () => Math.max(0, ...rota().map(v => v.ordemRota || 0)) + 1;
 
+/* Histórico de pagamento e entrega de uma venda ou compra */
+function modalHistorico(col, id) {
+  const x = (S[col] || []).find(z => z.id === id); if (!x) return;
+  const venda = col === 'vendas', nome = venda ? (x.cliente?.nome || 'Venda avulsa') : (x.fornecedor || 'Compra na roça');
+  const base = Array.isArray(x.hist) ? x.hist : histBase(col, x);
+  const ev = [{ t: 'criada', ts: x.ts, valor: Number(x.total) || 0 }, ...base.map(h => ({ ...h, ts: h.ts || x.ts })), ...estornos(x).map(e => ({ t: 'estorno', ts: e.ts, valor: Number(e.valor) || 0, motivo: e.motivo, forma: e.forma, caixa: e.caixa }))];
+  ev.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  const fm = f => f ? ` · ${esc(FORMAS[f] || f)}` : '';
+  const lbl = h => ({
+    criada: [venda ? 'Venda lançada' : 'Compra lançada', money(h.valor), ''],
+    avista: ['Pago de uma vez (à vista)', money(h.valor) , fm(h.forma)],
+    parcial: ['Pagamento parcial', money(h.valor), fm(h.forma)],
+    quitou: ['Último pagamento, quitado', money(h.valor), fm(h.forma)],
+    ajuste: ['Valor já pago ajustado para', money(h.valor), fm(h.forma)],
+    desfez: ['Pagamento desfeito, voltou a ' + (venda ? 'receber' : 'pagar'), '', ''],
+    rota: ['Saiu para entrega', '', ''],
+    entrega: ['Entrega feita', '', ''],
+    cancelada: ['Venda cancelada', '', ''],
+    estorno: [(h.caixa === false ? 'Estorno (abatido do que faltava)' : 'Estorno, dinheiro devolvido'), '− ' + money(h.valor), (h.forma ? fm(h.forma) : '') + (h.motivo ? ' · ' + esc(h.motivo) : '')]
+  }[h.t] || [h.t, '', '']);
+  const falta = venda ? vFalta(x) : cFalta(x), pagoTot = x.pago ? (venda ? vLiq(x) : cAberto(x)) : parcV(x);
+  const rows = ev.map(h => { const [t, v, d] = lbl(h); return `<div class="hist-r"><div class="hist-t"><b>${esc(t)}</b><span class="num">${v}</span></div><small>${fmtDT(h.ts)}${d}</small></div>`; }).join('');
+  openModal('Histórico · ' + nome, `<div class="cx-box cx-dl"><div class="hist-sum"><span>Total</span><b class="num">${money(x.total)}</b></div><div class="hist-sum"><span>${venda ? 'Recebido' : 'Pago'}</span><b class="num">${money(pagoTot)}</b></div><div class="hist-sum"><span>Falta ${venda ? 'receber' : 'pagar'}</span><b class="num">${money(falta)}</b></div></div><div class="hist-l">${rows}</div><div class="form-acts" style="margin-top:12px"><button type="button" class="btn" data-act="close-modal">Fechar</button></div>`, () => true);
+}
+
 function modalCompra(fornId, editId) {
   const ed = editId ? S.compras.find(x => x.id === editId) : null;
   if (editId && !ed) return;
@@ -7217,7 +7280,7 @@ function modalCompra(fornId, editId) {
       <label class="nt-pref" for="c-custo"><span class="grow"><b>Atualizar o custo dos produtos?</b><small>Usa a média com o estoque que já existe</small></span><input type="checkbox" class="lt-switch" id="c-custo" name="custo" ${ed ? '' : 'checked'}></label>
     </div>
     <div class="f full"><label for="c-obs">Observação</label><input type="text" id="c-obs" name="obs" value="${esc(ed?.obs || '')}"></div>
-  </div><div class="form-acts">${ed ? `<button type="button" class="btn ghost" data-act="apagar-compra" data-id="${ed.id}" style="margin-right:auto">Apagar compra</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar compra'}</button></div>`,
+  </div><div class="form-acts acts-fit"><div class="acts-sec">${ed ? `<button type="button" class="btn ghost" data-act="apagar-compra" data-id="${ed.id}">Apagar compra</button>` : ''}${ed ? `<button type="button" class="btn ghost" data-act="historico" data-col="compras" data-id="${ed.id}">Histórico</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button></div><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar compra'}</button></div>`,
   async f => {
     const fd = new FormData(f);
     if (!String(fd.get('fornecedor') || '').trim()) { toast('Diga de quem você comprou.'); return false; }
@@ -10467,6 +10530,7 @@ document.addEventListener('click', async e => {
     case 'editar-produto': if (!canWrite) { toast('Modo leitura: não dá para editar.'); break; } modalProduto(id); break;
     case 'editar-venda': if (!canWrite) { toast('Modo leitura: não dá para editar.'); break; } modalVenda(null, id); break;
     case 'editar-entrega': if (!canWrite) { toast('Modo leitura: não dá para editar.'); break; } modalVenda(null, id, 'Editar entrega'); break;
+    case 'historico': if ($modal.innerHTML) closeModal(); modalHistorico(t.dataset.col, id); break;
     case 'editar-compra': if (!canWrite) { toast('Modo leitura: não dá para editar.'); break; } modalCompra(null, id); break;
     case 'ajuste': modalAjuste(id); break;
     case 'editar-noticia': modalNoticia(id); break;
