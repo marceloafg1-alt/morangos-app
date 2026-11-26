@@ -5017,7 +5017,7 @@ function render() {
     const foc = $sr.contains(document.activeElement) ? document.activeElement.id : '';
     $sr.innerHTML = ui.sheet ? sheetHTML() : '';
     $sr.dataset.tipo = ui.sheet ? ui.sheet.type : '';
-    if (ui.sheet && ui.sheet.type === 'exemplos' && tipo0 === 'exemplos') { // +, −, apagar: a janela fica parada onde estava
+    if (ui.sheet && (ui.sheet.type === 'exemplos' || ui.sheet.type === 'backup-cfg') && tipo0 === ui.sheet.type) { // +, −, apagar: a janela fica parada onde estava
       $sr.querySelector('.bs-scrim')?.classList.add('bs-fica'); const bs = $sr.querySelector('.bs'); if (bs) bs.scrollTop = top0;
       if (foc) document.getElementById(foc)?.focus({ preventScroll: true });
     } }
@@ -5565,50 +5565,82 @@ function zrInner() {
     <button class="lt-btn lt-block" style="margin-top:12px;${pl.ks.length && pode ? 'background:#dc2626;border-color:#dc2626;color:#fff' : ''}" data-act="zr-revisar" ${pl.ks.length && pode ? '' : 'disabled'}>${pl.ks.length ? 'Revisar e apagar (' + pl.ks.length + ')' : 'Escolha o que zerar'}</button>`;
 }
 
-/* Configurações > App > Backup e restauração: baixa um arquivo com os dados e restaura a partir dele. Inclui o Do início. */
+/* Configurações > App > Backup e restauração: escolhe o que entra no backup, baixa ou compartilha o arquivo e restaura a partir dele.
+   Restaurar substitui o que estiver no arquivo e zera o que ficou de fora. O caixa se recalcula sozinho pelos lançamentos. */
 const BK_APP = 'morangos-made-na-roca';
-const BK_NAO = ['admins', 'convites'];
-const BK_COLS = COLS.filter(c => !BK_NAO.includes(c));
-const BK_NOMES = { produtos: 'Produtos', vendas: 'Vendas', compras: 'Compras', despesas: 'Despesas', noticias: 'Notícias', clientes: 'Clientes', mensagens: 'Mensagens do chat', fornecedores: 'Fornecedores', notificacoes: 'Notificações', categorias: 'Categorias de despesa' };
+const BK_COLS = COLS.filter(c => c !== 'admins' && c !== 'convites');
+const BK_NOMES = { produtos: 'Produtos', vendas: 'Vendas e entregas', compras: 'Compras na roça', despesas: 'Despesas', noticias: 'Notícias', clientes: 'Clientes', mensagens: 'Mensagens do chat', fornecedores: 'Fornecedores', notificacoes: 'Notificações', categorias: 'Categorias de despesa' };
+const BK_CAIXA = ['vendas', 'compras', 'despesas'];
 let BK_PEND = null;
+const bkSel = () => (ui.bk || (ui.bk = Object.fromEntries(BK_COLS.map(c => [c, true]))));
+const bkSelCols = () => BK_COLS.filter(c => bkSel()[c]);
+const bkNum = q => `${q} ${q === 1 ? 'registro' : 'registros'}`;
+function bkChecks() {
+  const sel = bkSel(), tudo = BK_COLS.every(c => sel[c]);
+  return `<div class="nt-prefs"><label class="nt-pref" for="bk-tudo"><span class="nt-ic">${ic('check')}</span><span class="grow"><b>Marcar tudo</b><small>Todos os itens abaixo</small></span><input type="checkbox" class="lt-switch" id="bk-tudo" data-act="bk-tudo" ${tudo ? 'checked' : ''}></label>
+    ${BK_COLS.map(c => `<label class="nt-pref" for="bk-${c}"><span class="grow"><b>${BK_NOMES[c]}</b><small>${bkNum((S[c] || []).length)}</small></span><input type="checkbox" class="lt-switch" id="bk-${c}" data-act="bk-tgl" data-v="${c}" ${sel[c] ? 'checked' : ''}></label>`).join('')}</div>`;
+}
 function bkInner() {
-  const pode = zrPode();
-  const total = BK_COLS.reduce((s, c) => s + (S[c] || []).length, 0);
+  const pode = zrPode(), cols = bkSelCols(), qtd = cols.reduce((s, c) => s + (S[c] || []).length, 0);
+  const off = cols.length ? '' : 'disabled';
   return `<div class="sec-h" style="margin-top:0"><h2>Fazer backup</h2></div>
-    <p class="muted" style="margin:0 0 10px;font-size:13.5px">Baixa um arquivo com ${total} registros: vendas, compras, despesas, clientes, fornecedores, produtos, notícias, chat, notificações e categorias. Guarde em um lugar seguro, como o Drive ou o WhatsApp. Não inclui usuários nem convites.</p>
-    <button class="lt-btn lt-block" data-act="bk-baixar">Baixar backup</button>
+    ${bkChecks()}
+    <small class="muted nt-pé">${cols.length ? `${bkNum(qtd)} em ${cols.length} ${cols.length === 1 ? 'item' : 'itens'}. Sem usuários nem convites.` : 'Escolha pelo menos um item.'}</small>
+    <div class="rexp-btns" style="margin-top:12px"><button class="btn" data-act="bk-baixar" ${off}>Baixar</button><button class="btn" data-act="bk-compartilhar" ${off}>Compartilhar</button></div>
     <div class="sec-h"><h2>Restaurar</h2></div>
-    <p class="muted" style="margin:0 0 10px;font-size:13.5px">Escolha um arquivo de backup. O app mostra o que tem nele e só substitui os dados depois da sua confirmação. Os dados atuais desses itens são apagados antes.</p>
-    <button class="lt-btn lt-block" data-act="bk-escolher" ${pode ? '' : 'disabled'}>Escolher arquivo de backup</button>
-    ${pode ? '' : '<small class="muted nt-pé">Só o Mestre ou um Administrador pode restaurar.</small>'}
+    <button class="btn" data-act="bk-escolher" ${pode ? '' : 'disabled'}>Escolher arquivo de backup</button>
+    <small class="muted nt-pé">${pode ? 'O que não estiver no arquivo será zerado. Você vê o resumo antes de confirmar.' : 'Só o Mestre ou um Administrador pode restaurar.'}</small>
     <div class="sec-h"><h2>Do início</h2></div>
     ${zrInner()}`;
 }
+function bkArquivo() {
+  const cols = bkSelCols(), dados = {};
+  for (const c of cols) dados[c] = (S[c] || []).map(x => ({ ...x, id: String(x.id) }));
+  const obj = { app: BK_APP, versao: 2, criado: new Date().toISOString(), colunas: cols, dados };
+  return new File([JSON.stringify(obj)], 'backup-morangos-' + dayKey(Date.now()) + '.json', { type: 'application/json' });
+}
 function bkBaixar() {
-  const dados = {};
-  for (const c of BK_COLS) dados[c] = (S[c] || []).map(x => ({ ...x, id: String(x.id) }));
-  const blob = new Blob([JSON.stringify({ app: BK_APP, versao: 1, criado: new Date().toISOString(), dados })], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'backup-morangos-' + dayKey(Date.now()) + '.json';
+  if (!bkSelCols().length) { toast('Escolha pelo menos um item.'); return; }
+  const f = bkArquivo(), a = document.createElement('a');
+  a.href = URL.createObjectURL(f); a.download = f.name;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   toast('Backup baixado.');
+}
+async function bkCompartilhar() {
+  if (!bkSelCols().length) { toast('Escolha pelo menos um item.'); return; }
+  const f = bkArquivo();
+  if (!navigator.share || !navigator.canShare || !navigator.canShare({ files: [f] })) { toast('Este aparelho não compartilha arquivo daqui. Use Baixar backup.'); return; }
+  try { await navigator.share({ files: [f], title: 'Backup Morangos made in roça' }); }
+  catch (e) { if (e && e.name !== 'AbortError') toast('Não foi possível compartilhar. Use Baixar backup.'); }
 }
 function bkEscolher() {
   if (!zrPode()) { toast('Só o Mestre ou um Administrador pode restaurar.'); return; }
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,.json';
   inp.addEventListener('change', () => { if (inp.files[0]) bkPrepara(inp.files[0]); }); inp.click();
 }
+/* saldo do caixa se o arquivo fosse o novo conjunto de dados (troca S por um instante, sem gravar nada) */
+function bkSaldoCom(dados, cols) {
+  const guarda = {}; for (const c of BK_COLS) guarda[c] = S[c];
+  try { for (const c of BK_COLS) S[c] = cols.includes(c) ? (dados[c] || []) : []; return n2(saldoGeral()); }
+  finally { for (const c of BK_COLS) S[c] = guarda[c]; }
+}
 async function bkPrepara(file) {
   let obj = null;
   try { obj = JSON.parse(await file.text()); } catch (e) { obj = null; }
   if (!obj || obj.app !== BK_APP || !obj.dados || typeof obj.dados !== 'object') { toast('Este arquivo não é um backup deste app.'); return; }
   const cols = BK_COLS.filter(c => Array.isArray(obj.dados[c]));
-  if (!cols.length) { toast('O backup não tem dados para restaurar.'); return; }
   BK_PEND = { cols, dados: obj.dados };
+  const fora = BK_COLS.filter(c => !cols.includes(c) && (S[c] || []).length);
+  const antes = n2(saldoGeral()), depois = bkSaldoCom(obj.dados, cols);
+  const sinal = v => (v > 0 ? '+' : v < 0 ? '−' : '') + money(Math.abs(v));
   const quando = obj.criado ? fmtDT(obj.criado) : 'data desconhecida';
-  const linhas = cols.map(c => `<li><b>${BK_NOMES[c] || c}</b>: ${obj.dados[c].length}</li>`).join('');
-  openModal('Restaurar backup', `<p style="margin:0;font-size:14px">Backup de <b>${esc(quando)}</b>. Vai substituir os dados atuais destes itens, em todos os aparelhos:</p>
-    <ul style="margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.5">${linhas}</ul>
-    <p style="margin:10px 0 0;font-size:14px;color:#dc2626"><b>Os dados atuais desses itens serão apagados. Isso não pode ser desfeito.</b></p>
+  const sub = cols.length ? cols.map(c => `<li><b>${BK_NOMES[c]}</b>: será substituído (${bkNum(obj.dados[c].length)})</li>`).join('') : '';
+  const zera = fora.map(c => `<li><b>${BK_NOMES[c]}</b>: será zerado (${bkNum((S[c] || []).length)} hoje)</li>`).join('');
+  if (!cols.length) { toast('O backup não tem dados para restaurar.'); return; }
+  openModal('Restaurar backup', `<p style="margin:0;font-size:14px">Backup de <b>${esc(quando)}</b>.</p>
+    <ul style="margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.5">${sub}${zera}</ul>
+    <p style="margin:10px 0 0;font-size:14px"><b>Saldo do caixa:</b> ${money(antes)} → <b class="${depois < 0 ? 'neg' : ''}">${money(depois)}</b>${depois !== antes ? ` (${sinal(n2(depois - antes))})` : ' (não muda)'}</p>
+    <p style="margin:10px 0 0;font-size:14px;color:#dc2626"><b>Os dados atuais serão substituídos. Isso não pode ser desfeito.</b></p>
     <div class="f full" style="margin-top:10px"><label for="bk-ok">Para confirmar, digite RESTAURAR</label><input type="text" id="bk-ok" name="ok" autocomplete="off" placeholder="RESTAURAR" required></div>
     <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary" style="background:#dc2626;border-color:#dc2626;color:#fff">Restaurar agora</button></div>`,
   async f => {
@@ -5631,9 +5663,9 @@ async function zrGrava(col, docs) {
 }
 async function bkRestaura() {
   const { cols, dados } = BK_PEND;
-  for (const c of cols) await zrApagaCol(c);
+  for (const c of BK_COLS) await zrApagaCol(c);
   for (const c of cols) await zrGrava(c, dados[c]);
-  if (cols.includes('vendas')) ls.set('mmr-rota-calc', null);
+  ls.set('mmr-rota-calc', null);
   BK_PEND = null; ui.zr = {};
 }
 
@@ -6756,7 +6788,7 @@ const AJ_G = [
     ['Como marcar uma entrega como feita?', 'Toque em <b>Entregue</b> na parada. A próxima sobe na fila e os clientes veem a fila andar. As entregas feitas ficam em <b>Entregues</b> e contam no bloco <b>Rota de hoje</b> do Início.', [['Abrir Entregas', 'go', 'entregas']]],
     ['Como ver a rota no mapa e otimizar?', '<ol><li>Em <b>Entregas</b>, toque em <b>Mapa e otimizar</b>.</li><li>O app localiza os endereços e mostra as paradas numeradas no mapa.</li><li>Toque em <b>Otimizar rota</b> para ver a melhor ordem, a distância e o tempo.</li><li><b>Ver todas</b> enquadra todas as paradas; <b>Google Maps</b> abre a rota para dirigir.</li></ol>Toque num card da lista para ir ao pino dele.', [['Abrir o mapa da rota', 'go-rota-mapa']]],
     ['O endereço caiu no lugar errado no mapa.', 'Arraste o pino até o lugar certo, ou toque em <b>Corrigir local</b> no card e depois no mapa. <b>Refazer busca</b> procura o endereço de novo. Quando o endereço não é achado, o app usa um local aproximado pelo bairro e avisa o motivo.', [['Abrir o mapa da rota', 'go-rota-mapa']]],
-    ['Como faço backup?', 'Em <b>Configurações → App → Backup e restauração</b>, toque em <b>Baixar backup</b>. O arquivo tem os lançamentos, cadastros e notícias, sem usuários nem convites. Para restaurar, toque em <b>Escolher arquivo de backup</b>, veja o resumo e digite <b>RESTAURAR</b>. Os dados atuais desses itens são substituídos.'],
+    ['Como faço backup?', 'Em <b>Configurações → App → Backup e restauração</b>, toque em <b>Baixar backup</b>. O arquivo tem os lançamentos, cadastros e notícias, sem usuários nem convites. Para restaurar, toque em <b>Escolher arquivo de backup</b>, veja o resumo e digite <b>RESTAURAR</b>. Os itens que ficaram de fora são zerados, e o caixa se ajusta pelos lançamentos que sobrarem. Também dá para compartilhar o arquivo.'],
     ['Como começar do zero (apagar os lançamentos)?', 'Em <b>Configurações → App → Backup e restauração</b>, na parte <b>Do início</b>, ligue o que quer apagar: vendas e entregas, compras, despesas, clientes, fornecedores, produtos, notícias, chat, notificações ou categorias de despesa (ou <b>Marcar tudo</b>). Toque em <b>Revisar e apagar</b>, confira o resumo e digite <b>ZERAR</b>. O caixa se ajusta sozinho: apagar vendas tira o que foi recebido, apagar compras e despesas devolve o que foi pago. Apagar clientes, fornecedores e produtos não mexe no caixa. Só o Mestre ou um Administrador pode fazer isso, e não dá para desfazer.'],
     ['Como mudo o ponto de partida da rota?', 'Em <b>Configurações → Rotas</b> (ou <b>Ajustes</b> no mapa): digite o endereço ou só o <b>CEP</b> (o endereço vem sozinho) ou toque em <b>Usar minha localização agora</b>. Ali também ajusta o <b>tempo por parada</b>, usado na estimativa do cliente.', [['Abrir Rotas', 'sheet', 'rota-cfg']]],
     ['O que o cliente vê da entrega?', 'Na Loja, em <b>Pedidos</b>, o cliente vê as etapas e quantas entregas faltam antes da dele, com uma estimativa pelo tempo por parada (em <b>Configurações → Rotas</b>). É pela ordem da rota, não por GPS. Toque em <b>Ver como cliente</b> numa parada para ver igual a ele.', [['Abrir Entregas', 'go', 'entregas']]],
@@ -10554,6 +10586,9 @@ document.addEventListener('click', async e => {
     case 'go-vendas-receber': ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'tudo'; go('vendas'); break;
     case 'go-vendas-receber-hoje': ui.vt = 'todas'; ui.vf = 'receber'; ui.vp = 'hoje'; go('vendas'); break;
     case 'bk-baixar': bkBaixar(); break;
+    case 'bk-compartilhar': bkCompartilhar(); break;
+    case 'bk-tgl': bkSel()[v] = t.checked; render(); break;
+    case 'bk-tudo': { const sel = bkSel(); for (const c of BK_COLS) sel[c] = t.checked; render(); break; }
     case 'bk-escolher': bkEscolher(); break;
     case 'zr-tgl': zrSel()[v] = t.checked; render(); break;
     case 'zr-tudo': { const sel = zrSel(); for (const [k] of ZR_OPS) sel[k] = t.checked; render(); break; }
