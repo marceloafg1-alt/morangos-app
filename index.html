@@ -9079,6 +9079,7 @@ const iaFerramenta = {
       complemento: { type: 'string', description: 'Só para cadastro: complemento (ex.: fundos, apto).' },
       descricao: { type: 'string', description: 'Despesa: o que foi pago. Produto (criar/editar): a descrição que aparece na Loja.' },
       categoria: { type: 'string', description: 'Só para despesa: uma das categorias informadas, ou vazio.' },
+      atualizar_custo: { type: 'boolean', description: 'Só em compra: true (padrão) atualiza o custo dos produtos com esta compra. Use false SOMENTE se o dono pedir para não atualizar o custo ou manter o custo atual.' },
       itens: { type: 'array', description: 'Só para venda e compra.', items: { type: 'object', properties: {
         produto: { type: 'string' }, quantidade: { type: 'number', description: 'Número de unidades deste produto ("10 caixas" = 10).' }, preco_unitario: { type: 'number', description: 'Preço de UMA unidade. Venda: preço de venda. Compra: custo pago. 0 se não informado ou se só deu o total da linha.' },
         valor_item: { type: 'number', description: 'Total desta linha (quantidade × preço) quando o texto só dá o total do produto, ex.: "10 caixas por R$ 300". 0 se deu o preço unitário.' },
@@ -9142,6 +9143,7 @@ Regras:
 - Nunca invente valores, quantidades ou datas. Se faltar, deixe 0 ou vazio.
 - VÁRIOS PRODUTOS: compra ou venda do MESMO fornecedor/cliente e mesma data é UM só lançamento, com todos os produtos em itens. Só separe se o fornecedor/cliente ou a data forem diferentes.
 - CADA ITEM: quantidade = número de unidades ("10 caixas" = 10; "meia dúzia" = 6). preco_unitario = preço de UMA unidade. Se o texto der só o total do produto ("10 caixas por R$ 300"), preencha valor_item=300 e deixe preco_unitario 0; nunca coloque o total da linha em preco_unitario. Em COMPRA, "vendo a R$ X" ou "preço de venda X" é preco_venda do item (novo preço de venda do produto), diferente do custo.
+- Em COMPRA o app atualiza o custo dos produtos por padrão: deixe atualizar_custo=true (ou vazio). Só use atualizar_custo=false se o dono pedir para NÃO atualizar o custo ("não atualiza o custo", "mantém o custo", "sem mexer no custo").
 - O app soma os itens sozinho. Só preencha "valor" se o texto der um total geral sem preço dos itens.
 - DESCONTO em venda: "lançar desconto de 10%" = desconto_tipo=percentual, desconto_valor=10; "desconto de 20 no valor total" = valor_total, 20; "desconto de 2 por unidade" = por_unidade, 2. Não aplique o desconto nos preços nem no valor: o app calcula. Sem a palavra desconto, deixe vazio.
 - Reconhecimento de voz erra palavras: "pics", "pique" e "pix" são Pix.
@@ -9545,6 +9547,7 @@ function iaPrepara(l) {
     if (dt && dv > 0 && o.total > 0) { const r = descontoCalc(o.itens, dt, dv); if (dt === 'pct' && dv > 100) o.problemas.push('desconto de mais de 100%'); else if (r.desc <= 0) o.problemas.push('desconto inválido'); else { if (dv > r.bruto && dt !== 'pct' && r.desc >= r.bruto) o.avisos.push('o desconto é maior que a venda: o total ficou zerado'); o.desconto = { tipo: dt, valor: dv, valorR: r.desc }; o.bruto = r.bruto; o.total = r.total; } } }
   if (o.tipo === 'venda') { const c = S.clientes.find(x => norm(x.nome) === norm(o.pessoa)); if (c) o.clienteId = c.id; else if (o.pessoa) o.avisos.push('cliente não cadastrado: fica só o nome na venda (se ele for cadastrado neste mesmo lançamento, o endereço vai junto)'); }
   else { if (!o.pessoa) o.problemas.push('sem fornecedor'); const f = S.fornecedores.find(x => norm(x.nome) === norm(o.pessoa)); if (f) o.fornecedorId = f.id; }
+  if (o.tipo === 'compra') { o.atualizaCusto = !(l.atualizar_custo === false || /^(false|nao|não)$/i.test(String(l.atualizar_custo || ''))); if (!o.atualizaCusto) o.avisos.push('Custo do produto não será atualizado'); }
   if (o.forma === 'fiado') o.pago = false;
   { const fr = Number(l.fracao_paga) || 0; if (!o.pago && !(o.valorPago > 0) && fr > 0 && fr < 1 && o.total > 0) { o.valorPago = n2(o.total * fr); l.valor_pago = o.valorPago; l.pago_informado = true; } }
   if (o.tipo === 'venda') { o.entrega = ['entregue', 'separado', 'em_rota'].includes(l.entrega) ? l.entrega : 'entregue'; if (!l.entrega) o.avisos.push('entrega não mencionada: marquei como já entregue'); }
@@ -9961,7 +9964,7 @@ async function iaGravar(o) {
   const fv = IA_NOVOS.fornecedores[norm(o.pessoa)], fnNovo = fv && Date.now() - fv._t < 6e5 ? fv.id : '';
   await put('compras', uid(), { ts, fornecedor: o.pessoa, ...((o.fornecedorId || fnNovo) ? { fornecedorId: o.fornecedorId || fnNovo } : {}), itens, total: o.total, forma: ['pix', 'dinheiro', 'fiado'].includes(forma) ? forma : 'pix', pago: o.pago, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, obs: o.obs || '' });
   for (const [k, i] of itens.entries()) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0, pv = n2(o.itens[k] && o.itens[k].pv);
-    await patch('produtos', p.id, { ...(pv > 0 ? { preco: pv } : {}), estoque: n2((p.estoque || 0) + i.qtd), custo: n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo) }); }
+    await patch('produtos', p.id, { ...(pv > 0 ? { preco: pv } : {}), estoque: n2((p.estoque || 0) + i.qtd), ...(o.atualizaCusto === false ? {} : { custo: n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo) }) }); }
 }
 /* texto da situação do pagamento: pago, pago parcial (com os valores) ou não pago */
 const iaParcial = o => !o.pago && o.valorPago > 0 && o.valorPago < (o.total || 0);
@@ -10366,7 +10369,7 @@ O que fazer:
 - Ao falar do pagamento, nunca diga "não pago" quando houve pagamento parcial: diga "pago parcial", com o valor pago e o total.
 - pago=true só se o dono disser que pagou ou recebeu o valor todo. Se pagou ou recebeu MENOS que o total (inclusive "metade", "50%", "um terço", "R$ 100 de entrada"), pago=false e informe valor_pago em reais, calculando sobre o total (quantidade x preço do pedido, ou o preço cadastrado quando ele não disser o preço): "50%" ou "metade" = valor_pago igual à metade do total. Vale para venda e para compra. "Fiado" ou "a prazo" = forma fiado e pago=false.
 - Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar. SEMPRE que ele der a entender que a entrega ainda não aconteceu, use entrega=separado (entregar depois): entrega pendente, em aberto, atrasada, agendada, "a fazer", "em haver", "a haver", "não efetuada", "não realizada", "não feita", "não entregue", "ainda não entregue", "aguardando entrega", "falta entregar", "vou entregar", "entrego amanhã", "não saiu para entrega".
-- Vários produtos do mesmo fornecedor ou cliente na mesma data são UM só lançamento, com todos em itens. Item: quantidade em unidades, preco_unitario = preço de UMA unidade; se ele disser só o total do produto, use valor_item. Em compra, "vendo a X" é preco_venda do item. Pagamento parcial vale para o lançamento inteiro: valor_pago é o total já pago, e "metade" é calculada sobre a soma de todos os itens.
+- Vários produtos do mesmo fornecedor ou cliente na mesma data são UM só lançamento, com todos em itens. Item: quantidade em unidades, preco_unitario = preço de UMA unidade; se ele disser só o total do produto, use valor_item. Em compra, o custo dos produtos é atualizado por padrão (atualizar_custo=true); use atualizar_custo=false só se ele pedir para não atualizar o custo. Em compra, "vendo a X" é preco_venda do item. Pagamento parcial vale para o lançamento inteiro: valor_pago é o total já pago, e "metade" é calculada sobre a soma de todos os itens.
 ${IA_ACOES_TXT}
 ${dados}
 TELA ATUAL: ${IA_TELAS[ui.g] || ui.g}${document.getElementById('rt-ov') ? '; o painel "Rota de hoje" está aberto' : ''}.
