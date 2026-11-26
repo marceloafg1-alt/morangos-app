@@ -639,7 +639,7 @@ window.addEventListener('appinstalled', function(){
   html[data-modo="gestao"][data-visao="web"] .lt-side .lt-tab.on{background:var(--tint);color:var(--accent);font-weight:800}
   html[data-modo="gestao"][data-visao="web"] .lt-side .lt-tab .lt-dot{position:static;margin-left:auto;left:auto!important;top:auto}
   html[data-modo="gestao"][data-visao="web"] .lt-side .side-sp{flex:1;min-height:12px}
-  html[data-modo="gestao"][data-visao="web"] .lt-side .lt-tab[data-v="estoque"]{border-top:1px solid var(--line);border-radius:0 0 14px 14px;margin-top:4px}
+  html[data-modo="gestao"][data-visao="web"] .lt-side .lt-tab[data-v="noticias"]{border-top:1px solid var(--line);border-radius:0 0 14px 14px;margin-top:4px}
   html[data-modo="gestao"][data-visao="web"] .app{max-width:none!important;margin:0!important;padding-left:calc(16px + 264px + 32px)!important;padding-right:32px!important;padding-bottom:40px!important}
   html[data-modo="gestao"][data-visao="web"] .lt-page{max-width:none!important}
   html[data-modo="gestao"][data-visao="web"] .cart-bar{display:none}
@@ -667,8 +667,8 @@ window.addEventListener('appinstalled', function(){
   html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-fab::after{content:attr(aria-label);font-size:14px;font-weight:800;white-space:nowrap}
   html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab{flex:none!important;width:100%!important;height:46px!important;min-height:46px;justify-content:flex-start!important;padding:0 14px!important;border-radius:14px!important}
   html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab.on{height:46px!important}
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab[data-v="estoque"]{border-top:0;margin-top:6px;position:relative}
-  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab[data-v="estoque"]::before{content:"";position:absolute;left:14px;right:14px;top:-4px;height:1px;background:currentColor;opacity:.15}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab[data-v="noticias"]{border-top:0;margin-top:6px;position:relative}
+  html[data-modo="gestao"][data-visao="web"] .lt .lt-tabbar.lt-side .lt-tab[data-v="noticias"]::before{content:"";position:absolute;left:14px;right:14px;top:-4px;height:1px;background:currentColor;opacity:.15}
   html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .lt-side .side-brand,html[data-modo="gestao"][data-visao="web"] .lt[data-escuro="1"] .lt-side .side-brand,html[data-modo="gestao"][data-visao="web"] .lt[data-visual="aurora"] .lt-side .side-brand{color:#fff}
   html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .lt-side .side-brand small,html[data-modo="gestao"][data-visao="web"] .lt[data-escuro="1"] .lt-side .side-brand small,html[data-modo="gestao"][data-visao="web"] .lt[data-visual="aurora"] .lt-side .side-brand small{color:rgba(255,255,255,.62)}
   html[data-modo="gestao"][data-visao="web"] .lt[data-visual="bento"] .lt-tabbar.lt-side{padding:20px 14px!important}
@@ -713,6 +713,13 @@ html[data-modo="gestao"][data-visao="web"] .iv-more{padding:6px 0 12px;text-alig
   html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need .iv-list,html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need>.card{margin-top:0!important}
   html[data-modo="gestao"][data-visao="web"] .iv-need .iv-it,html[data-modo="gestao"][data-visao="web"] .iv-rota .iv-it,html[data-modo="gestao"][data-visao="web"] .iv-sum .iv-it{height:60px;min-height:0!important;padding-top:0!important;padding-bottom:0!important;box-sizing:border-box}
   html[data-modo="gestao"][data-visao="web"] .iv-need .iv-ic,html[data-modo="gestao"][data-visao="web"] .iv-rota .iv-ic,html[data-modo="gestao"][data-visao="web"] .iv-sum .iv-ic{width:32px;height:32px}
+  /* Precisa de você com 0, 1 ou 2 itens: os três cartões da coluna (Precisa de você, Rota de hoje, Clientes sumidos) ficam com a mesma altura */
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.iv-need.iv-f0),html[data-modo="gestao"][data-visao="web"] .app:has(>.iv-need.iv-f1){--ivh:96px}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.iv-need.iv-f2){--ivh:136px}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need[class*="iv-f"]{align-self:stretch;display:flex;flex-direction:column}
+  html[data-modo="gestao"][data-visao="web"] .app>.iv-need[class*="iv-f"]>.card{flex:1;min-height:var(--ivh);box-sizing:border-box}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.iv-need[class*="iv-f"])>:is(.iv-rota,.iv-sum){min-height:var(--ivh);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
+  html[data-modo="gestao"][data-visao="web"] .app:has(>.iv-need[class*="iv-f"])>:is(.iv-rota,.iv-sum)>.iv-w{width:100%}
   /* "Precisa de você": título acima da linha dos cartões, que começam na mesma altura de Vendas de hoje */
   html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.lt-hero:not(.iv-luc),html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need{margin-top:36px!important}
   html[data-modo="gestao"][data-visao="web"] .app:has(>.lt-hero+.iv-need)>.iv-need{position:relative}
@@ -5329,7 +5336,7 @@ function gInicio() {
   const ord = { red: 0, warn: 1 };
   p.sort((a, b) => (ord[a[7]] ?? 1) - (ord[b[7]] ?? 1));
   const item = ([g, icon, t, d, q, act, v, tom]) => `<button class="iv-it iv-go" data-act="${act}" ${v ? `data-v="${v}"` : ''}><span class="iv-ic ${tom}">${ic(icon)}</span><span class="iv-t"><b>${esc(t)}</b><small>${esc(d || ' ')}</small></span><span class="iv-btn">${act === 'go-vendas-abertas' ? 'Separar' : (IV_ACAO[g] || 'Ver')}</span></button>`;
-  const need = `<div class="iv-need"><div class="sec-h"><h2>Precisa de você</h2>${p.length ? `<button class="link" data-act="go" data-v="pendencias">Ver ${p.length > 3 ? 'as ' + p.length : 'tudo'}</button>` : ''}</div>
+  const need = `<div class="iv-need${p.length <= 2 ? ' iv-f' + p.length : ''}"><div class="sec-h"><h2>Precisa de você</h2>${p.length ? `<button class="link" data-act="go" data-v="pendencias">Ver ${p.length > 3 ? 'as ' + p.length : 'tudo'}</button>` : ''}</div>
   ${p.length ? `<div class="card iv-list">${p.slice(0, 3).map(item).join('')}</div>`
     : `<div class="card calm"><span class="chipico g">${ic('check')}</span><div><b>Tudo em dia</b><small>Nenhum pedido esperando, nada a cobrar.</small></div></div>`}</div>`;
   const selD = ui.hd > 0 && ui.hd < 7 ? ui.hd : 0, iniD = startOfDay() - selD * 864e5;
@@ -7226,7 +7233,7 @@ function nav() {
     const SX = h => h.replace('class="lt-tab ', 'class="lt-tab side-x ');
     const sideMaisOn = !!ui.sideMais;
     const cfgOn = ['config', 'estoque', 'clientes', 'fornecedores', 'noticias', 'atividade', 'pendencias', 'notificacoes'].filter(k => !naBarra.includes(k === 'fornecedores' ? 'clientes' : k)).includes(cur);
-    return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''} ${sideMaisOn ? 'mais-open' : ''}" aria-label="Gestão"><button type="button" class="side-brand" data-act="sheet" data-v="usuarios-cfg" aria-label="Abrir Usuários e Equipe" style="border:0;background:none;text-align:left;cursor:pointer;width:100%"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça</small></span></button><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}${sideX.join('')}<span class="side-sp"></span>${SY(t('estoque', 'box', 'Estoque'))}${SY(t('clientes', 'user', 'Clientes'))}${SY(t('fornecedores', 'cart', 'Fornecedores'))}${SY(t('noticias', 'megaphone', 'Notícias'))}${SX(t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'fornecedores', 'noticias'].includes(cur)))}${canInstallPWA() ? `<button type="button" class="lt-tab side-x pwa-side-btn" data-act="pwa-install" aria-label="Instalar aplicativo">${ic('down')}Instalar app</button>` : ''}<button class="lt-tab side-mais ${!sideMaisOn && maisOn ? 'on' : ''}" data-act="side-mais" aria-label="Mais" aria-expanded="${sideMaisOn}">${ic(sideMaisOn ? 'x' : 'down')}${sideMaisOn ? 'Menos' : 'Mais'}</button></nav>`;
+    return `<nav class="lt-tabbar lt-side ${fabOn ? 'fab-open' : ''} ${sideMaisOn ? 'mais-open' : ''}" aria-label="Gestão"><button type="button" class="side-brand" data-act="sheet" data-v="usuarios-cfg" aria-label="Abrir Usuários e Equipe" style="border:0;background:none;text-align:left;cursor:pointer;width:100%"><span class="lt-badge-emp mr-badge">${document.querySelector('.mr-badge')?.innerHTML || ''}</span><span><b>Morangos</b><small>Made in Roça</small></span></button><button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${side.join('')}${sideX.join('')}<span class="side-sp"></span>${SY(t('noticias', 'megaphone', 'Notícias'))}${SX(t('config', 'gear', 'Configurações', '', 'go', cfgOn && !['estoque', 'clientes', 'fornecedores', 'noticias'].includes(cur)))}${canInstallPWA() ? `<button type="button" class="lt-tab side-x pwa-side-btn" data-act="pwa-install" aria-label="Instalar aplicativo">${ic('down')}Instalar app</button>` : ''}<button class="lt-tab side-mais ${!sideMaisOn && maisOn ? 'on' : ''}" data-act="side-mais" aria-label="Mais" aria-expanded="${sideMaisOn}">${ic(sideMaisOn ? 'x' : 'down')}${sideMaisOn ? 'Menos' : 'Mais'}</button></nav>`;
   }
   return `<nav class="lt-tabbar ${fabOn ? 'fab-open' : ''}" aria-label="Gestão">${menuBar.slice(0, 2).join('')}<button class="lt-fab" data-act="${fabAct}" data-v="${convCli ? 'conv-mais' : 'novo'}" aria-label="${fabLbl}" aria-expanded="${fabOn}">${ic(fabOn ? 'x' : 'plus')}</button>${menuBar.slice(2).join('')}${t('mais', 'dots', '', '', 'sheet', maisOn).replace('aria-label=""', 'aria-label="Mais"')}</nav>`;
 }
