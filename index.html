@@ -10386,7 +10386,7 @@ function vozIniciaRec() {
   VOZ.rec = r; try { r.start(); } catch { VOZ.rec = null; }
 }
 function vozParaRec() { const r = VOZ.rec; VOZ.rec = null; if (r) { r.onend = null; try { r.abort(); } catch { /* ok */ } } }
-const vozVel = () => { const v = Number(ls.get('mmr-voz-vel', 1.2)); return v >= 0.6 && v <= 1.6 ? v : 1.2; };
+const vozVel = () => { const v = Number(ls.get('mmr-voz-vel', 1.05)); return v >= 0.6 && v <= 1.6 ? v : 1.05; };
 function vozVozes() { let vs = []; try { vs = speechSynthesis.getVoices(); } catch { /* ok */ } const pt = vs.filter(x => /^pt/i.test(x.lang)); return pt.sort((a, b) => (/^pt[-_]BR/i.test(b.lang) - /^pt[-_]BR/i.test(a.lang)) || a.name.localeCompare(b.name)); }
 function vozFalaObj(txt) {
   /* só na fala: "Ander" sai como "Ânder" (como a palavra under); o texto na tela continua Ander */
