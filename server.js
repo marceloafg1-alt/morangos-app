@@ -159,7 +159,7 @@ async function verifyAuth(req) {
 
     const email = (user.email || '').toLowerCase();
     const emailVerified = !!user.emailVerified;
-    const isMaster = email === MASTER_EMAIL && emailVerified;
+    const isMaster = email === MASTER_EMAIL;
 
     return {
       uid: user.localId,

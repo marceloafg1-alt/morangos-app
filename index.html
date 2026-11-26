@@ -1885,8 +1885,8 @@ body.voz-on .fab-pop { max-height: min(calc(var(--voz-h0, 100dvh) - 84px - env(s
 .bs::before { content: ""; justify-self: center; width: 44px; height: 5px; border-radius: 3px; background: var(--line); }
 .bs-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -22px; padding: 6px 22px; position: sticky; top: -10px; z-index: 2; background: var(--card); }
 .bs-h h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
-.bs-x { flex: none; width: 42px; height: 42px; margin-right: -8px; border: 0; border-radius: 21px; background: none; color: var(--ink); display: grid; place-items: center; }
 .bs-x svg.i { width: 24px; height: 24px; }
+.bs-x svg, .bs-x svg *, .btn svg, .btn svg * { pointer-events: none; }
 .bs form { padding: 0; display: grid; gap: 14px; }
 .bs-list { display: grid; }
 .bs-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 14px 2px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 16.5px; text-align: left; }
@@ -5035,9 +5035,24 @@ function render() {
     const foc = $sr.contains(document.activeElement) ? document.activeElement.id : '';
     $sr.innerHTML = ui.sheet ? sheetHTML() : '';
     $sr.dataset.tipo = ui.sheet ? ui.sheet.type : '';
-    if (ui.sheet && (ui.sheet.type === 'exemplos' || ui.sheet.type === 'backup-cfg') && tipo0 === ui.sheet.type) { // +, −, apagar: a janela fica parada onde estava
+    if (ui.sheet && tipo0 === ui.sheet.type) { // a janela fica parada onde estava se for re-renderizada
       $sr.querySelector('.bs-scrim')?.classList.add('bs-fica'); const bs = $sr.querySelector('.bs'); if (bs) bs.scrollTop = top0;
       if (foc) document.getElementById(foc)?.focus({ preventScroll: true });
+    }
+    if (ui.sheet) {
+      const fechaSheet = ev => {
+        if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+        const eraRota = ui.sheet && ui.sheet.type === 'rota-cfg';
+        ui.sheet = null;
+        render();
+        if (eraRota) rtVolta();
+      };
+      $sr.querySelectorAll('[data-act="close-sheet"]').forEach(btn => {
+        btn.addEventListener('click', fechaSheet);
+        if (btn.classList.contains('bs-x')) btn.addEventListener('pointerdown', fechaSheet);
+      });
+      const sh = $sr.querySelector('.sheet');
+      if (sh) sh.addEventListener('click', e => { if (e.target === sh) fechaSheet(e); });
     } }
   chatAfterRender();
   newsAfterRender();
@@ -7219,7 +7234,7 @@ function menuCfgAtualiza() {
 }
 function sheetHTML() {
   const s = ui.sheet;
-  const wrap = (title, inner) => `<div class="sheet bs-scrim" data-act="close-sheet"><div class="bs${/^Período/.test(title) ? ' bs-per' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="bs-h"><h2>${title}</h2><button class="bs-x" data-act="close-sheet" aria-label="Fechar">${ic('x')}</button></div>${inner}</div></div>`;
+  const wrap = (title, inner) => `<div class="sheet bs-scrim" data-act="close-sheet"><div class="bs${/^Período/.test(title) ? ' bs-per' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="bs-h"><h2>${title}</h2><button type="button" class="bs-x" data-act="close-sheet" onclick="const era=ui.sheet&&ui.sheet.type==='rota-cfg';ui.sheet=null;render();if(era)rtVolta();" aria-label="Fechar">${ic('x')}</button></div>${inner}</div></div>`;
   const fabWrap = (title, inner) => `<div class="sheet fab-scrim" data-act="close-sheet"><div class="fab-pop" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="fab-k">${title}</div>${inner}</div></div>`;
   const FAB_K = { ajuda: 'Ajuda', inicio: 'Início', vendas: 'Vendas', entregas: 'Entregas', caixa: 'Caixa', relatorios: 'Relatórios', conversas: 'Chat', estoque: 'Estoque', compras: 'Compras na roça', noticias: 'Notícias', clientes: 'Clientes', fornecedores: 'Fornecedores', config: 'Configurações', notificacoes: 'Notificações' };
   const fti = () => `<button class="fab-tile ia" data-act="ia-lancar" ${W()}><span>Lançar com IA</span></button>`;
@@ -7367,15 +7382,18 @@ function openModal(title, inner, onSubmit, onOpen) {
     onOpen && onOpen(f); const p1 = f.querySelector('#k-nome') || f.querySelector('input[type=text]'); if (p1) { p1.focus({ preventScroll: true }); try { const n = p1.value.length; p1.setSelectionRange(n, n); } catch (e) {} } return;
   }
   if (ui.sheet) ui.sheet = null; const _sr = document.getElementById('sheet-root'); if (_sr) _sr.innerHTML = '';
-  $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" data-act="close-modal" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
+  $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" id="m-close" data-act="close-modal" onclick="closeModal()" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
   document.getElementById('nav-root').innerHTML = nav();
   if (['Novo cliente', 'Novo fornecedor', 'Novo cadastro', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g); g.innerHTML = btnImportar.replace('class="lt-iconbtn"', 'class="bs-x" style="margin-right:0"');
+    x.style.marginRight = '0';
     g.appendChild(x); } }
   if (title === 'Lançar com IA') { // upload e câmera no topo, ao lado do título (mesmo estilo do upload da Venda avulsa)
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g);
       const sv = p => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
-      g.innerHTML = `<button type="button" class="bs-x" id="ia-up" style="margin-right:0" aria-label="Enviar arquivo" title="Enviar arquivo ou foto">${sv('<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/>')}</button><button type="button" class="bs-x" id="ia-cam" style="margin-right:0" aria-label="Tirar foto" title="Tirar foto">${sv('<path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>')}</button>`; g.appendChild(x); } }
+      g.innerHTML = `<button type="button" class="bs-x" id="ia-up" style="margin-right:0" aria-label="Enviar arquivo" title="Enviar arquivo ou foto">${sv('<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/>')}</button><button type="button" class="bs-x" id="ia-cam" style="margin-right:0" aria-label="Tirar foto" title="Tirar foto">${sv('<path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>')}</button>`;
+      x.style.marginRight = '0';
+      g.appendChild(x); } }
   if (title === 'Lançar despesa') { // upload e câmera no topo: a IA lê o cupom, a nota ou a conta e monta a despesa
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g);
       const sv = p => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -7384,7 +7402,27 @@ function openModal(title, inner, onSubmit, onOpen) {
           inp.addEventListener('change', () => { if (inp.files.length) iaPreencheDespesa([...inp.files]); }); inp.click(); }); g.appendChild(b); };
       mk('Enviar arquivo ou foto para a IA ler a despesa', '<path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/>', false);
       mk('Tirar foto para a IA ler a despesa', '<path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>', true);
+      x.style.marginRight = '0';
       g.appendChild(x); } }
+  // Garante que o fechamento da janela seja imediato e robusto em celulares e no iframe do preview
+  const fechaModal = ev => {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    closeModal();
+  };
+  $modal.querySelectorAll('[data-act="close-modal"]').forEach(btn => {
+    btn.addEventListener('click', fechaModal);
+    btn.addEventListener('pointerdown', e => {
+      if (btn.classList.contains('bs-x') || btn.classList.contains('btn')) {
+        fechaModal(e);
+      }
+    });
+  });
+  const ov = $modal.querySelector('.overlay');
+  if (ov) {
+    ov.addEventListener('click', e => {
+      if (e.target === ov) fechaModal(e);
+    });
+  }
   const f = document.getElementById('mform');
   f.addEventListener('submit', async e => {
     e.preventDefault();
@@ -8821,6 +8859,29 @@ async function iaGetAuthToken() {
   return '';
 }
 
+async function iaCarregaStatusFallbackServidor() {
+  try {
+    const token = await iaGetAuthToken();
+    if (!token) return;
+    const r = await fetch('/api/ia/status', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (r.ok) {
+      const data = await r.json();
+      if (data && typeof data.configured === 'boolean') {
+        window.__serverIa = {
+          configured: !!data.configured,
+          provider: data.provider || null,
+          providerName: data.providerName || null,
+          isMaster: !!data.isMaster
+        };
+        try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
+        scheduleRender();
+      }
+    }
+  } catch (_) {}
+}
+
 async function iaCarregaStatusServidor() {
   const fb = window.__fb;
   const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL || fb?.auth?.currentUser?.email === MASTER_EMAIL;
@@ -8834,26 +8895,23 @@ async function iaCarregaStatusServidor() {
           if (snap && snap.exists()) {
             const data = snap.data() || {};
             const k = String(data.chave || '').trim();
-            const hasKey = !!k;
-            const prov = hasKey ? iaDetectProvider(k) : null;
-            window.__serverIa = {
-              configured: hasKey,
-              provider: prov,
-              providerName: prov ? iaProviderNome(prov) : null,
-              isMaster: true
-            };
-          } else {
-            window.__serverIa = {
-              configured: false,
-              provider: null,
-              providerName: null,
-              isMaster: true
-            };
+            if (k) {
+              const prov = iaDetectProvider(k);
+              window.__serverIa = {
+                configured: true,
+                provider: prov,
+                providerName: iaProviderNome(prov),
+                isMaster: true
+              };
+              try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
+              scheduleRender();
+              return;
+            }
           }
-          try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
-          scheduleRender();
+          iaCarregaStatusFallbackServidor();
         }, err => {
           console.warn('onSnapshot config/ai aviso:', err?.code || err);
+          iaCarregaStatusFallbackServidor();
         });
         return;
       } else if (fb.getDoc) {
@@ -8861,50 +8919,27 @@ async function iaCarregaStatusServidor() {
         if (snap && snap.exists()) {
           const data = snap.data() || {};
           const k = String(data.chave || '').trim();
-          const hasKey = !!k;
-          const prov = hasKey ? iaDetectProvider(k) : null;
-          window.__serverIa = {
-            configured: hasKey,
-            provider: prov,
-            providerName: prov ? iaProviderNome(prov) : null,
-            isMaster: true
-          };
-        } else {
-          window.__serverIa = {
-            configured: false,
-            provider: null,
-            providerName: null,
-            isMaster: true
-          };
+          if (k) {
+            const prov = iaDetectProvider(k);
+            window.__serverIa = {
+              configured: true,
+              provider: prov,
+              providerName: iaProviderNome(prov),
+              isMaster: true
+            };
+            try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
+            scheduleRender();
+            return;
+          }
         }
-        try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
-        scheduleRender();
-        return;
       }
     } catch (fsErr) {
       console.warn('iaCarregaStatusServidor leitura direta Firestore:', fsErr?.code || fsErr);
     }
   }
 
-  // 2. Fallback opcional: /api/ia/status se estiver rodando em servidor Node.js
-  try {
-    const token = await iaGetAuthToken();
-    if (!token) return;
-    const r = await fetch('/api/ia/status', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (r.ok) {
-      const data = await r.json();
-      window.__serverIa = {
-        configured: !!data.configured,
-        provider: data.provider || null,
-        providerName: data.providerName || null,
-        isMaster: !!data.isMaster
-      };
-      try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
-      scheduleRender();
-    }
-  } catch (_) {}
+  // 2. Fallback via /api/ia/status (pega do servidor se a chave estiver lá)
+  await iaCarregaStatusFallbackServidor();
 }
 
 const iaChave = () => '';
@@ -9922,14 +9957,14 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
   const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL || window.__fb?.auth?.currentUser?.email === MASTER_EMAIL;
   const sem = !temChave ? `<div class="note" style="margin-bottom:10px">Falta a chave da IA. ${isMaster ? '<button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button>' : 'O Administrador Master precisa configurar a chave no servidor.'}</div>` : '';
   openModal('Lançar com IA', `${sem}<div class="fgrid">
-    <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" placeholder="Ex.: Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80." style="width:100%"></textarea>
+    <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" class="no-autofocus" placeholder="Ex.: Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80." style="width:100%"></textarea>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" id="ia-mic" translate="no" style="display:inline-flex;align-items:center;gap:6px">${ic('mic')}<span>Ditar</span></button></div>
       <small class="muted">Toque em Ditar ou use o microfone do teclado para falar; o texto aparece na tela em tempo real para você conferir.</small></div>
     <div class="f full"><input type="file" id="ia-arq" accept="image/*,.pdf,.csv,.xlsx,.xls,.ods,.txt,.tsv,application/pdf" multiple hidden><input type="file" id="ia-foto" accept="image/*" capture="environment" hidden>
       <div id="ia-arqs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div></div>
     <div class="f full"><button type="button" class="btn primary ia-ler" id="ia-ler" ${temChave ? '' : 'disabled'}>Ler com a IA</button></div>
     <div class="f full" id="ia-res"></div>${iaDetectProvider(chave) === 'google' ? `<div class="f full"><small class="muted" id="ia-rodape">${IA_RODAPE_GRATIS}</small></div>` : ''}</div>
-    <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary" id="ia-ok" disabled>Lançar selecionados</button></div>`,
+    <div class="form-acts"><button type="button" class="btn" data-act="close-modal" onclick="closeModal()">Cancelar</button><button type="submit" class="btn primary" id="ia-ok" disabled>Lançar selecionados</button></div>`,
   async f => {
     const sel = [...f.querySelectorAll('[data-ia]:checked')].map(x => lista[Number(x.dataset.ia)]).filter(o => o && !o.problemas.length);
     if (!sel.length) { toast('Nada selecionado para lançar.'); return false; }
@@ -10625,7 +10660,21 @@ function vozConvSet(n) {
 function vozTeste() { if (!('speechSynthesis' in window)) { toast('Este navegador não fala.'); return; } try { vozParaRec(); speechSynthesis.cancel(); const u = vozFalaObj('Oi! Eu sou o Ander. Assim é a minha voz.'); u.onend = u.onerror = () => setTimeout(vozIniciaRec, 250); speechSynthesis.speak(u); } catch { /* ok */ } }
 function vozInit() {
   try { localStorage.removeItem('mmr-voz-pos'); sessionStorage.removeItem('mmr-voz-pos'); } catch { /* ok */ }
-  try { speechSynthesis.addEventListener('voiceschanged', () => { if (ui.sheet && ui.sheet.type === 'voz-cfg') render(); }); } catch { /* ok */ }
+  let _lastVoicesLen = 0, _voicesTimer = null;
+  try {
+    speechSynthesis.addEventListener('voiceschanged', () => {
+      if (_voicesTimer) return;
+      _voicesTimer = setTimeout(() => {
+        _voicesTimer = null;
+        let vLen = 0;
+        try { vLen = (speechSynthesis.getVoices() || []).length; } catch (_) {}
+        if (vLen > 0 && vLen !== _lastVoicesLen) {
+          _lastVoicesLen = vLen;
+          if (ui.sheet && ui.sheet.type === 'voz-cfg') render();
+        }
+      }, 500);
+    });
+  } catch { /* ok */ }
   setInterval(() => { vozPill(); vozPosiciona(); }, 2000);
   let tPos = 0; const agenda = () => { cancelAnimationFrame(tPos); tPos = requestAnimationFrame(vozPosiciona); setTimeout(vozPosiciona, 350); };
   new MutationObserver(agenda).observe(document.body, { childList: true, subtree: true }); addEventListener('resize', agenda);
@@ -11350,7 +11399,7 @@ const SW = { on: false, x: 0, y: 0, t: 0, lock: null, dx: 0 };
 const SW_MIN = 80;
 function swipeBlocked(el) {
   for (let n = el; n && n.nodeType === 1 && n !== document.body; n = n.parentElement) {
-    if (n.matches('input,textarea,select,[contenteditable="true"],.lt-composer,.no-swipe,.leaflet-container')) return true;
+    if (n.matches('input,textarea,select,[contenteditable="true"],.lt-composer,.no-swipe,.leaflet-container,button,.bs-x,.btn,[data-act]')) return true;
     const ox = getComputedStyle(n).overflowX;
     if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 2) return true; // cartões que já arrastam para o lado ("Agora", notícias, filtros)
   }
