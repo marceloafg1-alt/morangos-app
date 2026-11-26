@@ -8828,6 +8828,7 @@ async function iaCarregaStatusServidor() {
   // 1. Lê status direto do Firestore (funciona no GitHub Pages e no servidor sem depender de /api/ia/status)
   if (fb && fb.db && fb.doc && isMaster) {
     try {
+      if (fb.onSnapshot && window.__iaStatusUnsub) return; // já está ouvindo o Firestore: não relê a cada desenho (isso fazia a tela piscar sem parar)
       if (fb.onSnapshot && !window.__iaStatusUnsub) {
         const docRef = fb.doc(fb.db, 'config', 'ai');
         window.__iaStatusUnsub = fb.onSnapshot(docRef, snap => {
@@ -8851,7 +8852,7 @@ async function iaCarregaStatusServidor() {
             };
           }
           try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
-          scheduleRender();
+          const ass = JSON.stringify(window.__serverIa); if (ass !== window.__iaStatusAss) { window.__iaStatusAss = ass; scheduleRender(); }
         }, err => {
           console.warn('onSnapshot config/ai aviso:', err?.code || err);
         });
@@ -8878,7 +8879,7 @@ async function iaCarregaStatusServidor() {
           };
         }
         try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
-        scheduleRender();
+        const ass = JSON.stringify(window.__serverIa); if (ass !== window.__iaStatusAss) { window.__iaStatusAss = ass; scheduleRender(); }
         return;
       }
     } catch (fsErr) {
@@ -8902,7 +8903,7 @@ async function iaCarregaStatusServidor() {
         isMaster: !!data.isMaster
       };
       try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
-      scheduleRender();
+      const ass = JSON.stringify(window.__serverIa); if (ass !== window.__iaStatusAss) { window.__iaStatusAss = ass; scheduleRender(); }
     }
   } catch (_) {}
 }
