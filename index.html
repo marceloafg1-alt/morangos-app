@@ -7601,11 +7601,21 @@ function modalCompra(fornId, editId) {
     const upd = !!fd.get('custo');
     if (ed) {
       // estoque: tira o que a compra somou antes e soma o que ela soma agora, numa conta só
-      const delta = [...itens, ...(ed.itens || []).map(i => ({ produtoId: i.produtoId, qtd: -i.qtd }))].filter(i => prodById(i.produtoId));
       return safe(async () => {
         await patch('compras', ed.id, body);
-        await adjustStock(delta, 1);
-        if (upd) for (const i of itens) if (prodById(i.produtoId)) await patch('produtos', i.produtoId, { custo: i.custo });
+        // tira a compra antiga do estoque e do valor, e põe a nova: a média refaz o custo sem perder o que já estava no estoque
+        for (const pid of [...new Set([...itens, ...(ed.itens || [])].map(i => i.produtoId))]) {
+          const p = prodById(pid); if (!p) continue;
+          const est0 = Math.max(0, p.estoque || 0), cust0 = p.custo || 0;
+          const oq = (ed.itens || []).filter(i => i.produtoId === pid).reduce((s, i) => s + i.qtd, 0);
+          const oc = ((ed.itens || []).find(i => i.produtoId === pid) || {}).custo || 0;
+          const nq = itens.filter(i => i.produtoId === pid).reduce((s, i) => s + i.qtd, 0);
+          const nc = (itens.find(i => i.produtoId === pid) || {}).custo || 0;
+          const base = n2(est0 - oq + nq), valor = Math.max(0, est0 * cust0 - oq * oc + nq * nc);
+          const ch = { estoque: n2(Math.max(0, base)) };
+          if (upd && (oq || nq)) ch.custo = n2(base > 0 ? valor / base : nc);
+          await patch('produtos', pid, ch);
+        }
         for (const l of readLines(f)) if (l.pv > 0 && prodById(l.produtoId)) await patch('produtos', l.produtoId, { preco: l.pv });
       }, 'Compra atualizada e estoque corrigido.');
     }
@@ -7691,7 +7701,10 @@ function modalAjuste(id) {
   </div><div class="form-acts"><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>`,
   async f => { const fd = new FormData(f); const q = Number(fd.get('qtd')); if (!(q >= 0) || fd.get('qtd') === '') { toast('Informe a quantidade.'); return false; }
     const t = fd.get('tipo'); const novo = t === 'contagem' ? q : t === 'perda' ? Math.max(0, (p.estoque || 0) - q) : (p.estoque || 0) + q;
-    return safe(() => patch('produtos', id, { estoque: n2(novo) }), 'Estoque ajustado.'); });
+    const est0 = Math.max(0, p.estoque || 0), cust0 = p.custo || 0;
+    const ch = { estoque: n2(novo) };
+    if (novo > 0 && novo < est0 && cust0 > 0) ch.custo = n2(est0 * cust0 / novo); /* perda: o valor do estoque continua o mesmo, dividido por menos caixas */
+    return safe(() => patch('produtos', id, ch), 'Estoque ajustado.'); });
 }
 
 const newsDoModelo = m => ({ tipo: m.k, titulo: m.titulo, texto: m.texto, tag: m.tag, cor: m.cor, emoji: m.k === 'livre' ? '' : m.emoji, acao: m.acao, acaoTxt: '', acaoProd: m.acao === 'comprar' ? (sortedProdutos().find(p => p.ativo !== false && (p.estoque || 0) > 0) || sortedProdutos()[0])?.id || '' : '' });
