@@ -1212,6 +1212,8 @@ textarea { min-height: 80px; resize: vertical; }
 .media-box:empty { display: none; }
 .media-box b { font-weight: 800; }
 .x { border: 0; background: var(--surface-2); border-radius: 12px; width: 40px; height: 44px; font-weight: 800; color: var(--muted); font-size: 18px; }
+.desc-row { display: flex; gap: 8px; margin-top: 6px; } .desc-row select { flex: 1 1 60%; min-width: 0; } .desc-row input { flex: 1 1 40%; min-width: 0; }
+.desc-res { font-size: 13px; margin-top: 6px; } .desc-res .desc-v { color: #2e7d32; font-weight: 700; }
 .total-row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--line); }
 .total-row b { font-size: 24px; font-weight: 800; }
 .opts { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -5226,7 +5228,7 @@ function ivDivisao() {
   const m = {};
   const add = (k, x) => { m[k] = (m[k] || 0) + x; };
   if (vis === 'pag') vs.forEach(v => add(FORMAS[v.forma] || v.forma || 'Outros', vLiq(v)));
-  else if (vis === 'prod') vs.forEach(v => (v.itens || []).forEach(i => add(i.nome || 'Produto', (Number(i.qtd) || 0) * (Number(i.preco) || 0))));
+  else if (vis === 'prod') vs.forEach(v => (v.itens || []).forEach(i => add(i.nome || 'Produto', itemRec(v, i))));
   else vs.forEach(v => add(v.origem === 'avulsa' ? 'Venda avulsa' : v.origem === 'chat' ? 'Pelo chat' : 'Pelo app', vLiq(v)));
   let L = Object.entries(m).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
   if (L.length > 5) { const resto = L.slice(4).reduce((s, x) => s + x[1], 0); L = [...L.slice(0, 4), ['Outros', resto]]; }
@@ -6402,7 +6404,7 @@ function relDados() {
   const comprado = cs.reduce((s, c) => s + cAberto(c), 0);
   const compraAPagar = cs.filter(c => !c.pago).reduce((s, c) => s + cFalta(c), 0);
   const vendaAReceber = vs.filter(v => !v.pago).reduce((s, v) => s + vFalta(v), 0);
-  const prod = {}; for (const v of vs) for (const i of v.itens || []) { const r = prod[i.nome] || (prod[i.nome] = { q: 0, v: 0 }); r.q += i.qtd; r.v += i.qtd * i.preco; }
+  const prod = {}; for (const v of vs) for (const i of v.itens || []) { const r = prod[i.nome] || (prod[i.nome] = { q: 0, v: 0 }); r.q += i.qtd; r.v += itemRec(v, i); }
   const resumo = [['Vendas', t.vendas], ['Pedidos', vs.length], ['Ticket médio', vs.length ? t.vendas / vs.length : 0], ['Custo dos morangos vendidos', t.cmv], ['Compras totais', comprado], ['Lucro bruto', t.lucroBruto], ['Despesas', t.despesas], ['Resultado', t.resultado]];
   const balanco = [['Vendido (receita)', t.vendas], ['Comprado na roça', comprado], ['Vendido − comprado', n2(t.vendas - comprado)], ['Compras ainda a pagar', compraAPagar], ['Vendas ainda a receber', vendaAReceber], ['Entrou no caixa', t.entradas], ['Saiu do caixa', t.saidas], ['Saldo do período no caixa', n2(t.entradas - t.saidas)]];
   return { per, t, vs, cs, ds, comprado, compraAPagar, vendaAReceber, resumo, balanco,
@@ -6629,7 +6631,7 @@ function gRelatorios() {
     const o = v.origem === 'app' ? 'Pelo app' : v.origem === 'chat' ? 'Pelo chat' : 'Avulsa'; byOrig[o] = (byOrig[o] || 0) + vLiq(v);
     const cn = v.cliente?.nome || 'Cliente avulso'; byCli[cn] = (byCli[cn] || 0) + vLiq(v);
     byDow[new Date(v.ts).getDay()] += vLiq(v);
-    for (const i of v.itens || []) { byProd[i.nome] = (byProd[i.nome] || 0) + i.qtd * i.preco; byProdQ[i.nome] = (byProdQ[i.nome] || 0) + i.qtd; }
+    for (const i of v.itens || []) { byProd[i.nome] = (byProd[i.nome] || 0) + itemRec(v, i); byProdQ[i.nome] = (byProdQ[i.nome] || 0) + i.qtd; }
   }
   const bars = (obj, label = k => k, cls = '', sub, cor) => { const e = Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 6); const max = Math.max(...e.map(x => x[1]), 1); const soma = Object.values(obj).reduce((a, b) => a + b, 0) || 1;
     return `<div class="card bars">${e.map(([k, v]) => `<div><div class="bar-l"><span${cor ? ' class="cat-l"' : ''}>${cor ? catIco(cor(k), 'sm') : ''}${esc(label(k))}${sub ? ` <small class="muted">· ${sub(k)}</small>` : ''}</span><b>${money(v)} <small class="muted">${Math.round(v / soma * 100)}%</small></b></div><div class="track"><div class="fill ${cls}" style="width:${v / max * 100}%${cor ? ';background:' + cor(k).cor : ''}"></div></div></div>`).join('') || '<span class="muted">Sem dados no período.</span>'}</div>`; };
@@ -7441,10 +7443,25 @@ const todayInput = () => { const d = new Date(); return d.getFullYear() + '-' + 
 const tsFromDate = s => { if (!s || s === todayInput()) return Date.now(); const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d, 12).getTime(); };
 const prodOptions = sel => sortedProdutos().map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
 
-function linesEditor(kind) {
+/* DESCONTO: tipo 'pct' (%), 'total' (R$ no total) ou 'unit' (R$ por unidade). O total da venda já fica com o desconto. */
+/* receita de um item já com o desconto da venda repartido */
+const itemRec = (v, i) => { const b = (Number(i.qtd) || 0) * (Number(i.preco) || 0); if (!v.desconto) return b; const g = (v.itens || []).reduce((s, x) => s + (Number(x.qtd) || 0) * (Number(x.preco) || 0), 0); return g > 0 ? b * (Number(v.total) || 0) / g : b; };
+const DESC_TIPOS = { pct: 'Em %', total: 'R$ no total', unit: 'R$ por unidade' };
+function descontoCalc(itens, tipo, valor) {
+  const bruto = n2((itens || []).reduce((s, i) => s + (Number(i.qtd) || 0) * (Number(i.preco ?? i.un ?? i.unit) || 0), 0)), q = (itens || []).reduce((s, i) => s + (Number(i.qtd) || 0), 0), v = Number(valor) || 0;
+  let d = tipo === 'pct' ? bruto * Math.min(v, 100) / 100 : tipo === 'unit' ? q * v : tipo === 'total' ? v : 0;
+  d = Math.min(Math.max(n2(d), 0), bruto);
+  return { bruto, desc: d, total: n2(bruto - d) };
+}
+const descTxt = d => d ? (d.tipo === 'pct' ? n2(d.valor) + '%' : d.tipo === 'unit' ? money(d.valor) + ' por unidade' : money(d.valor) + ' no total') : '';
+function linesEditor(kind, ed) {
   return `<div class="f full"><span class="lbl">Itens</span>
     <div class="lines"><div class="line line-h${kind === 'compra' ? ' line-hc' : ''}"><span class="lh-p">Produto</span><span>Quantidade</span><span>${kind === 'compra' ? 'Custo un. (R$)' : 'Preço un. (R$)'}</span>${kind === 'compra' ? '<span>Venda hoje (R$)</span>' : '<span></span>'}</div><div id="lines"></div><div id="media" class="media-box"></div></div>
     <button type="button" class="btn small" data-add-line style="justify-self:start;margin-top:4px">+ Item</button></div>
+    ${kind === 'venda' ? `<div class="f full desc-box"><span class="lbl">Desconto</span>
+      <div class="desc-row"><select id="v-desc-t" name="desc_tipo" aria-label="Tipo do desconto"><option value="">Sem desconto</option>${Object.entries(DESC_TIPOS).map(([k, l]) => `<option value="${k}" ${ed?.desconto?.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <input type="number" id="v-desc-v" name="desc_valor" aria-label="Valor do desconto" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${ed?.desconto ? ed.desconto.valor : ''}"></div>
+      <div class="desc-res muted" id="desc-res"></div></div>` : ''}
     <div class="total-row f full"><span class="muted">Total</span><b class="num" id="ltotal">R$ 0,00</b></div>`;
 }
 function wireLines(f, kind, init) {
@@ -7465,7 +7482,9 @@ function wireLines(f, kind, init) {
     box.appendChild(row); calc();
   };
   const calc = () => {
-    f.querySelector('#ltotal').textContent = money(readLines(f).reduce((s, l) => s + l.qtd * l.unit, 0));
+    { const ls = readLines(f), dt = f.querySelector('#v-desc-t'), r = descontoCalc(ls.map(l => ({ qtd: l.qtd, preco: l.unit })), dt ? dt.value : '', dt ? f.querySelector('#v-desc-v').value : 0);
+      f.querySelector('#ltotal').textContent = money(r.total);
+      const dr = f.querySelector('#desc-res'); if (dr) dr.innerHTML = dt && dt.value && r.desc > 0 ? `Subtotal ${money(r.bruto)} · Desconto <span class="desc-v">− ${money(r.desc)}</span>` : ''; }
     const med = f.querySelector('#media'); if (!med || kind !== 'compra') return;
     const up = !!f.querySelector('#c-custo')?.checked;
     med.innerHTML = readLines(f).map(l => { const p = prodById(l.produtoId); if (!p) return ''; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0;
@@ -7473,6 +7492,7 @@ function wireLines(f, kind, init) {
       return `<div><b>${esc(p.nome)}</b>: estoque ${n2(est)} + ${n2(l.qtd)} = ${n2(est + l.qtd)}<br>Custo médio: <b>${money(novo)}</b>${up ? '' : ' (custo não muda: desmarcado)'} · Venda hoje: <b>${money(l.pv || p.preco || 0)}</b></div>`; }).join('');
   };
   f.addEventListener('change', calc);
+  f.addEventListener('input', e => { if (e.target.id === 'v-desc-v') calc(); });
   box.addEventListener('input', calc);
   f.querySelector('[data-add-line]').addEventListener('click', () => add());
   if (init && init.length) init.forEach(add); else add();
@@ -7515,7 +7535,7 @@ function modalVenda(cliId, editId, titulo) {
     <div class="f"><label for="v-nome">Cliente</label><input type="text" id="v-nome" name="nome" placeholder="Opcional" list="cli-list" autocomplete="off" value="${esc(c0.nome || '')}"><datalist id="cli-list">${sortedClientes().map(c => `<option value="${esc(c.nome)}">`).join('')}</datalist></div>
     <div class="f"><label for="v-tel">Telefone</label><input type="tel" id="v-tel" name="telefone" placeholder="Opcional" value="${esc(c0.telefone || '')}"></div>
     <div class="f full"><label for="v-end">Endereço (se for entregar)</label><input type="text" id="v-end" name="endereco" value="${esc(c0.endereco || '')}"></div>
-    ${linesEditor('venda')}
+    ${linesEditor('venda', ed)}
     <div class="f full"><span class="lbl">Forma de pagamento</span>${formaOptsLinha('forma', formas, ed ? ed.forma : 'pix')}</div>
     <div class="f full nt-prefs">
       <label class="nt-pref" for="v-pago"><span class="grow"><b>Já foi pago?</b><small>Desligado: fica como a receber</small></span><input type="checkbox" class="lt-switch" id="v-pago" name="pago" ${!ed || ed.pago ? 'checked' : ''}></label>
@@ -7532,19 +7552,23 @@ function modalVenda(cliId, editId, titulo) {
     const itens = lines.map(l => { const p = prodById(l.produtoId), o = velho(l.produtoId); return { produtoId: l.produtoId, nome: p?.nome || o?.nome || '', qtd: l.qtd, preco: l.unit, custo: o?.custo ?? p?.custo ?? 0 }; });
     const pago = !!fd.get('pago');
     const status = fd.get('entrega');
-    const totalV = n2(itens.reduce((s, i) => s + i.qtd * i.preco, 0));
+    const dtp = String(fd.get('desc_tipo') || ''), dvl = Number(fd.get('desc_valor')) || 0, dcalc = descontoCalc(itens, dtp, dvl);
+    if (dtp && dvl > 0 && dtp === 'pct' && dvl > 100) { toast('O desconto em % não pode passar de 100.'); return false; }
+    if (dtp && dvl > 0 && (dtp !== 'pct') && dcalc.desc < dvl && dcalc.desc === dcalc.bruto && dtp === 'total') { toast('O desconto não pode ser maior que o total da venda.'); return false; }
+    const desconto = dtp && dvl > 0 && dcalc.desc > 0 ? { tipo: dtp, valor: n2(dvl), valorR: dcalc.desc } : null;
+    const totalV = dcalc.total;
     const vpIn = !pago && fd.get('parcial') !== null ? n2(Number(fd.get('valorPago')) || 0) : 0;
     if (!pago && fd.get('parcial') !== null && !(vpIn > 0 && vpIn < totalV)) { toast('Em pago parcial, informe um valor maior que zero e menor que o total.'); return false; }
     const vpFinal = pago ? Math.min(Number(ed?.valorPago) || 0, totalV) : vpIn;
     const parcTs = vpFinal > 0 ? (ed && Number(ed.valorPago) === vpFinal && ed.parcialTs ? ed.parcialTs : (ed ? Date.now() : null)) : null;
     const cliente = { nome: String(fd.get('nome') || '').trim(), telefone: String(fd.get('telefone') || '').trim(), endereco: String(fd.get('endereco') || '').trim() };
     const cl = S.clientes.find(x => (x.nome || '').trim().toLowerCase() === cliente.nome.toLowerCase());
-    const total = n2(itens.reduce((s, i) => s + i.qtd * i.preco, 0));
+    const total = totalV;
     if (ed) {
       const ts = fd.get('data') === dataOrig ? ed.ts : tsFromDate(fd.get('data'));
       if (ed.pago && !pago && estornos(ed).some(e => e.caixa !== false)) { toast('Esta venda tem devolução registrada no caixa. Não dá para desmarcar o pagamento.'); return false; }
       if (cancelada && pago !== !!ed.pago) { toast('Venda cancelada: o pagamento não muda mais.'); return false; }
-      const body = { ts, cliente, itens, total, forma: fd.get('forma'), pago, pagoTs: pago ? (ed.pago ? ed.pagoTs || ts : Date.now()) : null, valorPago: vpFinal, parcialTs: parcTs, status, obs: String(fd.get('obs') || '').trim() };
+      const body = { ts, cliente, itens, total, desconto, forma: fd.get('forma'), pago, pagoTs: pago ? (ed.pago ? ed.pagoTs || ts : Date.now()) : null, valorPago: vpFinal, parcialTs: parcTs, status, obs: String(fd.get('obs') || '').trim() };
       if (!pago) body.clienteInformouPix = false;
       if (cl) body.clienteId = cl.id;
       if (status === 'em_rota' && ed.status !== 'em_rota') body.ordemRota = nextOrdem();
@@ -7554,7 +7578,7 @@ function modalVenda(cliId, editId, titulo) {
       return safe(async () => { await patch('vendas', ed.id, body); if (delta.length) await adjustStock(delta.filter(i => prodById(i.produtoId)), -1); }, 'Venda atualizada.');
     }
     const ts = tsFromDate(fd.get('data'));
-    const body = { ts, cliente, itens, total, forma: fd.get('forma'), pago, pagoTs: pago ? ts : null, valorPago: vpFinal, parcialTs: vpFinal > 0 ? ts : null, origem: 'avulsa', status, ordemRota: status === 'em_rota' ? nextOrdem() : null, obs: String(fd.get('obs') || '').trim() };
+    const body = { ts, cliente, itens, total, ...(desconto ? { desconto } : {}), forma: fd.get('forma'), pago, pagoTs: pago ? ts : null, valorPago: vpFinal, parcialTs: vpFinal > 0 ? ts : null, origem: 'avulsa', status, ordemRota: status === 'em_rota' ? nextOrdem() : null, obs: String(fd.get('obs') || '').trim() };
     if (cl) body.clienteId = cl.id;
     return safe(async () => { await put('vendas', uid(), body); await adjustStock(itens, -1); }, 'Venda salva.');
   }, f => {
@@ -9065,6 +9089,8 @@ const iaFerramenta = {
       pago: { type: 'boolean', description: 'true se o pagamento já foi feito.' },
       pago_informado: { type: 'boolean', description: 'true SÓ se o conteúdo diz se já foi pago ou não (vale fiado e pagamento parcial). false se não fala nada sobre pagamento.' },
       fracao_paga: { type: 'number', description: 'Só quando o texto diz porcentagem ou fração do total já paga ("paguei 50%", "metade", "um terço"): a fração de 0 a 1 (0.5, 0.33). O app calcula o valor sobre a soma dos itens. 0 se não disse.' },
+      desconto_tipo: { type: 'string', enum: ['percentual', 'valor_total', 'por_unidade', ''], description: 'Só venda, quando o dono pedir desconto. percentual: "desconto de 10%". valor_total: "desconto de 20 no valor total" (R$ abatidos da venda inteira). por_unidade: "desconto de 2 por unidade" (R$ abatidos de CADA unidade vendida). Vazio se não falou de desconto.' },
+      desconto_valor: { type: 'number', description: 'O número do desconto: a porcentagem (10) se percentual, ou os reais se valor_total ou por_unidade. 0 se não há desconto.' },
       valor_pago: { type: 'number', description: 'Quanto já foi pago no TOTAL do lançamento (todos os produtos somados), se for pagamento parcial. 0 se não informado.' },
       data: { type: 'string', description: 'AAAA-MM-DD, ou vazio se não foi dita (vale hoje).' },
       observacao: { type: 'string', description: 'SÓ preencha se o usuário mandou expressamente colocar algo na observação ("coloque na observação..."). Caso contrário, deixe vazio.' } }, required: ['tipo'] } },
@@ -9117,6 +9143,7 @@ Regras:
 - VÁRIOS PRODUTOS: compra ou venda do MESMO fornecedor/cliente e mesma data é UM só lançamento, com todos os produtos em itens. Só separe se o fornecedor/cliente ou a data forem diferentes.
 - CADA ITEM: quantidade = número de unidades ("10 caixas" = 10; "meia dúzia" = 6). preco_unitario = preço de UMA unidade. Se o texto der só o total do produto ("10 caixas por R$ 300"), preencha valor_item=300 e deixe preco_unitario 0; nunca coloque o total da linha em preco_unitario. Em COMPRA, "vendo a R$ X" ou "preço de venda X" é preco_venda do item (novo preço de venda do produto), diferente do custo.
 - O app soma os itens sozinho. Só preencha "valor" se o texto der um total geral sem preço dos itens.
+- DESCONTO em venda: "lançar desconto de 10%" = desconto_tipo=percentual, desconto_valor=10; "desconto de 20 no valor total" = valor_total, 20; "desconto de 2 por unidade" = por_unidade, 2. Não aplique o desconto nos preços nem no valor: o app calcula. Sem a palavra desconto, deixe vazio.
 - Reconhecimento de voz erra palavras: "pics", "pique" e "pix" são Pix.
 - Se o texto disser porcentagem, metade ou fração já paga ("paguei 50%"), preencha fracao_paga (0.5) e pago=false.
 - PAGAMENTO PARCIAL com vários produtos vale para o lançamento inteiro: valor_pago = quanto foi pago no total. "Metade", "50%" ou "um terço" são calculados sobre a SOMA de todos os itens (quantidade × preço de cada, somados). pago=false quando é parcial.
@@ -9514,6 +9541,8 @@ function iaPrepara(l) {
   o.total = n2(o.itens.reduce((s, i) => s + i.qtd * i.un, 0));
   if (o.itens.length > 1 && n2(l.valor) > 0 && Math.abs(o.total - n2(l.valor)) > 0.01) o.avisos.push('a soma dos itens (' + money(o.total) + ') não bate com o total dito (' + money(n2(l.valor)) + '): confira os preços');
   if (o.itens.length && !(o.total > 0)) o.problemas.push('sem preço');
+  if (o.tipo === 'venda') { const dt = { percentual: 'pct', valor_total: 'total', por_unidade: 'unit' }[l.desconto_tipo], dv = n2(l.desconto_valor);
+    if (dt && dv > 0 && o.total > 0) { const r = descontoCalc(o.itens, dt, dv); if (dt === 'pct' && dv > 100) o.problemas.push('desconto de mais de 100%'); else if (r.desc <= 0) o.problemas.push('desconto inválido'); else { if (dv > r.bruto && dt !== 'pct' && r.desc >= r.bruto) o.avisos.push('o desconto é maior que a venda: o total ficou zerado'); o.desconto = { tipo: dt, valor: dv, valorR: r.desc }; o.bruto = r.bruto; o.total = r.total; } } }
   if (o.tipo === 'venda') { const c = S.clientes.find(x => norm(x.nome) === norm(o.pessoa)); if (c) o.clienteId = c.id; else if (o.pessoa) o.avisos.push('cliente não cadastrado: fica só o nome na venda (se ele for cadastrado neste mesmo lançamento, o endereço vai junto)'); }
   else { if (!o.pessoa) o.problemas.push('sem fornecedor'); const f = S.fornecedores.find(x => norm(x.nome) === norm(o.pessoa)); if (f) o.fornecedorId = f.id; }
   if (o.forma === 'fiado') o.pago = false;
@@ -9925,7 +9954,7 @@ async function iaGravar(o) {
     const nv = IA_NOVOS.clientes[norm(o.pessoa)], cl = (o.clienteId ? S.clientes.find(x => x.id === o.clienteId) : null) || (nv && Date.now() - nv._t < 6e5 ? nv : null) || (o.pessoa ? S.clientes.find(x => norm(x.nome) === norm(o.pessoa)) : null) || null;
     const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, preco: i.un, custo: prodById(i.produtoId)?.custo || 0 }));
     const cliente = { nome: cl?.nome || o.pessoa, telefone: cl?.telefone || '', endereco: cl ? cliEndereco(cl) : '' };
-    await put('vendas', uid(), { ts, cliente, itens, total: o.total, forma, pago: o.pago, pagoTs: o.pago ? ts : null, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, origem: 'avulsa', status: o.entrega || 'entregue', ordemRota: o.entrega === 'em_rota' ? nextOrdem() : null, ...(o.entrega === 'entregue' || !o.entrega ? { entregueTs: ts } : {}), obs: o.obs || '', ...(cl ? { clienteId: cl.id } : {}) });
+    await put('vendas', uid(), { ts, cliente, itens, total: o.total, ...(o.desconto ? { desconto: o.desconto } : {}), forma, pago: o.pago, pagoTs: o.pago ? ts : null, valorPago: vpIA, parcialTs: vpIA > 0 ? ts : null, origem: 'avulsa', status: o.entrega || 'entregue', ordemRota: o.entrega === 'em_rota' ? nextOrdem() : null, ...(o.entrega === 'entregue' || !o.entrega ? { entregueTs: ts } : {}), obs: o.obs || '', ...(cl ? { clienteId: cl.id } : {}) });
     return adjustStock(itens, -1);
   }
   const itens = o.itens.map(i => ({ produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, custo: i.un }));
@@ -9948,7 +9977,7 @@ function iaCard(o, i) {
   const det = o.tipo === 'despesa' ? `${esc(o.descricao)} · ${esc(catNome(o.categoria) || '')}` : o.itens.map(x => `${x.qtd}× ${esc(x.nome)} a ${money(x.un)} = ${money(n2(x.qtd * x.un))}${x.pv > 0 ? ' (venda a ' + money(x.pv) + ')' : ''}`).join(', ');
   const val = o.tipo === 'despesa' ? o.valor : o.total;
   return `<label class="nt-pref ia-i" style="align-items:flex-start;${bad ? 'opacity:.75' : ''}"><span class="nt-ic">${ic(icn)}</span><span class="grow"><b>${tl}${o.pessoa ? ' · ' + esc(o.pessoa) : ''} · ${money(val)}</b>
-    <small style="display:block">${det || '—'}</small><small style="display:block">${esc(FORMAS[o.forma] || (o.pago ? 'forma não informada' : ''))}${o.forma || o.pago || iaParcial(o) ? ' · ' : ''}${esc(iaPagoTxt(o))} · ${esc(o.data.split('-').reverse().join('/'))}${o.tipo === 'venda' ? ' · entrega: ' + esc({ entregue: 'já entregue', separado: 'entregar depois', em_rota: 'na rota' }[o.entrega] || '') : ''}</small>
+    <small style="display:block">${det || '—'}</small><small style="display:block">${o.desconto ? `Subtotal ${money(o.bruto)} · <span style="font-weight:700;font-size:inherit">desconto ${esc(descTxt(o.desconto))} (− ${money(o.desconto.valorR)})</span><br>` : ''}${esc(FORMAS[o.forma] || (o.pago ? 'forma não informada' : ''))}${o.forma || o.pago || iaParcial(o) ? ' · ' : ''}${esc(iaPagoTxt(o))} · ${esc(o.data.split('-').reverse().join('/'))}${o.tipo === 'venda' ? ' · entrega: ' + esc({ entregue: 'já entregue', separado: 'entregar depois', em_rota: 'na rota' }[o.entrega] || '') : ''}</small>
     ${bad ? `<small style="display:block;color:#c0392b">⚠ Não dá para lançar: ${esc(o.problemas.join('; '))}. Cadastre e peça de novo.</small>` : ''}${(o.falta || []).length ? `<small style="display:block;color:#b8860b">❓ Falta informar: ${esc(o.falta.join(', '))}. Escreva no campo acima e leia de novo, ou ligue para lançar assim mesmo.</small>` : ''}${o.avisos.map(a => `<small class="muted" style="display:block">ℹ ${esc(a)}</small>`).join('')}</span>
     <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : (o.falta || []).length ? '' : 'checked'}></label>`;
 }
@@ -10333,6 +10362,7 @@ O que fazer:
 - Nunca invente valores, quantidades, datas ou nomes. Se faltar algo essencial, deixe lancamentos vazio e pergunte em "fala".
 - Se não for sobre o app, diga em uma frase que você cuida só do aplicativo.
 - "X comprou/levou" = venda para X. "Comprei de Y" = compra do fornecedor Y. Gasto com combustível, embalagem etc. = despesa.
+- DESCONTO em venda: "desconto de 10%" = desconto_tipo=percentual (10); "desconto de 20 no valor total" = valor_total (20); "desconto de 2 por unidade" = por_unidade (2). O app calcula; não mexa nos preços.
 - Ao falar do pagamento, nunca diga "não pago" quando houve pagamento parcial: diga "pago parcial", com o valor pago e o total.
 - pago=true só se o dono disser que pagou ou recebeu o valor todo. Se pagou ou recebeu MENOS que o total (inclusive "metade", "50%", "um terço", "R$ 100 de entrada"), pago=false e informe valor_pago em reais, calculando sobre o total (quantidade x preço do pedido, ou o preço cadastrado quando ele não disser o preço): "50%" ou "metade" = valor_pago igual à metade do total. Vale para venda e para compra. "Fiado" ou "a prazo" = forma fiado e pago=false.
 - Entrega: use entrega só se ele disser algo sobre entrega. Observação só se ele mandar colocar. SEMPRE que ele der a entender que a entrega ainda não aconteceu, use entrega=separado (entregar depois): entrega pendente, em aberto, atrasada, agendada, "a fazer", "em haver", "a haver", "não efetuada", "não realizada", "não feita", "não entregue", "ainda não entregue", "aguardando entrega", "falta entregar", "vou entregar", "entrego amanhã", "não saiu para entrega".
