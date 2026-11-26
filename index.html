@@ -9903,7 +9903,7 @@ function vozDiz(txt) {
 function vozVolta() { VOZ.estado = 'espera'; VOZ.pend = null; vozPill(); }
 async function vozAbreJanela() {
   const ms = Math.max(15, vozContinuaEspera()) * 1000;
-  VOZ.estado = 'comando'; clearTimeout(VOZ.tJan); vozMsg('Ander ouvindo...', 30000); await vozDiz('Oi! Pode falar, estou ouvindo.');
+  VOZ.estado = 'comando'; clearTimeout(VOZ.tJan); vozMsg('Ander ouvindo...', 30000); await vozDiz('Olá, pode falar.');
   if (VOZ.estado === 'comando') { vozMsg('Ander ouvindo...', ms); VOZ.tJan = setTimeout(() => { if (VOZ.estado === 'comando' && !VOZ.buf) { vozVolta(); vozMsg(''); } }, ms); }
 }
 function vozToque() {
