@@ -5049,6 +5049,7 @@ function render() {
         if (eraRota) rtVolta();
       };
       $sr.querySelectorAll('[data-act="close-sheet"]').forEach(btn => {
+        if (btn.classList.contains('sheet')) return; /* o fundo escuro fecha só quando o toque é nele mesmo (abaixo) */
         btn.addEventListener('click', fechaSheet);
         if (btn.classList.contains('bs-x')) btn.addEventListener('pointerdown', fechaSheet);
       });
@@ -7411,6 +7412,7 @@ function openModal(title, inner, onSubmit, onOpen) {
     closeModal();
   };
   $modal.querySelectorAll('[data-act="close-modal"]').forEach(btn => {
+    if (btn.classList.contains('overlay')) return; /* o fundo escuro fecha só quando o toque é nele mesmo (abaixo) */
     btn.addEventListener('click', fechaModal);
     btn.addEventListener('pointerdown', e => {
       if (btn.classList.contains('bs-x') || btn.classList.contains('btn')) {
