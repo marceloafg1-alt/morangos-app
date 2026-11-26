@@ -8886,8 +8886,12 @@ async function iaCarregaStatusFallbackServidor() {
 }
 
 async function iaCarregaStatusServidor() {
+  if (window.__iaStatusUnsub) return; /* já está escutando: evita refazer a leitura a cada desenho da tela (causava o pisca-pisca) */
   const fb = window.__fb;
   const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL || fb?.auth?.currentUser?.email === MASTER_EMAIL;
+  const tk = (isMaster ? 'm' : 'u') + (fb && fb.db ? 'f' : 'n'); /* no máximo uma leitura a cada 15 s por situação (login/Firebase) */
+  if (window.__iaStatusTk === tk && Date.now() - (window.__iaStatusTs || 0) < 15000) return;
+  window.__iaStatusTk = tk; window.__iaStatusTs = Date.now();
 
   // 1. Lê status direto do Firestore (funciona no GitHub Pages e no servidor sem depender de /api/ia/status)
   if (fb && fb.db && fb.doc && isMaster) {
