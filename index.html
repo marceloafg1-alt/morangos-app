@@ -6843,7 +6843,7 @@ const AJ_G = [
     ['Como registrar uma compra na roça?', '<ol><li>Em <b>Compras</b>, toque no <b>+</b>.</li><li>Escolha o <b>Produtor / roça</b>.</li><li>Em <b>Itens</b>, informe produto, quantidade e custo.</li><li>Escolha o pagamento (Pix, Dinheiro ou Fiado) e se <b>Já foi pago</b>.</li><li>Deixe marcado <b>Atualizar o custo dos produtos</b> para o lucro usar o custo novo.</li><li>Toque em <b>Salvar compra</b>. O estoque sobe na hora.</li></ol>', [['Registrar compra na roça', 'nova-compra']]],
     ['Como pagar uma compra que ficou a prazo?', 'Toque em <b>Marcar paga</b> no cartão da compra, ou em <b>Caixa → Compras a pagar → paga</b>. O valor sai do caixa nesse momento.', [['Ver compras a pagar', 'go-caixa-pagar']]],
     ['Como cadastrar um produto?', 'Em <b>Configurações → Estoque</b>, toque no <b>+</b>. Informe nome, descrição que aparece na Loja, unidade, ordem na Loja, preço de venda, custo e estoque inicial. Desmarque <b>Mostrar no app do cliente</b> para vender só pela Gestão.', [['Novo produto', 'novo-produto'], ['Abrir Estoque', 'go-cfg', 'estoque']]],
-    ['Como ajustar o estoque (perda ou contagem)?', 'No produto, toque em <b>Ajustar estoque</b> e escolha: <b>Perda</b> (tira), <b>Contei e o certo é…</b> (troca pelo número contado) ou <b>Entrada sem compra</b> (soma sem mexer no caixa).', [['Abrir Estoque', 'go-cfg', 'estoque']]],
+    ['Como ajustar o estoque (perda ou zerar)?', 'No produto, toque em <b>Ajustar estoque</b> e escolha: <b>Perda</b> (tira), <b>Contei e o certo é…</b> (troca pelo número contado) ou <b>Entrada sem compra</b> (soma sem mexer no caixa).', [['Abrir Estoque', 'go-cfg', 'estoque']]],
     ['Por que o produto aparece esgotado ou sumiu da Loja?', 'Com estoque zero ele aparece como <b>Esgotado</b> e não pode ser comprado: registre uma compra ou ajuste o estoque. Se sumiu da lista, está <b>Fora do app</b>: edite o produto e marque <b>Mostrar no app do cliente</b>. Com 5 ou menos, ele aparece como <b>Acabando</b>.', [['Abrir Estoque', 'go-cfg', 'estoque'], ['Registrar compra', 'nova-compra']]],
   ]],
   ['Caixa (fluxo de caixa), despesas e estornos', [
@@ -7631,7 +7631,7 @@ function modalCompra(fornId, editId) {
     <div class="f full nt-prefs">
       <label class="nt-pref" for="c-pago"><span class="grow"><b>Já foi pago?</b><small>Desligado: fica como a pagar</small></span><input type="checkbox" class="lt-switch" id="c-pago" name="pago" ${!ed || ed.pago ? 'checked' : ''}></label>
       ${parcBox('c', ed)}
-      <label class="nt-pref" for="c-custo"><span class="grow"><b>Atualizar o custo dos produtos?</b><small>Usa a média com o estoque que já existe</small></span><input type="checkbox" class="lt-switch" id="c-custo" name="custo" ${ed ? '' : 'checked'}></label>
+      <label class="nt-pref" for="c-custo"><span class="grow"><b>Atualizar o valor de venda do estoque?</b><small>Põe o valor de Venda hoje como novo preço de venda. O custo médio é automático</small></span><input type="checkbox" class="lt-switch" id="c-custo" name="custo" ${(ed ? ed.atualizaVenda !== false : true) ? 'checked' : ''}></label>
     </div>
     <div class="f full"><label for="c-obs">Observação</label><input type="text" id="c-obs" name="obs" value="${esc(ed?.obs || '')}"></div>
   </div><div class="form-acts acts-fit"><div class="acts-sec">${ed ? `<button type="button" class="btn ghost" data-act="apagar-compra" data-id="${ed.id}">Apagar compra</button>` : ''}${ed ? `<button type="button" class="btn ghost" data-act="historico" data-col="compras" data-id="${ed.id}">Histórico</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button></div><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar compra'}</button></div>`,
@@ -7647,16 +7647,26 @@ function modalCompra(fornId, editId) {
     if (!pagoC && fd.get('parcial') !== null && !(vpIn > 0 && vpIn < totalC)) { toast('Em pago parcial, informe um valor maior que zero e menor que o total.'); return false; }
     const vpFinal = pagoC ? Math.min(Number(ed?.valorPago) || 0, totalC) : vpIn;
     const parcTs = vpFinal > 0 ? (ed && Number(ed.valorPago) === vpFinal && ed.parcialTs ? ed.parcialTs : (ed ? Date.now() : ts)) : null;
-    const body = { ts, fornecedor: fn, ...(fc ? { fornecedorId: fc.id } : {}), itens, total: totalC, forma: fd.get('forma'), pago: pagoC, valorPago: vpFinal, parcialTs: parcTs, obs: String(fd.get('obs') || '').trim() };
     const upd = !!fd.get('custo');
+    const body = { ts, fornecedor: fn, ...(fc ? { fornecedorId: fc.id } : {}), itens, total: totalC, forma: fd.get('forma'), pago: pagoC, valorPago: vpFinal, parcialTs: parcTs, obs: String(fd.get('obs') || '').trim(), atualizaVenda: upd };
     if (ed) {
       // estoque: tira o que a compra somou antes e soma o que ela soma agora, numa conta só
-      const delta = [...itens, ...(ed.itens || []).map(i => ({ produtoId: i.produtoId, qtd: -i.qtd }))].filter(i => prodById(i.produtoId));
       return safe(async () => {
         await patch('compras', ed.id, body);
-        await adjustStock(delta, 1);
-        if (upd) for (const i of itens) if (prodById(i.produtoId)) await patch('produtos', i.produtoId, { custo: i.custo });
-        for (const l of readLines(f)) if (l.pv > 0 && prodById(l.produtoId)) await patch('produtos', l.produtoId, { preco: l.pv });
+        // tira a compra antiga do estoque e do valor, e põe a nova: a média refaz o custo sem perder o que já estava no estoque
+        for (const pid of [...new Set([...itens, ...(ed.itens || [])].map(i => i.produtoId))]) {
+          const p = prodById(pid); if (!p) continue;
+          const est0 = Math.max(0, p.estoque || 0), cust0 = p.custo || 0;
+          const oq = (ed.itens || []).filter(i => i.produtoId === pid).reduce((s, i) => s + i.qtd, 0);
+          const oc = ((ed.itens || []).find(i => i.produtoId === pid) || {}).custo || 0;
+          const nq = itens.filter(i => i.produtoId === pid).reduce((s, i) => s + i.qtd, 0);
+          const nc = (itens.find(i => i.produtoId === pid) || {}).custo || 0;
+          const base = n2(est0 - oq + nq), valor = Math.max(0, est0 * cust0 - oq * oc + nq * nc);
+          const ch = { estoque: n2(Math.max(0, base)) };
+          if (oq || nq) ch.custo = n2(base > 0 ? valor / base : nc); /* editar a compra sempre refaz a média, com ou sem o campo de custo marcado */
+          await patch('produtos', pid, ch);
+        }
+        if (upd) for (const l of readLines(f)) if (l.pv > 0 && prodById(l.produtoId)) await patch('produtos', l.produtoId, { preco: l.pv });
       }, 'Compra atualizada e estoque corrigido.');
     }
     return safe(async () => {
@@ -7664,8 +7674,8 @@ function modalCompra(fornId, editId) {
       const lns = readLines(f);
       for (const i of itens) { const p = prodById(i.produtoId); if (!p) continue; const est = Math.max(0, p.estoque || 0), antes = p.custo || 0;
         const ch = { estoque: n2((p.estoque || 0) + i.qtd) };
-        if (upd) ch.custo = n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo);
-        const pv = (lns.find(l => l.produtoId === i.produtoId) || {}).pv; if (pv > 0) ch.preco = pv;
+        ch.custo = n2(est > 0 ? (est * antes + i.qtd * i.custo) / (est + i.qtd) : i.custo); /* média automática: sobra ao valor atual + compra nova */
+        const pv = (lns.find(l => l.produtoId === i.produtoId) || {}).pv; if (upd && pv > 0) ch.preco = pv;
         await patch('produtos', p.id, ch); }
     }, 'Compra salva e estoque atualizado.');
   }, f => { wireLines(f, 'compra', ed?.itens); const lp = ligarParcial(f, 'c'); f.addEventListener('change', e => { if (e.target.name === 'forma') { lp.pg.checked = e.target.value !== 'fiado'; if (lp.pg.checked) lp.pc.checked = false; lp.sync(); } }); });
@@ -7736,12 +7746,25 @@ function modalProduto(id) {
 function modalAjuste(id) {
   const p = prodById(id); if (!p) return;
   openModal('Ajustar estoque', `<p style="margin:0">${esc(p.nome)}: <b>${fmtNum(p.estoque)}</b> em estoque agora.</p><div class="fgrid">
-    <div class="f"><label for="a-tipo">O que aconteceu?</label><select id="a-tipo" name="tipo"><option value="perda">Perda (estragou, amassou)</option><option value="contagem">Contei e o certo é…</option><option value="entrada">Entrada sem compra</option></select></div>
-    <div class="f"><label for="a-qtd">Quantidade</label><input type="number" id="a-qtd" name="qtd" min="0" step="any" required inputmode="decimal"></div>
+    <div class="f"><label for="a-tipo">O que aconteceu?</label><select id="a-tipo" name="tipo"><option value="perda">Perda (estragou, amassou)</option><option value="zerar">Zerar estoque (sumiu tudo, sem mexer no caixa)</option><option value="entrada">Entrada sem compra</option></select></div>
+    <div class="f" id="a-qtd-b"><label for="a-qtd">Quantidade</label><input type="number" id="a-qtd" name="qtd" min="0" step="any" inputmode="decimal" placeholder="Não precisa para zerar"></div>
   </div><div class="form-acts"><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>`,
-  async f => { const fd = new FormData(f); const q = Number(fd.get('qtd')); if (!(q >= 0) || fd.get('qtd') === '') { toast('Informe a quantidade.'); return false; }
-    const t = fd.get('tipo'); const novo = t === 'contagem' ? q : t === 'perda' ? Math.max(0, (p.estoque || 0) - q) : (p.estoque || 0) + q;
-    return safe(() => patch('produtos', id, { estoque: n2(novo) }), 'Estoque ajustado.'); });
+  async f => { const fd = new FormData(f); const q = Number(fd.get('qtd')); if (fd.get('tipo') !== 'zerar' && (!(q >= 0) || fd.get('qtd') === '')) { toast('Informe a quantidade.'); return false; }
+    const t = fd.get('tipo'); const novo = t === 'zerar' ? 0 : t === 'perda' ? Math.max(0, (p.estoque || 0) - q) : (p.estoque || 0) + q;
+    const est0 = Math.max(0, p.estoque || 0), cust0 = p.custo || 0;
+    const ch = { estoque: n2(novo) };
+    let uc = null, perdasNovo = null;
+    if (t === 'perda' && q > 0) {
+      /* perda: o custo sai da última compra desse produto, pelo valor total dela dividido pelo que restou dela (qtd − perdas acumuladas) */
+      uc = (S.compras || []).filter(c => (c.itens || []).some(i => i.produtoId === id)).sort((a, b) => (b.ts || 0) - (a.ts || 0))[0] || null;
+      const it = uc ? uc.itens.find(i => i.produtoId === id) : null;
+      if (it) {
+        const cum = ((uc.perdas || {})[id] || 0) + q, rest = (Number(it.qtd) || 0) - cum;
+        perdasNovo = { ...(uc.perdas || {}), [id]: cum };
+        if (rest > 0) ch.custo = n2((Number(it.qtd) || 0) * (Number(it.custo) || 0) / rest);
+      }
+    } else if (novo > 0 && novo !== est0) ch.custo = n2(est0 * cust0 / novo); /* entrada sem compra: entra sem custo, então a média cai */
+    return safe(async () => { if (uc && perdasNovo) await patch('compras', uc.id, { perdas: perdasNovo }); await patch('produtos', id, ch); }, 'Estoque ajustado.'); });
 }
 
 const newsDoModelo = m => ({ tipo: m.k, titulo: m.titulo, texto: m.texto, tag: m.tag, cor: m.cor, emoji: m.k === 'livre' ? '' : m.emoji, acao: m.acao, acaoTxt: '', acaoProd: m.acao === 'comprar' ? (sortedProdutos().find(p => p.ativo !== false && (p.estoque || 0) > 0) || sortedProdutos()[0])?.id || '' : '' });
