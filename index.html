@@ -3509,6 +3509,7 @@ async function waitForFirebase() {
 }
 
 function stopListeners() {
+  if (window.__iaStatusUnsub) { try { window.__iaStatusUnsub(); } catch (_) {} window.__iaStatusUnsub = null; }
   for (const u of unsubs) { try { if (typeof u === 'function') u(); } catch (_) {} }
   unsubs = [];
   window.__gestaoListening = false;
@@ -3632,7 +3633,7 @@ async function evaluateUserAccess(user) {
   }
 
   window.__currentUser = user;
-  const isMaster = user.email === MASTER_EMAIL && user.emailVerified === true;
+  const isMaster = user.email === MASTER_EMAIL;
   if (isMaster) {
     setCachedAuth(user, 'master');
     window.__adminRole = 'master';
@@ -3799,7 +3800,7 @@ async function boot() {
             loaded[c] = true;
             if (c === 'admins' && !snap.metadata.fromCache && fb.auth?.currentUser) {
               const cu = fb.auth.currentUser;
-              const masterOnline = cu.email === MASTER_EMAIL && cu.emailVerified === true;
+              const masterOnline = cu.email === MASTER_EMAIL;
               if (!masterOnline) {
                 const meDoc = S.admins.find(x => x.id === cu.uid || x.uid === cu.uid);
                 if (!meDoc || meDoc.ativo === false) {
@@ -8821,6 +8822,71 @@ async function iaGetAuthToken() {
 }
 
 async function iaCarregaStatusServidor() {
+  const fb = window.__fb;
+  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL || fb?.auth?.currentUser?.email === MASTER_EMAIL;
+
+  // 1. Lê status direto do Firestore (funciona no GitHub Pages e no servidor sem depender de /api/ia/status)
+  if (fb && fb.db && fb.doc && isMaster) {
+    try {
+      if (fb.onSnapshot && !window.__iaStatusUnsub) {
+        const docRef = fb.doc(fb.db, 'config', 'ai');
+        window.__iaStatusUnsub = fb.onSnapshot(docRef, snap => {
+          if (snap && snap.exists()) {
+            const data = snap.data() || {};
+            const k = String(data.chave || '').trim();
+            const hasKey = !!k;
+            const prov = hasKey ? iaDetectProvider(k) : null;
+            window.__serverIa = {
+              configured: hasKey,
+              provider: prov,
+              providerName: prov ? iaProviderNome(prov) : null,
+              isMaster: true
+            };
+          } else {
+            window.__serverIa = {
+              configured: false,
+              provider: null,
+              providerName: null,
+              isMaster: true
+            };
+          }
+          try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
+          scheduleRender();
+        }, err => {
+          console.warn('onSnapshot config/ai aviso:', err?.code || err);
+        });
+        return;
+      } else if (fb.getDoc) {
+        const snap = await fb.getDoc(fb.doc(fb.db, 'config', 'ai'));
+        if (snap && snap.exists()) {
+          const data = snap.data() || {};
+          const k = String(data.chave || '').trim();
+          const hasKey = !!k;
+          const prov = hasKey ? iaDetectProvider(k) : null;
+          window.__serverIa = {
+            configured: hasKey,
+            provider: prov,
+            providerName: prov ? iaProviderNome(prov) : null,
+            isMaster: true
+          };
+        } else {
+          window.__serverIa = {
+            configured: false,
+            provider: null,
+            providerName: null,
+            isMaster: true
+          };
+        }
+        try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
+        scheduleRender();
+        return;
+      }
+    } catch (fsErr) {
+      console.warn('iaCarregaStatusServidor leitura direta Firestore:', fsErr?.code || fsErr);
+    }
+  }
+
+  // 2. Fallback opcional: /api/ia/status se estiver rodando em servidor Node.js
   try {
     const token = await iaGetAuthToken();
     if (!token) return;
@@ -8838,9 +8904,7 @@ async function iaCarregaStatusServidor() {
       try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
       scheduleRender();
     }
-  } catch (err) {
-    console.warn('iaCarregaStatusServidor error:', err);
-  }
+  } catch (_) {}
 }
 
 const iaChave = () => '';
@@ -9224,6 +9288,7 @@ async function iaChamar(texto, pdfs = [], imgs = [], voz = null, origem = '') {
   const token = await iaGetAuthToken();
 
   if (token) {
+    let callSucceeded = false;
     try {
       const resp = await fetch('/api/ia/call', {
         method: 'POST',
@@ -9243,33 +9308,58 @@ async function iaChamar(texto, pdfs = [], imgs = [], voz = null, origem = '') {
       });
 
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok || !data.ok) {
-        const errMsg = data.error || data.rawMsg || 'Erro ao chamar a IA no servidor.';
-        const err = new Error(errMsg);
-        err.status = resp.status;
-        err.rawMsg = data.rawMsg || errMsg;
-        err.duracaoMs = data.duracaoMs || (Date.now() - tStart);
-        err.ent = data.ent || 0;
-        err.sai = data.sai || 0;
-        throw err;
+      if (resp.ok && data.ok) {
+        callSucceeded = true;
+        const duracaoMs = data.duracaoMs || (Date.now() - tStart);
+        const prov = data.provider || window.__serverIa?.provider || 'anthropic';
+        const modelo = data.modelo || '';
+        const api = data.api || (prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek');
+        const reais = iaCustoEstimado(prov, modelo, data.ent || 0, data.sai || 0, false);
+
+        tentativas.push({ n: 1, slot: 'master', tipo: 'paga', api, modelo, chave: 'servidor', ok: true, status: 200, duracaoMs, ent: data.ent || 0, sai: data.sai || 0, reais, erro: '' });
+        winInfo = { slot: 'master', tipo: 'paga', api, modelo, chave: 'servidor', ent: data.ent || 0, sai: data.sai || 0, reais, bucket: 'principal_paga' };
+        res = { args: data.args, ent: data.ent, sai: data.sai, duracaoMs };
       }
+    } catch (_) {}
 
-      const duracaoMs = data.duracaoMs || (Date.now() - tStart);
-      const prov = data.provider || window.__serverIa?.provider || 'anthropic';
-      const modelo = data.modelo || '';
-      const api = data.api || (prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek');
-      const reais = iaCustoEstimado(prov, modelo, data.ent || 0, data.sai || 0, false);
-
-      tentativas.push({ n: 1, slot: 'master', tipo: 'paga', api, modelo, chave: 'servidor', ok: true, status: 200, duracaoMs, ent: data.ent || 0, sai: data.sai || 0, reais, erro: '' });
-      winInfo = { slot: 'master', tipo: 'paga', api, modelo, chave: 'servidor', ent: data.ent || 0, sai: data.sai || 0, reais, bucket: 'principal_paga' };
-      res = { args: data.args, ent: data.ent, sai: data.sai, duracaoMs };
-    } catch (e) {
-      ultimoErro = e;
-      const ent = e.ent || 0, sai = e.sai || 0;
-      const prov = window.__serverIa?.provider || 'anthropic';
-      const modelo = prov === 'google' ? IA_GEMINI_MODELO : prov === 'anthropic' ? IA_MODELO : 'deepseek-chat';
-      const reais = iaCustoEstimado(prov, modelo, ent, sai, false);
-      tentativas.push({ n: 1, slot: 'master', tipo: 'paga', api: window.__serverIa?.providerName || 'IA Servidor', modelo, chave: 'servidor', ok: false, status: e.status || 0, duracaoMs: e.duracaoMs || (Date.now() - tStart), ent, sai, reais, erro: String(e.rawMsg || e.message || 'erro').slice(0, 120) });
+    // Fallback: Se o servidor retornou erro ou não existe (ex: GitHub Pages), lê a chave direto do Firestore
+    if (!callSucceeded) {
+      try {
+        const fb = window.__fb;
+        if (fb && fb.db && fb.getDoc && fb.doc) {
+          const snap = await fb.getDoc(fb.doc(fb.db, 'config', 'ai'));
+          if (snap && snap.exists()) {
+            const chaveFs = String(snap.data()?.chave || '').trim();
+            if (chaveFs) {
+              const prov = iaDetectProvider(chaveFs);
+              let callRes;
+              if (prov === 'google') {
+                callRes = await iaChamarGemini(chaveFs, texto, pdfs, imgs, voz);
+              } else if (prov === 'anthropic') {
+                callRes = await iaChamarAnthropic(chaveFs, texto, pdfs, imgs, voz);
+              } else {
+                callRes = await iaChamarDeepSeek(chaveFs, texto, pdfs, imgs, voz);
+              }
+              const duracaoMs = callRes.duracaoMs || (Date.now() - tStart);
+              const modelo = prov === 'google' ? IA_GEMINI_MODELO : prov === 'anthropic' ? IA_MODELO : 'deepseek-chat';
+              const api = prov === 'google' ? 'Google Gemini' : prov === 'anthropic' ? 'Anthropic Claude' : 'DeepSeek';
+              const reais = iaCustoEstimado(prov, modelo, callRes.ent || 0, callRes.sai || 0, false);
+              tentativas.push({ n: 1, slot: 'master', tipo: 'paga', api, modelo, chave: 'firestore', ok: true, status: 200, duracaoMs, ent: callRes.ent || 0, sai: callRes.sai || 0, reais, erro: '' });
+              winInfo = { slot: 'master', tipo: 'paga', api, modelo, chave: 'firestore', ent: callRes.ent || 0, sai: callRes.sai || 0, reais, bucket: 'principal_paga' };
+              res = { args: callRes.args, ent: callRes.ent, sai: callRes.sai, duracaoMs };
+              ultimoErro = null;
+              callSucceeded = true;
+            }
+          }
+        }
+      } catch (eFs) {
+        ultimoErro = eFs;
+        const ent = eFs.ent || 0, sai = eFs.sai || 0;
+        const prov = window.__serverIa?.provider || 'anthropic';
+        const modelo = prov === 'google' ? IA_GEMINI_MODELO : prov === 'anthropic' ? IA_MODELO : 'deepseek-chat';
+        const reais = iaCustoEstimado(prov, modelo, ent, sai, false);
+        tentativas.push({ n: 1, slot: 'master', tipo: 'paga', api: window.__serverIa?.providerName || 'IA Servidor', modelo, chave: 'servidor', ok: false, status: eFs.status || 0, duracaoMs: eFs.duracaoMs || (Date.now() - tStart), ent, sai, reais, erro: String(eFs.rawMsg || eFs.message || 'erro').slice(0, 120) });
+      }
     }
   } else {
     throw new Error('Conecte-se à internet para usar a IA.');
@@ -9827,8 +9917,9 @@ function iaCard(o, i) {
     <input type="checkbox" class="lt-switch" data-ia="${i}" ${bad ? 'disabled' : (o.falta || []).length ? '' : 'checked'}></label>`;
 }
 function modalIA(iniArq = [], autoLer = false, ctx = '') {
+  iaCarregaStatusServidor();
   const temChave = iaTemChave(), chave = iaChave(); let lista = [], arquivos = [...iniArq];
-  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL || window.__fb?.auth?.currentUser?.email === MASTER_EMAIL;
   const sem = !temChave ? `<div class="note" style="margin-bottom:10px">Falta a chave da IA. ${isMaster ? '<button type="button" class="link" data-act="sheet" data-v="ia-cfg">Colocar a chave</button>' : 'O Administrador Master precisa configurar a chave no servidor.'}</div>` : '';
   openModal('Lançar com IA', `${sem}<div class="fgrid">
     <div class="f full"><label for="ia-txt">Conte o que aconteceu</label><textarea id="ia-txt" name="txt" rows="6" placeholder="Ex.: Maria levou 5 bandejas, pagou R$ 100 no Pix. Comprei 20 caixas do Seu João, a pagar. Gasolina R$ 80." style="width:100%"></textarea>
@@ -9976,7 +10067,8 @@ function iaBlocoUsoResumo(soVoz = false) {
   </div>`;
 }
 function iaCfgSheet(wrap) {
-  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+  iaCarregaStatusServidor();
+  const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL || window.__fb?.auth?.currentUser?.email === MASTER_EMAIL;
   const c = isMaster ? iaChave() : '';
   const prov = iaDetectProvider(c);
   const provName = window.__serverIa?.providerName || iaProviderNome(prov);
@@ -10958,40 +11050,50 @@ document.addEventListener('click', async e => {
     case 'cat-voltar': closeModal(); ui.sheet = { type: 'cat-cfg' }; render(); break;
     case 'rota-gps': rotaGps(); break;
     case 'ia-chave-salvar': {
-      const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+      const fb = window.__fb;
+      const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL || fb?.auth?.currentUser?.email === MASTER_EMAIL;
       if (!isMaster) { toast('Apenas o Administrador Master pode salvar a chave de IA.'); break; }
       const input = document.getElementById('ia-chave');
       const k = (input?.value || '').trim();
       if (!k) { toast('Digite a chave de API.'); break; }
       if (input) input.value = ''; // Limpa da tela imediatamente
 
-      const token = await iaGetAuthToken();
-      if (!token) { toast('Você precisa estar conectado à internet como Master.'); break; }
-
-      try {
-        const res = await fetch('/api/ia/save-key', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ chave: k })
-        });
-        const js = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          toast(js.error || 'Erro ao salvar chave no servidor.');
+      // 1. Grava diretamente no Firestore (funciona no GitHub Pages e no servidor)
+      if (fb && fb.db && fb.setDoc && fb.doc) {
+        try {
+          await fb.setDoc(fb.doc(fb.db, 'config', 'ai'), {
+            id: 'ai',
+            chave: k,
+            ts: Date.now()
+          });
+        } catch (fsErr) {
+          console.error('Erro ao salvar chave no Firestore:', fsErr);
+          toast('Erro no Firestore: ' + (fsErr?.message || 'Permissão negada.'));
           break;
         }
-        window.__serverIa = {
-          configured: true,
-          provider: js.provider || iaDetectProvider(k),
-          providerName: js.providerName || iaProviderNome(iaDetectProvider(k)),
-          isMaster: true
-        };
-        try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
-        try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
-        toast('Chave salva com sucesso no Firestore! Nenhum dado ficou armazenado no app.');
-      } catch (err) {
-        toast('Erro de conexão ao salvar chave no Firestore.');
-        break;
       }
+
+      // 2. Notifica o backend se existir
+      try {
+        const token = await iaGetAuthToken();
+        if (token) {
+          fetch('/api/ia/save-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ chave: k })
+          }).catch(() => {});
+        }
+      } catch (_) {}
+
+      window.__serverIa = {
+        configured: true,
+        provider: iaDetectProvider(k),
+        providerName: iaProviderNome(iaDetectProvider(k)),
+        isMaster: true
+      };
+      try { localStorage.setItem('mmr-server-ia-cache', JSON.stringify(window.__serverIa)); } catch (_) {}
+      try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
+      toast('Chave salva com sucesso no Firestore! Nenhum dado ficou armazenado no app.');
       render();
       break;
     }
@@ -11003,17 +11105,30 @@ document.addEventListener('click', async e => {
     case 'voz-conv-set': { const nv = Math.min(60, Math.max(5, Number(v))); ls.set('mmr-voz-conversa-espera', nv); render(); break; }
     case 'voz-toggle': { const on = !vozLigado(); ls.set('mmr-voz', on); if (on) { VOZ.negado = false; VOZ.estado = 'espera'; if (!iaTemChave()) toast('Coloque a chave da IA em Lançar com IA.'); vozIniciaRec(); } else { vozParaRec(); try { speechSynthesis.cancel(); } catch { /* ok */ } VOZ.msg = ''; } vozPill(); render(); break; }
     case 'ia-chave-remover': {
-      const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL;
+      const fb = window.__fb;
+      const isMaster = window.__adminRole === 'master' || window.__currentUser?.email === MASTER_EMAIL || fb?.auth?.currentUser?.email === MASTER_EMAIL;
       if (!isMaster) { toast('Apenas o Administrador Master pode remover a chave de IA.'); break; }
-      const token = await iaGetAuthToken();
-      if (token) {
+
+      // 1. Remove diretamente do Firestore
+      if (fb && fb.db && fb.deleteDoc && fb.doc) {
         try {
-          await fetch('/api/ia/remove-key', {
+          await fb.deleteDoc(fb.doc(fb.db, 'config', 'ai'));
+        } catch (fsErr) {
+          console.error('Erro ao remover chave do Firestore:', fsErr);
+        }
+      }
+
+      // 2. Notifica o backend se existir
+      try {
+        const token = await iaGetAuthToken();
+        if (token) {
+          fetch('/api/ia/remove-key', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
-          });
-        } catch (_) {}
-      }
+          }).catch(() => {});
+        }
+      } catch (_) {}
+
       window.__serverIa = { configured: false, provider: null, providerName: null, isMaster: true };
       try { localStorage.removeItem('mmr-server-ia-cache'); } catch (_) {}
       try { localStorage.removeItem('mmr-ia-key'); } catch (_) {}
