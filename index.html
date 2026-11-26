@@ -5614,7 +5614,7 @@ function bkArquivo() {
   const cols = bkSelCols(), dados = {};
   for (const c of cols) dados[c] = (S[c] || []).map(x => ({ ...x, id: String(x.id) }));
   const obj = { app: BK_APP, versao: 2, criado: new Date().toISOString(), colunas: cols, dados };
-  return new File([JSON.stringify(obj)], 'backup-morangos-' + dayKey(Date.now()) + '.json', { type: 'application/json' });
+  return new File([JSON.stringify(obj)], 'backup-morangos-' + dayKey(Date.now()) + '.txt', { type: 'text/plain' });
 }
 function bkBaixar() {
   if (!bkSelCols().length) { toast('Escolha pelo menos um item.'); return; }
@@ -5638,7 +5638,7 @@ function bkSalva(f) {
 }
 function bkEscolher() {
   if (!zrPode()) { toast('Só o Mestre ou um Administrador pode restaurar.'); return; }
-  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,.json';
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,.json,text/plain,.txt';
   inp.addEventListener('change', () => { if (inp.files[0]) bkPrepara(inp.files[0]); }); inp.click();
 }
 /* saldo do caixa se o arquivo fosse o novo conjunto de dados (troca S por um instante, sem gravar nada) */
