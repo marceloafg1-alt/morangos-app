@@ -3087,6 +3087,11 @@ const firebaseConfig = {
   messagingSenderId: "98675133499"
 };
 
+const SEM_NUVEM = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === 'morangos-app-c60948.gitlab.io';
+window.__semNuvem = SEM_NUVEM;
+if (SEM_NUVEM) {
+  window.dispatchEvent(new CustomEvent('firebase-ready'));
+} else {
 const app = initializeApp(firebaseConfig);
 let db;
 try {
@@ -3134,6 +3139,7 @@ window.__fb = {
 };
 
 window.dispatchEvent(new CustomEvent('firebase-ready'));
+}
 </script>
 
 <script>
@@ -3491,6 +3497,7 @@ async function safe(fn, okMsg) {
 }
 
 async function waitForFirebase() {
+  if (window.__semNuvem) return null;
   if (window.__fb && window.__fb.db) return window.__fb;
   return new Promise(resolve => {
     let resolved = false;
