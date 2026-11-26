@@ -5661,14 +5661,18 @@ async function bkPrepara(file) {
   const zera = fora.map(c => `<li><b>${BK_NOMES[c]}</b>: será zerado (${bkNum((S[c] || []).length)} hoje)</li>`).join('');
   if (!cols.length) { toast('O backup não tem dados para restaurar.'); return; }
   openModal('Restaurar backup', `<p style="margin:0;font-size:14px">Backup de <b>${esc(quando)}</b>.</p>
-    <ul style="margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.5">${sub}${zera}</ul>
+    <div style="margin:8px 0 0;font-size:14px">${cols.map(c => `<label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" name="bkc" value="${c}" checked style="width:18px;height:18px"><span><b>${BK_NOMES[c]}</b> (${bkNum(obj.dados[c].length)})</span></label>`).join('')}</div>
+    <p style="margin:6px 0 0;font-size:12.5px;color:var(--c-text-2,#666)">Itens desmarcados não são alterados.</p>
     <p style="margin:10px 0 0;font-size:14px"><b>Saldo do caixa:</b> ${money(antes)} → <b class="${depois < 0 ? 'neg' : ''}">${money(depois)}</b>${depois !== antes ? ` (${sinal(n2(depois - antes))})` : ' (não muda)'}</p>
-    <p style="margin:10px 0 0;font-size:14px;color:#dc2626"><b>Os dados atuais serão substituídos. Isso não pode ser desfeito.</b></p>
+    <p style="margin:10px 0 0;font-size:14px;color:#dc2626"><b>Os itens marcados serão substituídos. Isso não pode ser desfeito.</b></p>
     <div class="f full" style="margin-top:10px"><label for="bk-ok">Para confirmar, digite RESTAURAR</label><input type="text" id="bk-ok" name="ok" autocomplete="off" placeholder="RESTAURAR" required></div>
     <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary" style="background:#dc2626;border-color:#dc2626;color:#fff">Restaurar agora</button></div>`,
   async f => {
     if (String(new FormData(f).get('ok') || '').trim().toUpperCase() !== 'RESTAURAR') { toast('Digite RESTAURAR para confirmar.'); return false; }
+    const marc = [...f.querySelectorAll('input[name="bkc"]:checked')].map(i => i.value);
+    if (!marc.length) { toast('Marque pelo menos um item para restaurar.'); return false; }
     if (!zrPode() || !BK_PEND) return false;
+    BK_PEND = { cols: marc, dados: BK_PEND.dados };
     return safe(async () => { await bkRestaura(); }, 'Backup restaurado.');
   });
 }
@@ -5686,7 +5690,7 @@ async function zrGrava(col, docs) {
 }
 async function bkRestaura() {
   const { cols, dados } = BK_PEND;
-  for (const c of BK_COLS) await zrApagaCol(c);
+  for (const c of cols) await zrApagaCol(c);
   for (const c of cols) await zrGrava(c, dados[c]);
   ls.set('mmr-rota-calc', null);
   BK_PEND = null; ui.zr = {};
