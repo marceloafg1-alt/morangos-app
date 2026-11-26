@@ -5051,7 +5051,6 @@ function render() {
       $sr.querySelectorAll('[data-act="close-sheet"]').forEach(btn => {
         if (btn.classList.contains('sheet')) return; /* o fundo escuro fecha só quando o toque é nele mesmo (abaixo) */
         btn.addEventListener('click', fechaSheet);
-        if (btn.classList.contains('bs-x')) btn.addEventListener('pointerdown', fechaSheet);
       });
       const sh = $sr.querySelector('.sheet');
       if (sh) sh.addEventListener('click', e => { if (e.target === sh) fechaSheet(e); });
@@ -7414,11 +7413,6 @@ function openModal(title, inner, onSubmit, onOpen) {
   $modal.querySelectorAll('[data-act="close-modal"]').forEach(btn => {
     if (btn.classList.contains('overlay')) return; /* o fundo escuro fecha só quando o toque é nele mesmo (abaixo) */
     btn.addEventListener('click', fechaModal);
-    btn.addEventListener('pointerdown', e => {
-      if (btn.classList.contains('bs-x') || btn.classList.contains('btn')) {
-        fechaModal(e);
-      }
-    });
   });
   const ov = $modal.querySelector('.overlay');
   if (ov) {
