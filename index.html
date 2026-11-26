@@ -7383,7 +7383,7 @@ function openModal(title, inner, onSubmit, onOpen) {
     onOpen && onOpen(f); const p1 = f.querySelector('#k-nome') || f.querySelector('input[type=text]'); if (p1) { p1.focus({ preventScroll: true }); try { const n = p1.value.length; p1.setSelectionRange(n, n); } catch (e) {} } return;
   }
   if (ui.sheet) ui.sheet = null; const _sr = document.getElementById('sheet-root'); if (_sr) _sr.innerHTML = '';
-  $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" id="m-close" data-act="close-modal" onclick="closeModal()" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
+  $modal.innerHTML = `<div class="overlay bs-scrim" data-act="close-modal"><div class="bs" role="dialog" aria-modal="true" aria-labelledby="mtitle" data-stop="1"><div class="bs-h"><h2 id="mtitle">${title}</h2><button type="button" class="bs-x" id="m-close" data-act="close-modal" aria-label="Fechar">${ic('x')}</button></div><form id="mform" novalidate>${inner}</form></div></div>`;
   document.getElementById('nav-root').innerHTML = nav();
   if (['Novo cliente', 'Novo fornecedor', 'Novo cadastro', 'Venda avulsa'].includes(title)) { // atalho para carregar a planilha de cadastro
     const x = $modal.querySelector('.bs-h .bs-x'); if (x) { const g = document.createElement('div'); g.style.cssText = 'display:flex;align-items:center;gap:2px;flex:none'; x.before(g); g.innerHTML = btnImportar.replace('class="lt-iconbtn"', 'class="bs-x" style="margin-right:0"');
@@ -9965,7 +9965,7 @@ function modalIA(iniArq = [], autoLer = false, ctx = '') {
       <div id="ia-arqs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div></div>
     <div class="f full"><button type="button" class="btn primary ia-ler" id="ia-ler" ${temChave ? '' : 'disabled'}>Ler com a IA</button></div>
     <div class="f full" id="ia-res"></div>${iaDetectProvider(chave) === 'google' ? `<div class="f full"><small class="muted" id="ia-rodape">${IA_RODAPE_GRATIS}</small></div>` : ''}</div>
-    <div class="form-acts"><button type="button" class="btn" data-act="close-modal" onclick="closeModal()">Cancelar</button><button type="submit" class="btn primary" id="ia-ok" disabled>Lançar selecionados</button></div>`,
+    <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary" id="ia-ok" disabled>Lançar selecionados</button></div>`,
   async f => {
     const sel = [...f.querySelectorAll('[data-ia]:checked')].map(x => lista[Number(x.dataset.ia)]).filter(o => o && !o.problemas.length);
     if (!sel.length) { toast('Nada selecionado para lançar.'); return false; }
