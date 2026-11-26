@@ -1,14 +1,14 @@
 const CACHE_NAME = 'morangos-gestao-v3';
 const APP_SHELL = [
-  '/',
-  '/?v=2',
-  '/index.html',
-  '/firebase-applet-config.json',
-  '/manifest-v2.webmanifest?v=2',
-  '/manifest.webmanifest',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/favicon.ico'
+  './',
+  './?v=2',
+  './index.html',
+  './firebase-applet-config.json',
+  './manifest-v2.webmanifest?v=2',
+  './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png',
+  './favicon.ico'
 ];
 const SDK_ASSETS = [
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js',
