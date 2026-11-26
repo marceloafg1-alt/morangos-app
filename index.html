@@ -5609,9 +5609,15 @@ function bkBaixar() {
 async function bkCompartilhar() {
   if (!bkSelCols().length) { toast('Escolha pelo menos um item.'); return; }
   const f = bkArquivo();
-  if (!navigator.share || !navigator.canShare || !navigator.canShare({ files: [f] })) { toast('Este aparelho não compartilha arquivo daqui. Use Baixar backup.'); return; }
+  const pode = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [f] }));
+  if (!pode) { bkSalva(f); toast('Este aparelho não compartilha arquivo daqui. Baixei o backup.'); return; }
   try { await navigator.share({ files: [f], title: 'Backup Morangos made in roça' }); }
-  catch (e) { if (e && e.name !== 'AbortError') toast('Não foi possível compartilhar. Use Baixar backup.'); }
+  catch (e) { if (e && e.name === 'AbortError') return; bkSalva(f); toast('Não deu para compartilhar. Baixei o backup.'); }
+}
+function bkSalva(f) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(f); a.download = f.name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 function bkEscolher() {
   if (!zrPode()) { toast('Só o Mestre ou um Administrador pode restaurar.'); return; }
