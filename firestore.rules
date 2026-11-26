@@ -22,7 +22,8 @@ service cloud.firestore {
     function isMaster() {
       return isSignedIn()
         && request.auth.token.email != null
-        && request.auth.token.email == 'marcelo.afg1@gmail.com';
+        && request.auth.token.email == 'marcelo.afg1@gmail.com'
+        && request.auth.token.email_verified == true;
     }
 
     function adminDocPath() {
