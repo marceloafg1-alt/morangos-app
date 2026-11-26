@@ -1225,6 +1225,7 @@ textarea { min-height: 80px; resize: vertical; }
 .switch { display: flex; align-items: center; gap: 10px; font-weight: 700; }
 .switch input { width: 22px; height: 22px; accent-color: var(--green); }
 .form-acts { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.form-acts .btn:not(.primary) { border-color: transparent; box-shadow: none; }
 .form-acts .btn { flex: 1; }
 .form-acts.acts-fit .acts-sec { display: flex; gap: 6px; flex: 1 1 100%; flex-wrap: nowrap; }
 .form-acts.acts-fit .acts-sec .btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; font-size: 13px; line-height: 1.15; white-space: normal; }
@@ -6157,10 +6158,12 @@ function excluirLanc(col, id) {
   const pl = excluirPlano(col, id); if (!pl) return;
   if ($modal.innerHTML) closeModal();
   const { x, tipoNome, nome, mexe, volta, sai, prox, efeitos } = pl;
-  openModal('Excluir ' + tipoNome, `<p style="margin:0">Excluir ${tipoNome} <b>${esc(nome)}</b> (${money(valOrig(col, x))})? ${efeitos} Isso não pode ser desfeito.</p>${prox.length ? `<label class="nt-pref" for="x-prox" style="margin-top:12px"><span class="grow"><b>Excluir também as próximas (${prox.length})</b><small>As repetições seguintes desta despesa recorrente</small></span><input type="checkbox" class="lt-switch" id="x-prox" name="prox"></label>` : ''}
+  const escolheEst = col === 'vendas' && x.status === 'entregue' && volta.length > 0;
+  openModal('Excluir ' + tipoNome, `<p style="margin:0">Excluir ${tipoNome} <b>${esc(nome)}</b> (${money(valOrig(col, x))})? ${efeitos} Isso não pode ser desfeito.</p>${escolheEst ? `<label class="nt-pref" for="x-est" style="margin-top:12px"><span class="grow"><b>Devolver estes itens ao estoque?</b><small>Desmarque se não quiser que os itens voltem</small></span><input type="checkbox" class="lt-switch" id="x-est" name="estoque" checked></label>` : ''}${prox.length ? `<label class="nt-pref" for="x-prox" style="margin-top:12px"><span class="grow"><b>Excluir também as próximas (${prox.length})</b><small>As repetições seguintes desta despesa recorrente</small></span><input type="checkbox" class="lt-switch" id="x-prox" name="prox"></label>` : ''}
     <div class="form-acts"><button type="button" class="btn" data-act="close-modal">Voltar</button><button type="submit" class="btn primary">Excluir ${tipoNome}</button></div>`,
   async f => {
     const comProx = prox.length && new FormData(f).get('prox') !== null;
+    if (escolheEst && new FormData(f).get('estoque') === null) pl.volta = [];
     return safe(async () => {
       await excluirExec(col, id, pl, comProx);
     }, comProx ? (prox.length + 1) + ' despesas excluídas.' : tipoNome[0].toUpperCase() + tipoNome.slice(1) + ' excluída.' + (mexe ? ' Caixa atualizado.' : ''));
@@ -6260,7 +6263,7 @@ function modalEstorno(col, id, opts = {}) {
   const nome = col === 'vendas' ? (x.cliente?.nome || 'cliente avulso') : col === 'compras' ? (x.fornecedor || 'roça') : (x.descricao || 'despesa');
   const formas = ['pix', 'dinheiro', 'debito', 'credito']; if (x.forma && x.forma !== 'fiado' && !formas.includes(x.forma)) formas.push(x.forma);
   const forma0 = x.forma && x.forma !== 'fiado' && x.forma !== 'cartao_entrega' ? x.forma : 'pix';
-  const estoque0 = col === 'compras' ? true : !['entregue'].includes(x.status);
+  const estoque0 = true; /* devolver ao estoque vem marcado por padrão, inclusive para venda já entregue; a pessoa desmarca se não quiser */
   const nota = opts.cancelar ? `<p class="cx-note">Esta venda já foi paga. Ao cancelar, o valor todo sai do caixa como devolução ao cliente e a venda deixa de contar nas vendas, no lucro e nos relatórios. Ela fica no histórico como cancelada.</p>`
     : !pago ? `<p class="cx-note">${col === 'vendas' ? 'Esta venda ainda não foi paga. O estorno abate do que o cliente deve e não mexe no caixa.' : 'Esta compra ainda não foi paga. O estorno abate do que você deve ao produtor e não mexe no caixa.'}</p>` : '';
   const titulo = opts.cancelar ? 'Cancelar venda paga' : { vendas: 'Estornar venda', compras: 'Estornar compra', despesas: 'Estornar despesa' }[col];
@@ -7454,6 +7457,7 @@ function descontoCalc(itens, tipo, valor) {
   return { bruto, desc: d, total: n2(bruto - d) };
 }
 const descTxt = d => d ? (d.tipo === 'pct' ? n2(d.valor) + '%' : d.tipo === 'unit' ? money(d.valor) + ' por unidade' : money(d.valor) + ' no total') : '';
+document.addEventListener('focusin', e => { if (e.target && e.target.matches && e.target.matches('input[type=number]')) setTimeout(() => e.target.select(), 0); });
 function linesEditor(kind, ed) {
   return `<div class="f full"><span class="lbl">Itens</span>
     <div class="lines"><div class="line line-h${kind === 'compra' ? ' line-hc' : ''}"><span class="lh-p">Produto</span><span>Quantidade</span><span>${kind === 'compra' ? 'Custo un. (R$)' : 'Preço un. (R$)'}</span>${kind === 'compra' ? '<span>Venda hoje (R$)</span>' : '<span></span>'}</div><div id="lines"></div><div id="media" class="media-box"></div></div>
@@ -7637,8 +7641,11 @@ function modalCompra(fornId, editId) {
   </div><div class="form-acts acts-fit"><div class="acts-sec">${ed ? `<button type="button" class="btn ghost" data-act="apagar-compra" data-id="${ed.id}">Apagar compra</button>` : ''}${ed ? `<button type="button" class="btn ghost" data-act="historico" data-col="compras" data-id="${ed.id}">Histórico</button>` : ''}<button type="button" class="btn" data-act="close-modal">${ed ? 'Fechar' : 'Cancelar'}</button></div><button type="submit" class="btn primary">${ed ? 'Salvar alterações' : 'Salvar compra'}</button></div>`,
   async f => {
     const fd = new FormData(f);
-    if (!String(fd.get('fornecedor') || '').trim()) { toast('Diga de quem você comprou.'); return false; }
-    const lines = readLines(f); if (!lines.length) { toast('Adicione pelo menos um item.'); return false; }
+    const faltas = []; if (!String(fd.get('fornecedor') || '').trim()) faltas.push('fornecedor');
+    const lines0 = readLines(f); if (!lines0.length) faltas.push('pelo menos um item');
+    lines0.forEach((l, k) => { const nm = (prodById(l.produtoId) || {}).nome || 'item ' + (k + 1); if (!(l.qtd > 0)) faltas.push('quantidade de ' + nm); if (!(l.unit > 0)) faltas.push('custo de ' + nm); if (!(l.pv > 0)) faltas.push('valor de venda de ' + nm); });
+    if (faltas.length) { toast('Faltam dados obrigatórios: ' + faltas.join(', ') + '.'); return false; }
+    const lines = lines0;
     const itens = lines.map(l => ({ produtoId: l.produtoId, nome: prodById(l.produtoId)?.nome || (ed?.itens || []).find(i => i.produtoId === l.produtoId)?.nome || '', qtd: l.qtd, custo: l.unit }));
     const fn = String(fd.get('fornecedor')).trim(); const fc = S.fornecedores.find(x => norm(x.nome) === norm(fn));
     const ts = ed && fd.get('data') === dataOrig ? ed.ts : tsFromDate(fd.get('data'));
@@ -7735,7 +7742,7 @@ function modalProduto(id) {
     <div class="f"><label for="p-preco">Preço de venda (R$)</label><input type="number" id="p-preco" name="preco" min="0" step="0.01" required value="${esc(p.preco)}" inputmode="decimal"></div>
     <div class="f"><label for="p-custo">Custo (R$)</label><input type="number" id="p-custo" name="custo" min="0" step="0.01" value="${esc(p.custo)}" inputmode="decimal"></div>
     ${id ? '' : `<div class="f"><label for="p-est">Estoque inicial</label><input type="number" id="p-est" name="estoque" min="0" step="any" value="0" inputmode="decimal"></div>`}
-    <div class="f full"><label class="switch" for="p-ativo"><input type="checkbox" id="p-ativo" name="ativo" ${p.ativo !== false ? 'checked' : ''}> Mostrar no app do cliente</label></div>
+    <div class="f full nt-prefs"><label class="nt-pref" for="p-ativo"><span class="grow"><b>Mostrar no app do cliente</b><small>Desligado: só vende pela Gestão</small></span><input type="checkbox" class="lt-switch" id="p-ativo" name="ativo" ${p.ativo !== false ? 'checked' : ''}></label></div>
   </div><div class="form-acts">${id ? `<button type="button" class="btn ghost" data-act="apagar-produto" data-id="${id}" style="margin-right:auto">Apagar produto</button>` : ''}<button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>`,
   async f => { const fd = new FormData(f); const nome = String(fd.get('nome')).trim(); if (!nome) { toast('Dê um nome ao produto.'); return false; }
     const body = { nome, descricao: String(fd.get('descricao')).trim(), unidade: fd.get('unidade'), preco: n2(fd.get('preco')), custo: n2(fd.get('custo')), ativo: !!fd.get('ativo'), ordem: Number(fd.get('ordem')) || 99 };
@@ -7804,7 +7811,7 @@ function modalNoticia(id, base) {
     <div class="f full"><span class="lbl">Quando aparece</span><div class="opts">${rad('quando', 'agora', 'Agora', n.inicio ? '' : 'agora')}${rad('quando', 'agendar', 'Agendar', n.inicio ? 'agendar' : '')}</div><div class="nw-when" id="n-ini-w">${dateField('n-ini', 'inicio', n.inicio || amanha, 'Começa no dia')}</div></div>
     <div class="f full"><span class="lbl">Até quando</span><div class="opts">${rad('ate', 'sempre', 'Sem data para sair', n.fim ? '' : 'sempre')}${rad('ate', 'dia', 'Sai do app no dia', n.fim ? 'dia' : '')}</div><div class="nw-when" id="n-fim-w">${dateField('n-fim', 'fim', n.fim || todayInput(), 'Último dia no app')}</div></div>
     <div class="f full"><label class="switch" for="n-fixa"><input type="checkbox" id="n-fixa" name="fixa" ${n.fixa ? 'checked' : ''}> <span>Fixar no topo<span class="nw-sub">Aparece primeiro na Loja</span></span></label></div>
-    <div class="f full"><label class="switch" for="n-ativa"><input type="checkbox" id="n-ativa" name="ativa" ${n.ativa !== false ? 'checked' : ''}> Mostrar no app</label></div>
+    <div class="f full nt-prefs"><label class="nt-pref" for="n-ativa"><span class="grow"><b>Mostrar no app</b><small>Desligado: a notícia sai do banner</small></span><input type="checkbox" class="lt-switch" id="n-ativa" name="ativa" ${n.ativa !== false ? 'checked' : ''}></label></div>
     <div class="f full"><label class="switch" for="n-chat"><input type="checkbox" id="n-chat" name="chat"> <span>Mandar também no chat<span class="nw-sub" id="n-chat-s"></span></span></label></div>
   </div><div class="form-acts"><button type="button" class="btn" data-act="close-modal">Cancelar</button><button type="submit" class="btn primary">${id ? 'Salvar' : 'Publicar'}</button></div>`,
   async f => {
@@ -8008,14 +8015,14 @@ function cadBuild() {
     <div class="kv"><span>Compras</span><b class="num">${vs.length}</b><span>Total comprado</span><span class="num">${money(tot)}</span><span>Última compra</span><span>${ult ? fmtDT(ult) : '—'}</span></div>
     ${c.referencia || c.obs ? `<small>${esc([c.referencia, c.obs].filter(Boolean).join(' · '))}</small>` : ''}
     ${hist}
-    <div class="acts"><button class="btn small" data-act="venda-cliente" data-id="${c.id}" ${W()}>Nova venda</button><button class="btn small" data-act="abrir-conversa-cad" data-id="${c.id}">Mensagem${naoLidasG(c.id) ? ' (' + naoLidasG(c.id) + ')' : ''}</button><button class="btn small ghost" data-act="editar-cliente" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
+    <div class="acts"><button class="btn small" data-act="venda-cliente" data-id="${c.id}" ${W()}>Nova venda</button><button class="btn small" data-act="abrir-conversa-cad" data-id="${c.id}">Mensagem${naoLidasG(c.id) ? ' (' + naoLidasG(c.id) + ')' : ''}</button><button class="btn small ghost" data-act="editar-cliente" data-id="${c.id}" ${W()}>Editar</button><button class="btn small ghost" data-act="apagar-cliente" data-id="${c.id}" ${W()}>Excluir</button></div></article>`; };
   const cardForn = c => { const cps = fornCompras(c); const tot = cps.reduce((s, x) => s + (x.total || 0), 0); const ap = cps.filter(x => !x.pago).reduce((s, x) => s + Math.max(0, (x.total || 0) - parcV(x)), 0); const ult = cps.reduce((m, x) => Math.max(m, x.ts), 0);
     return `<article class="item c-forn"><div style="display:flex;gap:12px;align-items:center"><span class="chipico g">${ic('cart')}</span><div style="min-width:0;flex:1"><b style="font-size:16px">${esc(c.nome)}</b><small>${esc([c.telefone, cliEndereco(c)].filter(Boolean).join(' · ') || 'Sem telefone e endereço')}</small></div></div>
     <div class="pills"><span class="pill p-gray">Fornecedor</span><span class="pill p-gray">${c.tipo === 'empresa' ? 'Empresa' : 'Produtor'}</span>${ap > 0 ? `<span class="pill p-no">A pagar ${money(ap)}</span>` : cps.length ? '<span class="pill p-ok">Em dia</span>' : ''}</div>
     <div class="kv"><span>Compras</span><b class="num">${cps.length}</b><span>Total comprado</span><span class="num">${money(tot)}</span><span>Última compra</span><span>${ult ? fmtDT(ult) : '—'}</span>${c.pix ? `<span>Chave Pix</span><span style="overflow-wrap:anywhere">${esc(c.pix)}</span>` : ''}${c.banco || c.agencia || c.conta ? `<span>Banco</span><span style="overflow-wrap:anywhere">${esc([c.banco, c.agencia && 'Ag. ' + c.agencia, c.conta && (c.tipoConta === 'poupanca' ? 'Poup. ' : 'C/C ') + c.conta].filter(Boolean).join(' · '))}</span>` : ''}${c.titular || c.docTitular ? `<span>Titular</span><span style="overflow-wrap:anywhere">${esc([c.titular, c.docTitular].filter(Boolean).join(' · '))}</span>` : ''}</div>
     ${cps.length ? `<details class="c-hist" data-act="noop"><summary class="c-hist-h"><b>Histórico de compras</b><span class="c-hist-n"><span class="muted num">${cps.length}</span><svg class="c-hist-ch" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>${cps.slice().sort((x, y) => y.ts - x.ts).map(x => { const f = cFalta(x); return `<div class="c-hist-r"><div class="c-hist-t"><b>${fmtDT(x.ts)}</b><span class="num">${money(x.total)}</span></div><small>${esc(itemsText(x.itens) || x.descricao || '')}</small><div class="pills">${x.pago ? '<span class="pill p-ok">Pago</span>' : parcV(x) > 0 ? `<span class="pill p-no">Pago parcial · falta ${money(f)}</span>` : '<span class="pill p-no">A pagar</span>'}${formaPill(x.forma)}</div></div>`; }).join('')}</details>` : ''}
     ${c.produtos || c.referencia || c.obs ? `<small>${esc([c.produtos, c.referencia, c.obs].filter(Boolean).join(' · '))}</small>` : ''}
-    <div class="acts"><button class="btn small" data-act="compra-fornecedor" data-id="${c.id}" ${W()}>Nova compra</button><button class="btn small ghost" data-act="editar-fornecedor" data-id="${c.id}" ${W()}>Editar</button></div></article>`; };
+    <div class="acts"><button class="btn small" data-act="compra-fornecedor" data-id="${c.id}" ${W()}>Nova compra</button><button class="btn small ghost" data-act="editar-fornecedor" data-id="${c.id}" ${W()}>Editar</button><button class="btn small ghost" data-act="apagar-fornecedor" data-id="${c.id}" ${W()}>Excluir</button></div></article>`; };
   return { cardCli, cardForn };
 }
 const cadAvatar = n => esc(String(n || '?').trim().split(/\s+/).filter(Boolean).map((w, i, a) => (i === 0 || i === a.length - 1) ? w[0] : '').join('').toUpperCase().slice(0, 2) || '?');
