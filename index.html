@@ -1754,6 +1754,7 @@ textarea { border: 1px solid var(--line); border-radius: var(--r-ctl); backgroun
 .cx-kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .cx-kpis > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 [data-visual="aurora"] .cx-kpis .kpi .s { font-size: 12px; }
+.cx-kpis > .cx-det { display: flex; flex-direction: column; gap: var(--sp-gap, 16px); }
 .cx-kpis .kpi.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 .cx-dia { display: grid; gap: 6px; }
 .cx-dh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 0 4px; color: var(--on-page, var(--ink)); }
@@ -4009,7 +4010,7 @@ const PG_RESET = {
   vendas: () => Object.assign(ui, { vt: 'todas', vf: 'todas', vg: 'lista', vp: perPadrao('vendas'), vDe: '', vAte: '', vq: '' }),
   caixa: () => Object.assign(ui, { cp: perPadrao('caixa'), cDe: '', cAte: '', ct: 'tudo', cfp: 'todas', cxv: 'mov', cxg: 'pessoa', cxq: '', cxo: {} }),
   entregas: () => Object.assign(ui, { ep: perPadrao('entregas'), eDe: '', eAte: '', eq: '', eg: 'cidade' }),
-  compras: () => Object.assign(ui, { kg: 'lista', kp: perPadrao('compras'), kDe: '', kAte: '', kq: '' }),
+  compras: () => Object.assign(ui, { kv: '', kg: 'lista', kp: perPadrao('compras'), kDe: '', kAte: '', kq: '' }),
   relatorios: () => Object.assign(ui, { rp: perPadrao('relatorios'), rDe: '', rAte: '' }),
   clientes: () => Object.assign(ui, { cadqc: '', hist: null }),
   fornecedores: () => Object.assign(ui, { cadqf: '' }),
@@ -5836,7 +5837,7 @@ function gVendas() {
   const agrupaCid = (() => { if (!porCid) return ''; const m = new Map(); list.forEach(v => { const c = cidadeEntrega(v); if (!m.has(c)) m.set(c, []); m.get(c).push(v); });
     return [...m.entries()].sort((a, b) => a[0] === 'Sem cidade' ? 1 : b[0] === 'Sem cidade' ? -1 : a[0].localeCompare(b[0], 'pt-BR')).map(([c, it]) => { const t = it.filter(v => v.status !== 'cancelado').reduce((x, v) => x + v.total, 0); return `<div class="en-cid"><b>${esc(c)}</b><span>${it.length} ${it.length === 1 ? 'venda' : 'vendas'} · ${money(t)}</span></div>` + it.map(vendaItem).join(''); }).join(''); })();
   return pageHeaderFixo('Vendas', btnImportar, `<div class="vsel">${[['vt', 'Tipo de venda', VTIPOS[ui.vt]], ['vf', 'Pedido', VPED[ui.vf]], ['vp', 'Período', vPerLabel()]].map(([k, l, val]) => `<button data-act="vsel" data-v="${k}" aria-label="${l}: ${val}"><small>${l}</small><span><b>${val}</b>${ic('down')}</span></button>`).join('')}</div>`) +
-    buscaBox('vd', 'vq', ui.vq, 'Buscar cliente, produto, cidade ou valor') + `<div class="kpis cx-kpis"><div class="kpi"><small>Vendido no período</small><b>${money(vendidoPer)}</b></div><button class="kpi ${arT.length ? 'alert' : ''}" data-act="go-vendas-receber" aria-label="Vendas a receber, todas em aberto: ${money(arV)}. Ver"><small>Vendas a receber</small><b>${money(arV)}</b><span class="s"><span>${arT.length} ${arT.length === 1 ? 'venda' : 'vendas'}</span><span>Ver</span></span></button></div>
+    buscaBox('vd', 'vq', ui.vq, 'Buscar cliente, produto, cidade ou valor') + `<div class="kpis cx-kpis"><div class="kpi"><small>Vendido no período</small><b>${money(vendidoPer)}</b></div><button class="kpi ${arT.length ? 'alert' : ''} ${ui.vf === 'receber' ? 'on' : ''}" ${ui.vf === 'receber' ? 'data-act="filter" data-k="vf" data-v="todas"' : 'data-act="go-vendas-receber"'} aria-pressed="${ui.vf === 'receber'}" aria-label="Vendas a receber, todas em aberto: ${money(arV)}. ${ui.vf === 'receber' ? 'Fechar e voltar a Todos' : 'Ver'}"><small>Vendas a receber</small><b>${money(arV)}</b><span class="s"><span>${arT.length} ${arT.length === 1 ? 'venda' : 'vendas'}</span><span>${ui.vf === 'receber' ? 'Fechar' : 'Ver'}</span></span></button></div>
     <div class="sec-h"><h2>Vendas · ${list.length}</h2><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="vg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="vg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div><span class="muted num">${money(tot)}</span></div>
     <div class="stack">${(list.length ? (porCid ? agrupaCid : `<div class="en-cid"><b>Todas as cidades</b><span>${list.length} ${list.length === 1 ? 'venda' : 'vendas'} · ${money(tot)}</span></div>` + list.map(vendaItem).join('')) : '') || emptyBox(qv ? 'Nada encontrado para essa busca.' : 'Nenhuma venda com esse filtro.', canWrite && !qv ? '<button class="btn primary" data-act="nova-venda">Lançar venda avulsa</button>' : '')}</div>`;
 }
@@ -5932,7 +5933,8 @@ function gCompras() {
   const qk = bnorm(ui.kq.trim()), porCid = ui.kg === 'cidade';
   if (qk) { const f = list.filter(c => bnorm([c.fornecedor, c.obs, (c.itens || []).map(i => i.nome).join(' '), FORMAS[c.forma] || c.forma, money(c.total)].filter(Boolean).join(' ')).includes(qk)); list.length = 0; list.push(...f); }
   return pageHeaderFixo('Compras na roça', '', `<div class="vsel cx-per"><button data-act="vsel" data-v="kp" aria-label="Período das compras: ${kPerLabel()}"><small>Período</small><span><b>${kPerLabel()}</b>${ic('down')}</span></button></div>`) +
-  buscaBox('cp', 'kq', ui.kq, 'Buscar fornecedor, produto ou valor') + `<div class="kpis cx-kpis"><div class="kpi"><small>Comprado no período</small><b>${money(tot)}</b></div><button class="kpi ${apT.length ? 'alert' : ''}" data-act="go-caixa-pagar" aria-label="Compras a pagar, todas em aberto: ${money(apT.reduce((s, c) => s + cFalta(c), 0))}. Ver no caixa"><small>Compras a pagar</small><b>${money(apT.reduce((s, c) => s + cFalta(c), 0))}</b><span class="s"><span>${apT.length} ${apT.length === 1 ? 'compra' : 'compras'}</span><span>Ver</span></span></button></div>
+  buscaBox('cp', 'kq', ui.kq, 'Buscar fornecedor, produto ou valor') + `<div class="kpis cx-kpis"><div class="kpi"><small>Comprado no período</small><b>${money(tot)}</b></div><button class="kpi ${apT.length ? 'alert' : ''} ${ui.kv === 'cpagar' ? 'on' : ''}" data-act="filter" data-k="kv" data-v="${ui.kv === 'cpagar' ? '' : 'cpagar'}" aria-pressed="${ui.kv === 'cpagar'}" aria-label="Compras a pagar, todas em aberto: ${money(apT.reduce((s, c) => s + cFalta(c), 0))}. ${ui.kv === 'cpagar' ? 'Fechar' : 'Ver'}"><small>Compras a pagar</small><b>${money(apT.reduce((s, c) => s + cFalta(c), 0))}</b><span class="s"><span>${apT.length} ${apT.length === 1 ? 'compra' : 'compras'}</span><span>${ui.kv === 'cpagar' ? 'Fechar' : 'Ver'}</span></span></button></div>
+  ${ui.kv === 'cpagar' ? cxPagarHTML(apT.slice().sort((a, b) => a.ts - b.ts), `<button class="link" data-act="filter" data-k="kv" data-v="">Fechar</button>`) : ''}
   <div class="sec-h"><h2>Compras · ${list.length}</h2><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="kg" data-v="cidade" aria-pressed="${porCid}">Por cidade</button><button class="chip" data-act="filter" data-k="kg" data-v="lista" aria-pressed="${!porCid}">Lista</button></div><span class="muted num">${money(list.reduce((s, c) => s + (Number(c.total) || 0), 0))}</span></div>
   <div class="stack">${comprasGrupo(list, porCid, c => tcard({ act: 'editar-compra', id: c.id, title: c.fornecedor || 'Roça', val: money(c.total),
     meta: fmtDT(c.ts) + (c.obs ? ' · ' + esc(c.obs) : ''),
@@ -5993,6 +5995,28 @@ function moveLi(m) {
   const topo = [tipo, hora, forma].filter(Boolean).join(' · ');
   return `<div class="li tc-li" data-act="cx-det" data-col="${m.col}" data-id="${m.id}" ${m.eid ? `data-eid="${m.eid}"` : ''} tabindex="0"><span class="av ${m.k === 'estornos' ? 'est' : m.tipo}">${av}</span><span style="min-width:0"><b>${esc(topo)}</b>${nome ? `<small>${esc(nome)}</small>` : ''}</span><span class="val ${m.tipo}">${m.tipo === 'in' ? '+' : '−'} ${money(m.valor)}</span></div>`;
 }
+  /* A receber / Compras a pagar / Despesas a pagar: busca por nome, agrupado por pessoa (total de cada um) ou lista simples */
+function cxContas(tipo, rows, vazio) {
+    const q = bnorm(ui.cxq.trim());
+    const rs = rows.filter(r => !q || bnorm(r.nome).includes(q));
+    const tot = rs.reduce((s, r) => s + r.valor, 0);
+    const rec = tipo === 'receber';
+    const bar = `<div class="cx-fbar">${buscaBox('cx', 'cxq', ui.cxq, rec ? 'Buscar cliente' : tipo === 'cpagar' ? 'Buscar fornecedor' : 'Buscar despesa')}
+      <div class="cx-ftot"><span>${rec ? 'Total que me devem' : 'Total que devo'}${q ? ' (busca)' : ''}</span><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="cxg" data-v="pessoa" aria-pressed="${ui.cxg !== 'lista'}">Por ${rec ? 'cliente' : tipo === 'cpagar' ? 'fornecedor' : 'despesa'}</button><button class="chip" data-act="filter" data-k="cxg" data-v="lista" aria-pressed="${ui.cxg === 'lista'}">Lista</button></div><b class="num">${money(tot)}</b></div></div>`;
+    if (!rs.length) return bar + `<div class="card list"><div class="empty">${q ? 'Nada encontrado para essa busca.' : vazio}</div></div>`;
+    if (ui.cxg === 'lista') return bar + `<div class="card list">${rs.map(r => r.li).join('')}</div>`;
+    const g = {}; rs.forEach(r => { (g[r.nome] = g[r.nome] || []).push(r); });
+    const nomes = Object.keys(g).sort((a, b) => g[b].reduce((s, r) => s + r.valor, 0) - g[a].reduce((s, r) => s + r.valor, 0));
+    return bar + nomes.map(n => {
+      const it = g[n], sub = it.reduce((s, r) => s + r.valor, 0), key = tipo + '|' + n, aberto = !!ui.cxo[key] || !!q;
+      return `<div class="card list cx-grp"><button class="cx-gh" data-act="cx-grp" data-v="${esc(key)}" aria-expanded="${aberto}"><span class="cx-gn"><b>${esc(n)}</b><small>${it.length} ${it.length === 1 ? 'lançamento' : 'lançamentos'}</small></span><b class="num cx-gv">${money(sub)}</b></button>${aberto ? it.map(r => r.li).join('') : ''}</div>`;
+    }).join('');
+  }
+/* lista "Compras a pagar" (mesmo card no Caixa e na tela Compras); fechaHTML = botão de fechar */
+function cxPagarHTML(pag, fechaHTML) {
+  return `<div class="sec-h"><h2>Compras a pagar · ${pag.length}</h2>${fechaHTML}</div>
+    ${cxContas('cpagar', pag.map(c => ({ nome: c.fornecedor || 'Roça', valor: cFalta(c), li: `<div class="li tc-li" data-act="cx-det" data-col="compras" data-id="${c.id}" tabindex="0"><span class="av out">${ic('cart')}</span><span style="min-width:0"><b>${esc(c.fornecedor || 'Roça')}</b><small>${fmtDT(c.ts)} · ${esc(c.obs || itemsText(c.itens))}</small></span><span class="cx-v"><span class="val">${money(cFalta(c))}</span><button class="link" data-act="compra-paga" data-id="${c.id}" ${W()}>marcar paga</button></span></div>` })), 'Nenhuma compra a pagar.')}`;
+}
 function gCaixa() {
   const per = ui.cp === 'custom' ? 'ccustom' : ui.cp;
   const moves = caixaMoves(per);
@@ -6024,23 +6048,6 @@ function gCaixa() {
       <div class="bar-l"><span>Em caixa agora</span><b class="num">${money(saldoGeral())}</b></div>
       <small class="muted">Só dinheiro que entrou ou saiu de verdade, na data do pagamento. Contas a pagar e a receber ficam de fora.</small></div>`;
 
-  /* A receber / Compras a pagar / Despesas a pagar: busca por nome, agrupado por pessoa (total de cada um) ou lista simples */
-  const cxContas = (tipo, rows, vazio) => {
-    const q = bnorm(ui.cxq.trim());
-    const rs = rows.filter(r => !q || bnorm(r.nome).includes(q));
-    const tot = rs.reduce((s, r) => s + r.valor, 0);
-    const rec = tipo === 'receber';
-    const bar = `<div class="cx-fbar">${buscaBox('cx', 'cxq', ui.cxq, rec ? 'Buscar cliente' : tipo === 'cpagar' ? 'Buscar fornecedor' : 'Buscar despesa')}
-      <div class="cx-ftot"><span>${rec ? 'Total que me devem' : 'Total que devo'}${q ? ' (busca)' : ''}</span><div class="cx-fseg sec-seg"><button class="chip" data-act="filter" data-k="cxg" data-v="pessoa" aria-pressed="${ui.cxg !== 'lista'}">Por ${rec ? 'cliente' : tipo === 'cpagar' ? 'fornecedor' : 'despesa'}</button><button class="chip" data-act="filter" data-k="cxg" data-v="lista" aria-pressed="${ui.cxg === 'lista'}">Lista</button></div><b class="num">${money(tot)}</b></div></div>`;
-    if (!rs.length) return bar + `<div class="card list"><div class="empty">${q ? 'Nada encontrado para essa busca.' : vazio}</div></div>`;
-    if (ui.cxg === 'lista') return bar + `<div class="card list">${rs.map(r => r.li).join('')}</div>`;
-    const g = {}; rs.forEach(r => { (g[r.nome] = g[r.nome] || []).push(r); });
-    const nomes = Object.keys(g).sort((a, b) => g[b].reduce((s, r) => s + r.valor, 0) - g[a].reduce((s, r) => s + r.valor, 0));
-    return bar + nomes.map(n => {
-      const it = g[n], sub = it.reduce((s, r) => s + r.valor, 0), key = tipo + '|' + n, aberto = !!ui.cxo[key] || !!q;
-      return `<div class="card list cx-grp"><button class="cx-gh" data-act="cx-grp" data-v="${esc(key)}" aria-expanded="${aberto}"><span class="cx-gn"><b>${esc(n)}</b><small>${it.length} ${it.length === 1 ? 'lançamento' : 'lançamentos'}</small></span><b class="num cx-gv">${money(sub)}</b></button>${aberto ? it.map(r => r.li).join('') : ''}</div>`;
-    }).join('');
-  };
   let corpo;
   if (ui.cxv === 'pagar') ui.cxv = 'cpagar';
   if (ui.cxv === 'receber') {
@@ -6066,8 +6073,7 @@ function gCaixa() {
     ${cbrBanner}
     ${cxContas('receber', rec.map(v => ({ nome: v.cliente?.nome || 'Cliente avulso', valor: vFalta(v), li: `<div class="li tc-li" data-act="cx-det" data-col="vendas" data-id="${v.id}" tabindex="0"><span class="av">${esc((v.cliente?.nome || 'A')[0])}</span><span style="min-width:0"><b>${esc(v.cliente?.nome || 'Cliente avulso')}</b><small>${dtCurta(v.ts)} · ${esc(FORMAS[v.forma] || v.forma || '')}${estTot(v) ? ' · com estorno' : ''}</small></span><span class="cx-v"><span class="val">${money(vFalta(v))}</span><div style="display:flex;align-items:center;gap:6px;margin-top:2px"><button type="button" class="cbr-row-btn" data-act="cobranca-ind" data-id="${v.id}" title="Cobrar no WhatsApp">${ic('chat')} cobrar</button><button class="link" data-act="pago" data-id="${v.id}" data-v="1" ${W()}>marcar recebido</button></div></span></div>` })), 'Nada a receber. Todas as vendas estão pagas.')}`;
   } else if (ui.cxv === 'cpagar') {
-    corpo = `<div class="sec-h"><h2>Compras a pagar · ${pag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
-    ${cxContas('cpagar', pag.map(c => ({ nome: c.fornecedor || 'Roça', valor: cFalta(c), li: `<div class="li tc-li" data-act="cx-det" data-col="compras" data-id="${c.id}" tabindex="0"><span class="av out">${ic('cart')}</span><span style="min-width:0"><b>${esc(c.fornecedor || 'Roça')}</b><small>${fmtDT(c.ts)} · ${esc(c.obs || itemsText(c.itens))}</small></span><span class="cx-v"><span class="val">${money(cFalta(c))}</span><button class="link" data-act="compra-paga" data-id="${c.id}" ${W()}>marcar paga</button></span></div>` })), 'Nenhuma compra a pagar.')}`;
+    corpo = cxPagarHTML(pag, `<button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button>`);
   } else if (ui.cxv === 'dpagar') {
     corpo = `<div class="sec-h"><h2>Despesas a pagar · ${dpag.length}</h2><button class="link" data-act="filter" data-k="cxv" data-v="mov">Ver movimentações</button></div>
     ${cxContas('dpagar', dpag.map(d => ({ nome: d.descricao || 'Despesa', valor: restante('despesas', d), li: `<div class="li tc-li" data-act="cx-det" data-col="despesas" data-id="${d.id}" tabindex="0"><span class="av out">${ic('cash')}</span><span style="min-width:0"><b>${esc(d.descricao || 'Despesa')}</b><small>${dtCurta(d.ts)} · ${esc(catNome(d.categoria) || 'Despesa')}</small></span><span class="cx-v"><span class="val">${money(restante('despesas', d))}</span><button class="link" data-act="despesa-paga" data-id="${d.id}" ${W()}>marcar paga</button></span></div>` })), 'Nenhuma despesa a pagar.')}`;
@@ -6086,15 +6092,20 @@ function gCaixa() {
     ${dias.map(d => { const sd = n2(d.e - d.s), fa = fim[d.k] ?? 0; return `<div class="cx-dia"><div class="cx-dh"><b>${diaLabel(d.ts)}</b><span class="cx-dt">${d.e ? `<span class="in">+ ${money(d.e)}</span>` : ''}${d.s ? `<span class="out">− ${money(d.s)}</span>` : ''}</span></div>
       <div class="card list">${d.ms.map(moveLi).join('')}<div class="cx-df"><span>${mq ? 'Saldo da busca' : filtrado ? 'Saldo do filtro' : 'Saldo do dia'}<b class="${sd < 0 ? 'neg' : ''}">${sinal(sd)}</b></span><span>Em caixa no fim do dia<b class="${fa < 0 ? 'neg' : ''}">${money(fa)}</b></span></div></div></div>`; }).join('') || `<div class="card"><div class="empty">${mq ? 'Nada encontrado para essa busca.' : filtrado ? 'Nenhuma movimentação com esse filtro.' : 'Nenhuma movimentação neste período.'}</div></div>`}`;
   }
-  if (ui.cxv === 'saldo') corpo = saldoDet + corpo;
+  const kOrdem = ['receber', 'cpagar', 'dpagar', 'vendas', 'compras', 'despesas', 'estornos'], kiDet = kOrdem.indexOf(ui.cxv);
+  const kLista = [kpi('receber', 'A receber', recT, rec.length, recT ? 'alert' : ''), kpi('cpagar', 'Compras a pagar', pagT, pag.length, ''), kpi('dpagar', 'Despesas a pagar', dpagT, dpag.length, ''), tipoKpi('vendas', 'Vendas'), tipoKpi('compras', 'Compras'), tipoKpi('despesas', 'Despesas'), tipoKpi('estornos', 'Estornos')];
+  if (kiDet >= 0) kLista[6] = kLista[6].replace('<button class="kpi', '<button style="grid-column:1/-1" class="kpi');
+  const kPos = kiDet >= 0 ? Math.min(kiDet - (kiDet % 2) + 1, 6) : -1; /* o detalhe abre logo abaixo da linha do card tocado */
+  const kItens = kLista.map((h, i) => h + (i === kPos ? `<div class="cx-det" style="grid-column:1/-1;min-width:0">${corpo}</div>` : '')).join('');
   return head + `
   <section class="hero cx-hero ${saldo >= 0 ? 'folha' : ''}" style="min-height:0;cursor:pointer" data-act="filter" data-k="cxv" data-v="${ui.cxv === 'saldo' ? 'mov' : 'saldo'}" role="button" tabindex="0" aria-pressed="${ui.cxv === 'saldo'}"><div class="hero-top"><span>${filtrado ? 'Saldo do filtro' : 'Saldo do período'}</span><span class="hero-badge">${cPerLabel()}</span></div>
     <div class="cx-saldo num">${money(saldo)}</div>
     <div class="cx-agora">Em caixa agora: <b class="num">${money(saldoGeral())}</b></div>
     <div class="hero-foot"><small>Entradas <b class="num">${money(ent)}</b></small><small>Saídas <b class="num">${money(sai)}</b></small></div>
     <div class="hero-foot"><small style="opacity:.75">${ui.cxv === 'saldo' ? 'Fechar detalhe' : 'Toque para ver o detalhe'}</small></div></section>
-  <div class="kpis cx-kpis">${kpi('receber', 'A receber', recT, rec.length, recT ? 'alert' : '')}${kpi('cpagar', 'Compras a pagar', pagT, pag.length, '')}${kpi('dpagar', 'Despesas a pagar', dpagT, dpag.length, '')}${tipoKpi('vendas', 'Vendas')}${tipoKpi('compras', 'Compras')}${tipoKpi('despesas', 'Despesas')}${tipoKpi('estornos', 'Estornos')}</div>
-  ${corpo}`;
+  ${ui.cxv === 'saldo' ? saldoDet : ''}
+  <div class="kpis cx-kpis" ${kiDet >= 0 ? 'style="grid-auto-flow:row dense"' : ''}>${kItens}</div>
+  ${kiDet >= 0 ? '' : corpo}`;
 }
 
 /* detalhe de um lançamento do caixa (venda, compra, despesa ou estorno) */
