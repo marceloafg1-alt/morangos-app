@@ -322,7 +322,7 @@ service cloud.firestore {
     // ===============================================================
 
     match /config/{configId} {
-      allow get, list: if isMaster();
+      allow get, list: if isAdmin();
       allow create, update: if isValidId(configId) && isMaster() && isValidConfig(request.resource.data);
       allow delete: if isValidId(configId) && isMaster();
     }
